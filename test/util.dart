@@ -1,0 +1,95 @@
+import 'dart:ffi';
+import 'dart:io';
+import 'dart:isolate';
+
+import 'package:logging/logging.dart';
+import 'package:sqlite3/open.dart' as sqlite_open;
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite_async/sqlite_async.dart';
+import 'package:test_api/src/backend/invoker.dart';
+
+DynamicLibrary _openOnLinux() {
+  return DynamicLibrary.open('libsqlite3.so.0');
+}
+
+class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
+  TestSqliteOpenFactory({required super.path, super.sqliteOptions});
+
+  @override
+  sqlite.Database open(SqliteOpenOptions options) {
+    sqlite_open.open
+        .overrideFor(sqlite_open.OperatingSystem.linux, _openOnLinux);
+    final db = super.open(options);
+
+    db.createFunction(
+      functionName: 'test_sleep',
+      argumentCount: const sqlite.AllowedArgumentCount(1),
+      function: (args) {
+        final millis = args[0] as int;
+        sleep(Duration(milliseconds: millis));
+        return millis;
+      },
+    );
+
+    db.createFunction(
+      functionName: 'test_connection_name',
+      argumentCount: const sqlite.AllowedArgumentCount(0),
+      function: (args) {
+        return Isolate.current.debugName;
+      },
+    );
+
+    return db;
+  }
+}
+
+SqliteOpenFactory testFactory({String? path}) {
+  return TestSqliteOpenFactory(path: path ?? dbPath());
+}
+
+Future<SqliteDatabase> setupDatabase({String? path}) async {
+  final db = SqliteDatabase.withFactory(openFactory: testFactory(path: path));
+  await db.initialize();
+  return db;
+}
+
+Future<sqlite.Database> setupSqlite({required SqliteDatabase db}) async {
+  await db.initialize();
+
+  final sqliteDb = await db.connectionFactory().openRawDatabase();
+  return sqliteDb;
+}
+
+Future<void> cleanDb({required String path}) async {
+  try {
+    await File(path).delete();
+  } on PathNotFoundException {
+    // Not an issue
+  }
+  try {
+    await File("$path-shm").delete();
+  } on PathNotFoundException {
+    // Not an issue
+  }
+  try {
+    await File("$path-wal").delete();
+  } on PathNotFoundException {
+    // Not an issue
+  }
+}
+
+String dbPath() {
+  final test = Invoker.current!.liveTest;
+  var testName = test.test.name;
+  var testShortName = testName.replaceAll(RegExp(r'\s'), '_').toLowerCase();
+  var dbName = "test-db/$testShortName.db";
+  Directory("test-db").createSync(recursive: false);
+  return dbName;
+}
+
+setupLogger() {
+  Logger.root.level = Level.ALL;
+  Logger.root.onRecord.listen((event) {
+    print(event);
+  });
+}
