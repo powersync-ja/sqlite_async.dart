@@ -2,23 +2,27 @@ import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:glob/glob.dart';
+import 'package:glob/list_local_fs.dart';
 import 'package:logging/logging.dart';
 import 'package:sqlite3/open.dart' as sqlite_open;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
-DynamicLibrary _openOnLinux() {
-  return DynamicLibrary.open('libsqlite3.so.0');
-}
-
 class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
-  TestSqliteOpenFactory({required super.path, super.sqliteOptions});
+  String sqlitePath;
+
+  TestSqliteOpenFactory(
+      {required super.path,
+      super.sqliteOptions,
+      this.sqlitePath = 'libsqlite3.so.0'});
 
   @override
   sqlite.Database open(SqliteOpenOptions options) {
-    sqlite_open.open
-        .overrideFor(sqlite_open.OperatingSystem.linux, _openOnLinux);
+    sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
+      return DynamicLibrary.open(sqlitePath);
+    });
     final db = super.open(options);
 
     db.createFunction(
@@ -78,10 +82,20 @@ Future<void> cleanDb({required String path}) async {
   }
 }
 
+List<String> findSqliteLibraries() {
+  var glob = Glob('sqlite-*/.libs/libsqlite3.so');
+  List<String> sqlites = [
+    'libsqlite3.so.0',
+    for (var sqlite in glob.listSync()) sqlite.path
+  ];
+  return sqlites;
+}
+
 String dbPath() {
   final test = Invoker.current!.liveTest;
   var testName = test.test.name;
-  var testShortName = testName.replaceAll(RegExp(r'\s'), '_').toLowerCase();
+  var testShortName =
+      testName.replaceAll(RegExp(r'[\s\./]'), '_').toLowerCase();
   var dbName = "test-db/$testShortName.db";
   Directory("test-db").createSync(recursive: false);
   return dbName;

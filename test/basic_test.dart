@@ -30,6 +30,7 @@ void main() {
     test('Basic Setup', () async {
       final db = await setupDatabase(path: path);
       await createTables(db);
+
       await db.execute(
           'INSERT INTO test_data(description) VALUES(?)', ['Test Data']);
       final result = await db.get('SELECT description FROM test_data');
