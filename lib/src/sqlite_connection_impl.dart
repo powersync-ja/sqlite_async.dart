@@ -1,9 +1,10 @@
 import 'dart:async';
+import 'dart:collection';
 import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite_async/src/port_channel.dart';
 
-import 'isolate_completer.dart';
 import 'mutex.dart';
 import 'sqlite_connection.dart';
 import 'sqlite_connection_factory.dart';
@@ -22,29 +23,31 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   @override
   final Stream<UpdateNotification>? updates;
-  late final Future<SendPort> sendPortFuture;
+  final PortClient _dbIsolate = PortClient();
   final String? debugName;
   final bool readOnly;
 
   SqliteConnectionImpl(this._factory,
       {this.updates, this.debugName, this.readOnly = false}) {
-    sendPortFuture = _open();
+    _open();
   }
 
-  Future<void> get ready {
-    return sendPortFuture;
+  Future<void> get ready async {
+    await _dbIsolate.ready;
   }
 
-  Future<SendPort> _open() async {
-    return await _connectionMutex.lock(() async {
-      final portResult = IsolateResult<SendPort>();
-      Isolate.spawn(
+  Future<void> _open() async {
+    await _connectionMutex.lock(() async {
+      var isolate = await Isolate.spawn(
           _sqliteConnectionIsolate,
-          _SqliteConnectionParams(_factory, portResult.completer,
+          _SqliteConnectionParams(_factory, _dbIsolate.server(),
               readOnly: readOnly),
-          debugName: debugName);
+          debugName: debugName,
+          paused: true);
+      _dbIsolate.tieToIsolate(isolate);
+      isolate.resume(isolate.pauseCapability!);
 
-      return await portResult.future;
+      await _dbIsolate.ready;
     });
   }
 
@@ -63,11 +66,11 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.
     return _connectionMutex.lock(() async {
-      final ctx = _TransactionContext(await sendPortFuture);
+      final ctx = _TransactionContext(_dbIsolate);
       try {
         return await callback(ctx);
       } finally {
-        ctx.close();
+        await ctx.close();
       }
     }, timeout: lockTimeout);
   }
@@ -86,11 +89,11 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
       }
       // DB lock so that only one write happens at a time
       return await _factory.mutex.lock(() async {
-        final ctx = _TransactionContext(await sendPortFuture);
+        final ctx = _TransactionContext(_dbIsolate);
         try {
           return await callback(ctx);
         } finally {
-          ctx.close();
+          await ctx.close();
         }
       }, timeout: innerTimeout).catchError((error, stackTrace) {
         if (error is TimeoutException) {
@@ -103,21 +106,19 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   }
 }
 
+int _nextCtxId = 1;
+
 class _TransactionContext implements SqliteWriteContext {
-  final SendPort _sendPort;
+  final PortClient _sendPort;
   bool _closed = false;
+  final int ctxId = _nextCtxId++;
 
   _TransactionContext(this._sendPort);
 
   @override
   Future<sqlite.ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    if (_closed) {
-      throw AssertionError('Transaction closed');
-    }
-    var result = IsolateResult<sqlite.ResultSet>();
-    _sendPort.send(['select', result.completer, sql, parameters, 'readwrite']);
-    return await result.future;
+    return getAll(sql, parameters);
   }
 
   @override
@@ -126,10 +127,11 @@ class _TransactionContext implements SqliteWriteContext {
     if (_closed) {
       throw AssertionError('Transaction closed');
     }
-    var result = IsolateResult<sqlite.ResultSet>();
-    _sendPort.send(['select', result.completer, sql, parameters, 'readonly']);
     try {
-      return await result.future;
+      var future = _sendPort.post<sqlite.ResultSet>(
+          _SqliteIsolateStatement(ctxId, sql, parameters, readOnly: false));
+
+      return await future;
     } on sqlite.SqliteException catch (e) {
       if (e.resultCode == 8) {
         // SQLITE_READONLY
@@ -138,17 +140,16 @@ class _TransactionContext implements SqliteWriteContext {
             'attempt to write in a read-only transaction',
             null,
             e.causingStatement);
+      } else {
+        rethrow;
       }
-      rethrow;
     }
   }
 
   @override
   Future<T> computeWithDatabase<T>(
       Future<T> Function(sqlite.Database db) compute) async {
-    var result = IsolateResult();
-    _sendPort.send(['tx', result.completer, compute]);
-    return await result.future;
+    return _sendPort.post<T>(_SqliteIsolateClosure(compute));
   }
 
   @override
@@ -188,51 +189,104 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
   final db = await params.factory.openRawDatabase(readOnly: params.readOnly);
   final port = params.factory.port;
 
+  final server = params.portServer;
   final commandPort = ReceivePort();
-  params.portCompleter.complete(commandPort.sendPort);
+
   Set<String> updatedTables = {};
+  int? txId = null;
+  Object? txError = null;
 
   db.updates.listen((event) {
     updatedTables.add(event.tableName);
   });
-
-  commandPort.listen((data) async {
-    if (data is List) {
-      String action = data[0];
-      PortCompleter completer = data[1];
-      if (action == 'select') {
-        await completer.handle(() async {
-          String query = data[2];
-          List<Object?> args = data[3];
-          final result = db.select(query, args);
-          if (updatedTables.isNotEmpty) {
-            port.send(['update', updatedTables]);
-            updatedTables = {};
-          }
-          return result;
-        }, ignoreStackTrace: true);
-      } else if (action == 'tx') {
-        await completer.handle(() async {
-          TxCallback cb = data[2];
-          try {
-            return await cb(db);
-          } finally {
-            if (updatedTables.isNotEmpty) {
-              port.send(['update', updatedTables]);
-              updatedTables = {};
-            }
-          }
-        });
+  server.init((data) async {
+    if (data is _SqliteIsolateClose) {
+      if (txId != null) {
+        try {
+          db.execute('ROLLBACK');
+        } catch (e) {
+          // Ignore
+        }
+        txId = null;
+        txError = null;
+        throw AssertionError(
+            'Transaction must be closed within the read or write lock');
+      }
+    } else if (data is _SqliteIsolateStatement) {
+      if (data.sql == 'BEGIN' || data.sql == 'BEGIN IMMEDIATE') {
+        if (txId != null) {
+          // This will error on db.select
+        }
+        txId = data.ctxId;
+      } else if (txId != null && txId != data.ctxId) {
+        // Locks should prevent this from happening
+        throw AssertionError('Mixed transactions: $txId and ${data.ctxId}');
+      } else if (data.sql == 'ROLLBACK') {
+        // This is the only valid way to clear an error
+        txError = null;
+        txId = null;
+      } else if (txError != null) {
+        // Any statement after the first error will also error, until the
+        // transaction is aborted.
+        throw txError!;
+      } else if (data.sql == 'COMMIT') {
+        txId = null;
+      }
+      try {
+        final result = db.select(data.sql, data.args);
+        if (updatedTables.isNotEmpty) {
+          port.send(['update', updatedTables]);
+          updatedTables = {};
+        }
+        return result;
+      } catch (err) {
+        if (txId != null) {
+          txError = err;
+        }
+        rethrow;
+      }
+    } else if (data is _SqliteIsolateClosure) {
+      try {
+        return await data.cb(db);
+      } finally {
+        if (updatedTables.isNotEmpty) {
+          port.send(['update', updatedTables]);
+          updatedTables = {};
+        }
       }
     }
   });
+
+  commandPort.listen((data) async {});
 }
 
 class _SqliteConnectionParams {
   SqliteConnectionFactory factory;
-  PortCompleter<SendPort> portCompleter;
+  PortServer portServer;
   bool readOnly;
 
-  _SqliteConnectionParams(this.factory, this.portCompleter,
+  _SqliteConnectionParams(this.factory, this.portServer,
       {required this.readOnly});
+}
+
+class _SqliteIsolateStatement {
+  final int ctxId;
+  final String sql;
+  final List<Object?> args;
+  final bool readOnly;
+
+  _SqliteIsolateStatement(this.ctxId, this.sql, this.args,
+      {this.readOnly = false});
+}
+
+class _SqliteIsolateClosure {
+  final TxCallback cb;
+
+  _SqliteIsolateClosure(this.cb);
+}
+
+class _SqliteIsolateClose {
+  final int ctxId;
+
+  const _SqliteIsolateClose(this.ctxId);
 }

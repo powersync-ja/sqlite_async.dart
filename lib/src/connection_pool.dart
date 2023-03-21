@@ -46,7 +46,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     bool haveLock = false;
     var completer = Completer<T>();
 
-    var futures = _readConnections.map((connection) async {
+    var futures = _readConnections.sublist(0).map((connection) async {
       try {
         return await connection.readLock((ctx) async {
           if (haveLock) {

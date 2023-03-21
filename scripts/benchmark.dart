@@ -35,6 +35,14 @@ List<SqliteBenchmark> benchmarks = [
       }
     });
   }, maxBatchSize: 1000),
+  SqliteBenchmark('Insert: writeTransaction no await',
+      (SqliteDatabase db, List<List<String>> parameters) async {
+    await db.writeTransaction((tx) async {
+      for (var params in parameters) {
+        tx.execute('INSERT INTO customers(name, email) VALUES(?, ?)', params);
+      }
+    });
+  }, maxBatchSize: 1000),
   SqliteBenchmark('Insert: computeWithDatabase',
       (SqliteDatabase db, List<List<String>> parameters) async {
     await db.computeWithDatabase((db) async {
@@ -98,6 +106,7 @@ void main() async {
   }
 
   final db = await setupDatabase(path: 'test-db/benchmark.db');
+  await db.execute('PRAGMA wal_autocheckpoint = 0');
   await createTables(db);
 
   benchmark(SqliteBenchmark benchmark) async {
@@ -115,13 +124,12 @@ void main() async {
     assert(rows1[0]['count'] == 0);
     final results = await asyncBenchmark(benchmark.name, () async {
       await benchmark.fn(db, limitedParameters);
+    }, teardown: () async {
       // This would make the benchmark fair, but only if each benchmark uses the
       // same batch size.
-      // await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
+      await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
     });
 
-    final row2 = await db.execute('SELECT count(*) as count FROM customers');
-    assert(row2[0]['count'] == 0);
     results.report(units: limitedParameters.length);
   }
 
