@@ -1,8 +1,6 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:glob/glob.dart';
-import 'package:glob/list_local_fs.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/database_utils.dart';
 import 'package:test/test.dart';

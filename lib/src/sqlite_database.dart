@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/src/sqlite_open_factory.dart';
 
 import 'connection_pool.dart';
@@ -104,18 +103,21 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
       if (message is List) {
         String type = message[0];
         if (type == 'update') {
-          sqlite.SqliteUpdate event = message[1];
+          Set<String> tables = message[1];
           if (updates == null) {
-            updates = UpdateNotification.single(event.tableName);
+            updates = UpdateNotification(tables);
+            // Use the mutex to only send updates after the current transaction.
+            // Do take care to avoid getting a lock for each individual update -
+            // that could add massive performance overhead.
+            mutex.lock(() async {
+              if (updates != null) {
+                _updatesController.add(updates!);
+                updates = null;
+              }
+            });
           } else {
-            updates!.tables.add(event.tableName);
+            updates!.tables.addAll(tables);
           }
-          mutex.lock(() async {
-            if (updates != null) {
-              _updatesController.add(updates!);
-              updates = null;
-            }
-          });
         } else if (type == 'init-db') {
           PortCompleter<void> completer = message[1];
           await completer.handle(() async {

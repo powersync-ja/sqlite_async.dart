@@ -78,7 +78,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     final stopWatch = lockTimeout == null ? null : (Stopwatch()..start());
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.
-    return _connectionMutex.lock(() async {
+    return await _connectionMutex.lock(() async {
       Duration? innerTimeout;
       if (lockTimeout != null && stopWatch != null) {
         innerTimeout = lockTimeout - stopWatch.elapsed;
@@ -186,9 +186,15 @@ class _TransactionContext implements SqliteWriteContext {
 
 void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
   final db = await params.factory.openRawDatabase(readOnly: params.readOnly);
+  final port = params.factory.port;
 
   final commandPort = ReceivePort();
   params.portCompleter.complete(commandPort.sendPort);
+  Set<String> updatedTables = {};
+
+  db.updates.listen((event) {
+    updatedTables.add(event.tableName);
+  });
 
   commandPort.listen((data) async {
     if (data is List) {
@@ -198,14 +204,24 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
         await completer.handle(() async {
           String query = data[2];
           List<Object?> args = data[3];
-          var results = db.select(query, args);
-          return results;
+          final result = db.select(query, args);
+          if (updatedTables.isNotEmpty) {
+            port.send(['update', updatedTables]);
+            updatedTables = {};
+          }
+          return result;
         }, ignoreStackTrace: true);
       } else if (action == 'tx') {
         await completer.handle(() async {
           TxCallback cb = data[2];
-          var result = await cb(db);
-          return result;
+          try {
+            return await cb(db);
+          } finally {
+            if (updatedTables.isNotEmpty) {
+              port.send(['update', updatedTables]);
+              updatedTables = {};
+            }
+          }
         });
       }
     }

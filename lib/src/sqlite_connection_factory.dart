@@ -55,9 +55,6 @@ class SqliteConnectionFactory {
     final db = await openFactory.open(
         SqliteOpenOptions(primaryConnection: primary, readOnly: readOnly));
 
-    db.updates.listen((event) {
-      port.send(['update', event]);
-    });
     return db;
   }
 }
