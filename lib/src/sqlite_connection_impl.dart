@@ -142,7 +142,7 @@ class _TransactionContext implements SqliteWriteContext {
   Future<sqlite.ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]) async {
     if (_closed) {
-      throw AssertionError('Transaction closed');
+      throw sqlite.SqliteException(0, 'Transaction closed', null, sql);
     }
     try {
       var future = _sendPort.post<sqlite.ResultSet>(
@@ -183,8 +183,9 @@ class _TransactionContext implements SqliteWriteContext {
     return rows.isEmpty ? null : rows[0];
   }
 
-  close() {
+  Future<void> close() async {
     _closed = true;
+    await _sendPort.post(_SqliteIsolateClose(ctxId));
   }
 
   @override
@@ -234,8 +235,8 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
         }
         txId = null;
         txError = null;
-        throw AssertionError(
-            'Transaction must be closed within the read or write lock');
+        throw sqlite.SqliteException(
+            0, 'Transaction must be closed within the read or write lock');
       }
     } else if (data is _SqliteIsolateStatement) {
       if (data.sql == 'BEGIN' || data.sql == 'BEGIN IMMEDIATE') {
@@ -254,7 +255,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
         // Any statement (including COMMIT) after the first error will also error, until the
         // transaction is aborted.
         throw txError!;
-      } else if (data.sql == 'COMMIT') {
+      } else if (data.sql == 'COMMIT' || data.sql == 'END TRANSACTION') {
         txId = null;
       }
       try {

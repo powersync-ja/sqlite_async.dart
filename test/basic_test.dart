@@ -191,6 +191,14 @@ void main() {
       // Check that we can open another transaction afterwards
       await db.writeTransaction((tx) async {});
     });
+
+    test('should error on dangling transactions', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+      await expectLater(() async {
+        await db.execute('BEGIN');
+      }, throwsA((e) => e is sqlite.SqliteException));
+    });
   });
 }
 
