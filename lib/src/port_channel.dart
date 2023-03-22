@@ -2,8 +2,6 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:isolate';
 
-import 'package:sqlite_async/src/isolate_completer.dart';
-
 class PortClient {
   late Future<SendPort> sendPort;
   ReceivePort receivePort = ReceivePort();

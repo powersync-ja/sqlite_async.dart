@@ -1,8 +1,9 @@
-import 'sqlite_connection.dart';
-import 'update_notification.dart';
-import 'database_utils.dart';
-import 'throttle.dart';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
+
+import 'database_utils.dart';
+import 'sqlite_connection.dart';
+import 'throttle.dart';
+import 'update_notification.dart';
 
 /// Mixin to provide default query functionality.
 ///

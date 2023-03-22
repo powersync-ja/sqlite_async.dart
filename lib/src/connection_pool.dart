@@ -1,8 +1,10 @@
 import 'dart:async';
+import 'dart:isolate';
 
+import 'mutex.dart';
 import 'sqlite_connection.dart';
-import 'sqlite_connection_factory.dart';
 import 'sqlite_connection_impl.dart';
+import 'sqlite_open_factory.dart';
 import 'sqlite_queries.dart';
 import 'update_notification.dart';
 
@@ -12,7 +14,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
-  final SqliteConnectionFactory _factory;
+  final SqliteOpenFactory _factory;
+  final SendPort _upstreamPort;
 
   @override
   final Stream<UpdateNotification>? updates;
@@ -20,6 +23,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   final int maxReaders;
 
   final String? debugName;
+
+  final Mutex mutex;
 
   /// Open a new connection pool.
   ///
@@ -35,8 +40,11 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       {this.updates,
       this.maxReaders = 5,
       SqliteConnection? writeConnection,
-      this.debugName})
-      : _writeConnection = writeConnection;
+      this.debugName,
+      required this.mutex,
+      required SendPort upstreamPort})
+      : _writeConnection = writeConnection,
+        _upstreamPort = upstreamPort;
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
@@ -92,8 +100,14 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout}) {
-    _writeConnection ??= _factory.openConnection(
-        debugName: debugName != null ? '$debugName-writer' : null);
+    _writeConnection ??= SqliteConnectionImpl(
+        upstreamPort: _upstreamPort,
+        primary: false,
+        updates: updates,
+        debugName: debugName != null ? '$debugName-writer' : null,
+        mutex: mutex,
+        readOnly: false,
+        openFactory: _factory);
     return _writeConnection!.writeLock(callback, lockTimeout: lockTimeout);
   }
 
@@ -106,10 +120,14 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       var name = debugName == null
           ? null
           : '$debugName-${_readConnections.length + 1}';
-      var connection = _factory.openConnection(
+      var connection = SqliteConnectionImpl(
+          upstreamPort: _upstreamPort,
+          primary: false,
           updates: updates,
           debugName: name,
-          readOnly: true) as SqliteConnectionImpl;
+          mutex: mutex,
+          readOnly: true,
+          openFactory: _factory);
       _readConnections.add(connection);
 
       // Edge case:

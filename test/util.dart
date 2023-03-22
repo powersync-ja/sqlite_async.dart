@@ -57,13 +57,6 @@ Future<SqliteDatabase> setupDatabase({String? path}) async {
   return db;
 }
 
-Future<sqlite.Database> setupSqlite({required SqliteDatabase db}) async {
-  await db.initialize();
-
-  final sqliteDb = await db.connectionFactory().openRawDatabase();
-  return sqliteDb;
-}
-
 Future<void> cleanDb({required String path}) async {
   try {
     await File(path).delete();

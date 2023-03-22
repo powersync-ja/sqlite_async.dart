@@ -19,6 +19,18 @@ class SqliteBenchmark {
 }
 
 List<SqliteBenchmark> benchmarks = [
+  SqliteBenchmark('Write lock',
+      (SqliteDatabase db, List<List<String>> parameters) async {
+    for (var params in parameters) {
+      await db.writeLock((tx) async {});
+    }
+  }, maxBatchSize: 5000),
+  SqliteBenchmark('Read lock',
+      (SqliteDatabase db, List<List<String>> parameters) async {
+    for (var params in parameters) {
+      await db.readLock((tx) async {});
+    }
+  }, maxBatchSize: 5000),
   SqliteBenchmark('Insert: Direct',
       (SqliteDatabase db, List<List<String>> parameters) async {
     for (var params in parameters) {

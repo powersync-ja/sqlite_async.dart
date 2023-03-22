@@ -1,14 +1,12 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:sqlite_async/src/sqlite_open_factory.dart';
-
 import 'connection_pool.dart';
 import 'isolate_completer.dart';
 import 'mutex.dart';
 import 'sqlite_connection.dart';
-import 'sqlite_connection_factory.dart';
 import 'sqlite_connection_impl.dart';
+import 'sqlite_open_factory.dart';
 import 'sqlite_options.dart';
 import 'sqlite_queries.dart';
 import 'update_notification.dart';
@@ -24,7 +22,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   final int maxReaders;
 
   /// Global lock to serialize write transactions.
-  final Mutex mutex = Mutex.shared();
+  final Mutex mutex = Mutex();
 
   /// Factory that opens a raw database connection in each isolate.
   ///
@@ -74,11 +72,13 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   SqliteDatabase.withFactory({required this.openFactory, this.maxReaders = 5}) {
     updates = _updatesController.stream;
     _internalConnection = _openPrimaryConnection(debugName: 'sqlite-writer');
-    _pool = SqliteConnectionPool(_factory(),
+    _pool = SqliteConnectionPool(openFactory,
+        upstreamPort: _eventsPort.sendPort,
         updates: updates,
         writeConnection: _internalConnection,
         debugName: 'sqlite',
-        maxReaders: maxReaders);
+        maxReaders: maxReaders,
+        mutex: mutex);
 
     _listenForEvents();
 
@@ -129,23 +129,13 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   }
 
   SqliteConnectionImpl _openPrimaryConnection({String? debugName}) {
-    return SqliteConnectionImpl(_factory(primary: true),
-        updates: updates, debugName: debugName);
-  }
-
-  /// Advanced: Get a connection factory.
-  ///
-  /// This factory can be passed to other isolates, to allow querying from
-  /// different isolates.
-  SqliteConnectionFactory connectionFactory() {
-    return _factory();
-  }
-
-  SqliteConnectionFactory _factory({bool primary = false}) {
-    return SqliteConnectionFactory(
-        port: _eventsPort.sendPort,
+    return SqliteConnectionImpl(
+        upstreamPort: _eventsPort.sendPort,
+        primary: true,
+        updates: updates,
+        debugName: debugName,
         mutex: mutex,
-        primary: primary,
+        readOnly: false,
         openFactory: openFactory);
   }
 
