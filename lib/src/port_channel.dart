@@ -59,7 +59,7 @@ class ParentPortClient implements PortClient {
     await sendPort;
   }
 
-  _cancelAll(Object error) {
+  void _cancelAll(Object error) {
     var handlers = this.handlers;
     this.handlers = {};
     for (var message in handlers.values) {
@@ -91,7 +91,7 @@ class ParentPortClient implements PortClient {
     return RequestPortServer(receivePort.sendPort);
   }
 
-  close() async {
+  void close() async {
     if (!closed) {
       closed = true;
 
@@ -182,11 +182,11 @@ class PortServer {
     return SerializedPortClient(sendPort);
   }
 
-  close() {
+  void close() {
     _receivePort.close();
   }
 
-  _init() {
+  void _init() {
     _receivePort.listen((request) async {
       if (request is _FireMessage) {
         handle(request.message);

@@ -101,4 +101,6 @@ abstract class SqliteConnection extends SqliteWriteContext {
   /// In most cases, [writeTransaction] should be used instead.
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout});
+
+  Future<void> close();
 }

@@ -39,6 +39,8 @@ class SimpleMutex implements Mutex {
 
   bool get locked => last != null;
 
+  SharedMutex? _shared;
+
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) async {
     if (Zone.current[this] != null) {
@@ -98,7 +100,13 @@ class SimpleMutex implements Mutex {
 
   @override
   Future<void> close() async {
+    _shared?.close();
     await lock(() async {});
+  }
+
+  SharedMutex get shared {
+    _shared ??= SharedMutex._withMutex(this);
+    return _shared!;
   }
 }
 
@@ -106,9 +114,14 @@ class SimpleMutex implements Mutex {
 class SharedMutex implements Mutex {
   late final SendPort _lockPort;
 
-  SharedMutex._() {
-    final ReceivePort receivePort = ReceivePort();
+  factory SharedMutex._() {
     final Mutex mutex = Mutex();
+    return SharedMutex._withMutex(mutex);
+  }
+
+  SharedMutex._withMutex(Mutex mutex) {
+    final ReceivePort receivePort = ReceivePort();
+
     receivePort.listen((dynamic arg) {
       if (arg is _AcquireMessage) {
         IsolateResult unlock = IsolateResult();
@@ -134,7 +147,7 @@ class SharedMutex implements Mutex {
 
   @override
   Future<void> close() async {
-    final r = IsolateResult<bool>();
+    final r = IsolateResult<void>();
     _lockPort.send(_CloseMessage(r.completer));
     await r.future;
   }

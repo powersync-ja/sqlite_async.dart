@@ -1,3 +1,5 @@
+import 'dart:isolate';
+
 import 'package:benchmarking/benchmarking.dart';
 import 'package:collection/collection.dart';
 
@@ -45,6 +47,20 @@ List<SqliteBenchmark> benchmarks = [
         await tx.execute(
             'INSERT INTO customers(name, email) VALUES(?, ?)', params);
       }
+    });
+  }, maxBatchSize: 1000),
+  SqliteBenchmark('Insert: writeTransaction in isolate',
+      (SqliteDatabase db, List<List<String>> parameters) async {
+    var factory = db.isolateConnectionFactory();
+    await Isolate.run(() async {
+      final db = factory.open();
+      await db.writeTransaction((tx) async {
+        for (var params in parameters) {
+          await tx.execute(
+              'INSERT INTO customers(name, email) VALUES(?, ?)', params);
+        }
+      });
+      await db.close();
     });
   }, maxBatchSize: 1000),
   SqliteBenchmark('Insert: writeTransaction no await',
@@ -148,4 +164,6 @@ void main() async {
   for (var entry in benchmarks) {
     await benchmark(entry);
   }
+
+  await db.close();
 }

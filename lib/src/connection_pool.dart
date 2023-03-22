@@ -26,6 +26,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final Mutex mutex;
 
+  bool closed = false;
+
   /// Open a new connection pool.
   ///
   /// The provided factory is used to open connections on demand. Connections
@@ -100,6 +102,9 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout}) {
+    if (closed) {
+      throw AssertionError('Closed');
+    }
     _writeConnection ??= SqliteConnectionImpl(
         upstreamPort: _upstreamPort,
         primary: false,
@@ -112,7 +117,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   }
 
   Future<void> _expandPool() async {
-    if (_readConnections.length >= maxReaders) {
+    if (closed || _readConnections.length >= maxReaders) {
       return;
     }
     bool hasCapacity = _readConnections.any((connection) => !connection.locked);
@@ -136,6 +141,15 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       // while this one is still opening. This is specifically triggered in tests.
       // To avoid that, we wait for the connection to be ready.
       await connection.ready;
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    closed = true;
+    await _writeConnection?.close();
+    for (var connection in _readConnections) {
+      await connection.close();
     }
   }
 }

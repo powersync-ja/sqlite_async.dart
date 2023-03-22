@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'connection_pool.dart';
 import 'database_utils.dart';
+import 'isolate_connection_factory.dart';
 import 'mutex.dart';
 import 'port_channel.dart';
 import 'sqlite_connection.dart';
@@ -22,7 +23,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   final int maxReaders;
 
   /// Global lock to serialize write transactions.
-  final Mutex mutex = Mutex();
+  final SimpleMutex mutex = SimpleMutex();
 
   /// Factory that opens a raw database connection in each isolate.
   ///
@@ -122,6 +123,13 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
     });
   }
 
+  IsolateConnectionFactory isolateConnectionFactory() {
+    return IsolateConnectionFactory(
+        openFactory: openFactory,
+        mutex: mutex.shared,
+        upstreamPort: _eventsPort.client());
+  }
+
   SqliteConnectionImpl _openPrimaryConnection({String? debugName}) {
     return SqliteConnectionImpl(
         upstreamPort: _eventsPort.client(),
@@ -131,6 +139,14 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
         mutex: mutex,
         readOnly: false,
         openFactory: openFactory);
+  }
+
+  @override
+  Future<void> close() async {
+    await _pool.close();
+    _updatesController.close();
+    _eventsPort.close();
+    await mutex.close();
   }
 
   /// Open a read-only transaction.

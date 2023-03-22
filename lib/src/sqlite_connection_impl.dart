@@ -22,7 +22,8 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   @override
   final Stream<UpdateNotification>? updates;
-  final ParentPortClient _dbIsolate = ParentPortClient();
+  final ParentPortClient _isolateClient = ParentPortClient();
+  late final Isolate _isolate;
   final String? debugName;
   final bool readOnly;
 
@@ -39,27 +40,35 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   }
 
   Future<void> get ready async {
-    await _dbIsolate.ready;
+    await _isolateClient.ready;
   }
 
   Future<void> _open(SqliteOpenFactory openFactory,
       {required bool primary,
       required SerializedPortClient upstreamPort}) async {
     await _connectionMutex.lock(() async {
-      var isolate = await Isolate.spawn(
+      _isolate = await Isolate.spawn(
           _sqliteConnectionIsolate,
           _SqliteConnectionParams(
               openFactory: openFactory,
               port: upstreamPort,
               primary: primary,
-              portServer: _dbIsolate.server(),
+              portServer: _isolateClient.server(),
               readOnly: readOnly),
           debugName: debugName,
           paused: true);
-      _dbIsolate.tieToIsolate(isolate);
-      isolate.resume(isolate.pauseCapability!);
+      _isolateClient.tieToIsolate(_isolate);
+      _isolate.resume(_isolate.pauseCapability!);
 
-      await _dbIsolate.ready;
+      await _isolateClient.ready;
+    });
+  }
+
+  @override
+  Future<void> close() async {
+    await _connectionMutex.lock(() async {
+      await _isolateClient.post(_SqliteIsolateConnectionClose());
+      _isolate.kill();
     });
   }
 
@@ -73,7 +82,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.
     return _connectionMutex.lock(() async {
-      final ctx = _TransactionContext(_dbIsolate);
+      final ctx = _TransactionContext(_isolateClient);
       try {
         return await callback(ctx);
       } finally {
@@ -96,7 +105,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
       }
       // DB lock so that only one write happens at a time
       return await _writeMutex.lock(() async {
-        final ctx = _TransactionContext(_dbIsolate);
+        final ctx = _TransactionContext(_isolateClient);
         try {
           return await callback(ctx);
         } finally {
@@ -269,6 +278,8 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
           updatedTables = {};
         }
       }
+    } else if (data is _SqliteIsolateConnectionClose) {
+      db.dispose();
     }
   });
 
@@ -311,4 +322,8 @@ class _SqliteIsolateClose {
   final int ctxId;
 
   const _SqliteIsolateClose(this.ctxId);
+}
+
+class _SqliteIsolateConnectionClose {
+  const _SqliteIsolateConnectionClose();
 }
