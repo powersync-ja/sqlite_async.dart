@@ -47,7 +47,7 @@ void main() {
           ]));
     });
 
-    // Manual test
+    // Manually verified
     test('Concurrency', () async {
       final db = SqliteDatabase.withFactory(
           openFactory: testFactory(path: path), maxReaders: 3);

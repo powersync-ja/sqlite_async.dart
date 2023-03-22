@@ -20,6 +20,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   final SimpleMutex _connectionMutex = SimpleMutex();
   final Mutex _writeMutex;
 
+  /// Must be a broadcast stream
   @override
   final Stream<UpdateNotification>? updates;
   final ParentPortClient _isolateClient = ParentPortClient();

@@ -10,6 +10,7 @@ import 'update_notification.dart';
 /// Classes using this need to implement [SqliteConnection.readLock]
 /// and [SqliteConnection.writeLock].
 mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
+  /// Broadcast stream that is notified of any table updates
   Stream<UpdateNotification>? get updates;
 
   @override

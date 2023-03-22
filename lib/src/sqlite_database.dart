@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:isolate';
 
 import 'connection_pool.dart';
 import 'database_utils.dart';
@@ -101,6 +102,8 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   void _listenForEvents() {
     UpdateNotification? updates;
 
+    Map<SendPort, StreamSubscription> subscriptions = {};
+
     _eventsPort = PortServer((message) async {
       if (message is UpdateNotification) {
         if (updates == null) {
@@ -119,6 +122,17 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
         }
       } else if (message is InitDb) {
         await _initialized;
+      } else if (message is SubscribeToUpdates) {
+        if (subscriptions.containsKey(message.port)) {
+          return;
+        }
+        final subscription = _updatesController.stream.listen((event) {
+          message.port.send(event);
+        });
+        subscriptions[message.port] = subscription;
+      } else if (message is UnsubscribeToUpdates) {
+        final subscription = subscriptions.remove(message.port);
+        subscription?.cancel();
       }
     });
   }

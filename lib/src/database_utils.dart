@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
@@ -109,4 +110,16 @@ Future<Set<String>> getSourceTables(SqliteReadContext ctx, String sql) async {
 
 class InitDb {
   const InitDb();
+}
+
+class SubscribeToUpdates {
+  final SendPort port;
+
+  SubscribeToUpdates(this.port);
+}
+
+class UnsubscribeToUpdates {
+  final SendPort port;
+
+  UnsubscribeToUpdates(this.port);
 }
