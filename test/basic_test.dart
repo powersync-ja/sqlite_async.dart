@@ -158,5 +158,43 @@ void main() {
       await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
       await db.execute('VACUUM');
     });
+
+    test('should allow ignoring errors', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+
+      ignore(db.execute(
+          'INSERT INTO test_data(description) VALUES(json(?))', ['test3']));
+    });
+
+    test('should properly report errors in transactions', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+
+      var tp = db.writeTransaction((tx) async {
+        tx.execute('INSERT INTO test_data(description) VALUES(?)', ['test1']);
+        tx.execute('INSERT INTO test_data(description) VALUES(?)', ['test2']);
+        ignore(tx.execute('INSERT INTO test_data(description) VALUES(json(?))',
+            ['test3'])); // Errors
+        // Will not be executed because of the above error
+        ignore(tx.execute(
+            'INSERT INTO test_data(description) VALUES(?) RETURNING *',
+            ['test4']));
+      });
+
+      // The error propagates up to the transaction
+      await expectLater(tp, throwsA((e) => e is sqlite.SqliteException));
+
+      expect(await db.get('SELECT count() count FROM test_data'),
+          equals({'count': 0}));
+
+      // Check that we can open another transaction afterwards
+      await db.writeTransaction((tx) async {});
+    });
   });
+}
+
+// For some reason, future.ignore() doesn't actually ignore errors in these tests.
+void ignore(Future future) {
+  future.then((_) {}, onError: (_) {});
 }

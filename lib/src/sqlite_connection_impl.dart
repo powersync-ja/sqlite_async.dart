@@ -68,7 +68,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   @override
   Future<void> close() async {
     await _connectionMutex.lock(() async {
-      await _isolateClient.post(_SqliteIsolateConnectionClose());
+      await _isolateClient.post(const _SqliteIsolateConnectionClose());
       _isolate.kill();
     });
   }
@@ -251,7 +251,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
         txError = null;
         txId = null;
       } else if (txError != null) {
-        // Any statement after the first error will also error, until the
+        // Any statement (including COMMIT) after the first error will also error, until the
         // transaction is aborted.
         throw txError!;
       } else if (data.sql == 'COMMIT') {
