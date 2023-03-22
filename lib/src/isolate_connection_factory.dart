@@ -6,7 +6,7 @@ import 'sqlite_open_factory.dart';
 
 class IsolateConnectionFactory {
   SqliteOpenFactory openFactory;
-  Mutex mutex;
+  SerializedMutex mutex;
   SerializedPortClient upstreamPort;
 
   IsolateConnectionFactory(
@@ -17,7 +17,7 @@ class IsolateConnectionFactory {
   SqliteConnection open({String? debugName, bool readOnly = false}) {
     return SqliteConnectionImpl(
         openFactory: openFactory,
-        mutex: mutex,
+        mutex: mutex.open(),
         upstreamPort: upstreamPort,
         readOnly: readOnly,
         debugName: debugName,

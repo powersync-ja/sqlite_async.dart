@@ -2,17 +2,12 @@
 //  https://github.com/tekartik/synchronized.dart
 //  (MIT)
 import 'dart:async';
-import 'dart:isolate';
 
-import './isolate_completer.dart';
+import 'port_channel.dart';
 
 abstract class Mutex {
   factory Mutex() {
     return SimpleMutex();
-  }
-
-  factory Mutex.shared() {
-    return SharedMutex._();
   }
 
   /// timeout is a timeout for acquiring the lock, not for the callback
@@ -20,8 +15,6 @@ abstract class Mutex {
 
   Future<void> close();
 }
-
-int mutexId = 0;
 
 /// Mutex maintains a queue of Future-returning functions that
 /// are executed sequentially.
@@ -39,7 +32,7 @@ class SimpleMutex implements Mutex {
 
   bool get locked => last != null;
 
-  SharedMutex? _shared;
+  SharedMutexServer? _shared;
 
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) async {
@@ -104,53 +97,26 @@ class SimpleMutex implements Mutex {
     await lock(() async {});
   }
 
-  SharedMutex get shared {
-    _shared ??= SharedMutex._withMutex(this);
-    return _shared!;
+  SerializedMutex get shared {
+    _shared ??= SharedMutexServer._withMutex(this);
+    return _shared!.serialized;
   }
 }
 
-/// Like Mutex, but can be coped across Isolates.
+class SerializedMutex {
+  final SerializedPortClient client;
+
+  const SerializedMutex(this.client);
+
+  SharedMutex open() {
+    return SharedMutex._(client.open());
+  }
+}
+
 class SharedMutex implements Mutex {
-  late final SendPort _lockPort;
+  final ChildPortClient client;
 
-  factory SharedMutex._() {
-    final Mutex mutex = Mutex();
-    return SharedMutex._withMutex(mutex);
-  }
-
-  SharedMutex._withMutex(Mutex mutex) {
-    final ReceivePort receivePort = ReceivePort();
-
-    receivePort.listen((dynamic arg) {
-      if (arg is _AcquireMessage) {
-        IsolateResult unlock = IsolateResult();
-        mutex.lock(() async {
-          arg.completer.complete(unlock.completer);
-          await unlock.future;
-          unlock.close();
-        });
-      } else if (arg is _CloseMessage) {
-        if (arg.isSameIsolate()) {
-          mutex.lock(() async {
-            receivePort.close();
-            arg.port.complete();
-          });
-        } else {
-          arg.port.completeError(AssertionError(
-              'A Mutex may only be closed from the Isolate that created it'));
-        }
-      }
-    });
-    _lockPort = receivePort.sendPort;
-  }
-
-  @override
-  Future<void> close() async {
-    final r = IsolateResult<void>();
-    _lockPort.send(_CloseMessage(r.completer));
-    await r.future;
-  }
+  SharedMutex._(this.client);
 
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) async {
@@ -158,29 +124,29 @@ class SharedMutex implements Mutex {
       throw AssertionError('Recursive lock is not allowed');
     }
     return runZoned(() async {
-      final releaseCompleter = await acquire(timeout: timeout);
+      await _acquire(timeout: timeout);
       try {
         final T result = await callback();
         return result;
       } finally {
-        releaseCompleter.complete(true);
+        _unlock();
       }
     }, zoneValues: {this: true});
   }
 
-  Future<PortCompleter> acquire({Duration? timeout}) async {
-    final r = IsolateResult<PortCompleter>();
-    _lockPort.send(_AcquireMessage(r.completer));
-    var lockFuture = r.future;
+  _unlock() {
+    client.fire(const _UnlockMessage());
+  }
+
+  Future<void> _acquire({Duration? timeout}) async {
+    final lockFuture = client.post(const _AcquireMessage());
     bool timedout = false;
 
-    var handledLockFuture = lockFuture.then((lock) {
-      lock.addExitHandler();
+    var handledLockFuture = lockFuture.then((_) {
       if (timedout) {
-        lock.complete();
+        _unlock();
         throw TimeoutException('Failed to acquire lock', timeout);
       }
-      return lock;
     });
 
     if (timeout != null) {
@@ -195,23 +161,59 @@ class SharedMutex implements Mutex {
     }
     return await handledLockFuture;
   }
+
+  @override
+  Future<void> close() async {
+    client.close();
+  }
 }
 
-class _CloseMessage {
-  final PortCompleter port;
-  late final int code;
+/// Like Mutex, but can be coped across Isolates.
+class SharedMutexServer {
+  Completer? unlock;
+  late final SerializedMutex serialized;
+  final Mutex mutex;
 
-  _CloseMessage(this.port) {
-    code = Isolate.current.hashCode;
+  late final PortServer server;
+
+  factory SharedMutexServer._() {
+    final Mutex mutex = Mutex();
+    return SharedMutexServer._withMutex(mutex);
   }
 
-  isSameIsolate() {
-    return Isolate.current.hashCode == code;
+  SharedMutexServer._withMutex(this.mutex) {
+    server = PortServer((Object? arg) async {
+      return await _handle(arg);
+    });
+    serialized = SerializedMutex(server.client());
+  }
+
+  Future<void> _handle(Object? arg) async {
+    if (arg is _AcquireMessage) {
+      var lock = Completer();
+      mutex.lock(() async {
+        assert(unlock == null);
+        unlock = Completer();
+        lock.complete();
+        await unlock!.future;
+        unlock = null;
+      });
+      await lock.future;
+    } else if (arg is _UnlockMessage) {
+      assert(unlock != null);
+      unlock!.complete();
+    }
+  }
+
+  void close() async {
+    server.close();
   }
 }
 
 class _AcquireMessage {
-  final PortCompleter completer;
+  const _AcquireMessage();
+}
 
-  _AcquireMessage(this.completer);
+class _UnlockMessage {
+  const _UnlockMessage();
 }

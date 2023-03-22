@@ -149,6 +149,19 @@ class ChildPortClient implements PortClient {
   void fire(Object message) {
     sendPort.send(_FireMessage(message));
   }
+
+  void _cancelAll(Object error) {
+    var handlers = this.handlers;
+    this.handlers.clear();
+    for (var message in handlers.values) {
+      message.completeError(error);
+    }
+  }
+
+  void close() {
+    _cancelAll(const ClosedException());
+    receivePort.close();
+  }
 }
 
 class RequestPortServer {
@@ -178,7 +191,7 @@ class PortServer {
     return _receivePort.sendPort;
   }
 
-  client() {
+  SerializedPortClient client() {
     return SerializedPortClient(sendPort);
   }
 
