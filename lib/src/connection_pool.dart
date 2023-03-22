@@ -1,7 +1,7 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'mutex.dart';
+import 'port_channel.dart';
 import 'sqlite_connection.dart';
 import 'sqlite_connection_impl.dart';
 import 'sqlite_open_factory.dart';
@@ -15,7 +15,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   final List<SqliteConnectionImpl> _readConnections = [];
 
   final SqliteOpenFactory _factory;
-  final SendPort _upstreamPort;
+  final SerializedPortClient _upstreamPort;
 
   @override
   final Stream<UpdateNotification>? updates;
@@ -42,7 +42,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       SqliteConnection? writeConnection,
       this.debugName,
       required this.mutex,
-      required SendPort upstreamPort})
+      required SerializedPortClient upstreamPort})
       : _writeConnection = writeConnection,
         _upstreamPort = upstreamPort;
 

@@ -3,7 +3,7 @@ import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'isolate_completer.dart';
+import 'database_utils.dart';
 import 'mutex.dart';
 import 'port_channel.dart';
 import 'sqlite_connection.dart';
@@ -22,14 +22,14 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   @override
   final Stream<UpdateNotification>? updates;
-  final PortClient _dbIsolate = PortClient();
+  final ParentPortClient _dbIsolate = ParentPortClient();
   final String? debugName;
   final bool readOnly;
 
   SqliteConnectionImpl(
       {required SqliteOpenFactory openFactory,
       required Mutex mutex,
-      required SendPort upstreamPort,
+      required SerializedPortClient upstreamPort,
       this.updates,
       this.debugName,
       this.readOnly = false,
@@ -43,7 +43,8 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   }
 
   Future<void> _open(SqliteOpenFactory openFactory,
-      {required bool primary, required SendPort upstreamPort}) async {
+      {required bool primary,
+      required SerializedPortClient upstreamPort}) async {
     await _connectionMutex.lock(() async {
       var isolate = await Isolate.spawn(
           _sqliteConnectionIsolate,
@@ -64,11 +65,6 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   bool get locked {
     return _connectionMutex.locked;
-  }
-
-  /// For internal use only
-  Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) async {
-    return _connectionMutex.lock(callback, timeout: timeout);
   }
 
   @override
@@ -197,14 +193,13 @@ class _TransactionContext implements SqliteWriteContext {
 }
 
 void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
-  final port = params.port;
+  final client = params.port.open();
+
   if (!params.primary) {
     // Wait until the primary connection has been initialized.
     // The primary connection is responsible for configuring journal mode,
     // running migrations, and other setup.
-    var initialized = IsolateResult<void>();
-    port.send(['init-db', initialized.completer]);
-    await initialized.future;
+    await client.post(const InitDb());
   }
   final db = await params.openFactory.open(SqliteOpenOptions(
       primaryConnection: params.primary, readOnly: params.readOnly));
@@ -219,7 +214,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
   db.updates.listen((event) {
     updatedTables.add(event.tableName);
   });
-  server.init((data) async {
+  server.open((data) async {
     if (data is _SqliteIsolateClose) {
       if (txId != null) {
         try {
@@ -255,7 +250,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
       try {
         final result = db.select(data.sql, data.args);
         if (updatedTables.isNotEmpty) {
-          port.send(['update', updatedTables]);
+          client.fire(UpdateNotification(updatedTables));
           updatedTables = {};
         }
         return result;
@@ -270,7 +265,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
         return await data.cb(db);
       } finally {
         if (updatedTables.isNotEmpty) {
-          port.send(['update', updatedTables]);
+          client.fire(UpdateNotification(updatedTables));
           updatedTables = {};
         }
       }
@@ -281,10 +276,10 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
 }
 
 class _SqliteConnectionParams {
-  final PortServer portServer;
+  final RequestPortServer portServer;
   final bool readOnly;
 
-  final SendPort port;
+  final SerializedPortClient port;
   final bool primary;
   final SqliteOpenFactory openFactory;
 

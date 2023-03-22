@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'connection_pool.dart';
-import 'isolate_completer.dart';
+import 'database_utils.dart';
 import 'mutex.dart';
+import 'port_channel.dart';
 import 'sqlite_connection.dart';
 import 'sqlite_connection_impl.dart';
 import 'sqlite_open_factory.dart';
@@ -38,7 +38,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   final StreamController<UpdateNotification> _updatesController =
       StreamController.broadcast();
 
-  final ReceivePort _eventsPort = ReceivePort();
+  late final PortServer _eventsPort;
 
   late final SqliteConnectionImpl _internalConnection;
   late final SqliteConnectionPool _pool;
@@ -71,16 +71,17 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// Use when control is required over the opening process.
   SqliteDatabase.withFactory({required this.openFactory, this.maxReaders = 5}) {
     updates = _updatesController.stream;
+
+    _listenForEvents();
+
     _internalConnection = _openPrimaryConnection(debugName: 'sqlite-writer');
     _pool = SqliteConnectionPool(openFactory,
-        upstreamPort: _eventsPort.sendPort,
+        upstreamPort: _eventsPort.client(),
         updates: updates,
         writeConnection: _internalConnection,
         debugName: 'sqlite',
         maxReaders: maxReaders,
         mutex: mutex);
-
-    _listenForEvents();
 
     _initialized = _init();
   }
@@ -99,38 +100,31 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   void _listenForEvents() {
     UpdateNotification? updates;
 
-    _eventsPort.listen((message) async {
-      if (message is List) {
-        String type = message[0];
-        if (type == 'update') {
-          Set<String> tables = message[1];
-          if (updates == null) {
-            updates = UpdateNotification(tables);
-            // Use the mutex to only send updates after the current transaction.
-            // Do take care to avoid getting a lock for each individual update -
-            // that could add massive performance overhead.
-            mutex.lock(() async {
-              if (updates != null) {
-                _updatesController.add(updates!);
-                updates = null;
-              }
-            });
-          } else {
-            updates!.tables.addAll(tables);
-          }
-        } else if (type == 'init-db') {
-          PortCompleter<void> completer = message[1];
-          await completer.handle(() async {
-            await _initialized;
+    _eventsPort = PortServer((message) async {
+      if (message is UpdateNotification) {
+        if (updates == null) {
+          updates = message;
+          // Use the mutex to only send updates after the current transaction.
+          // Do take care to avoid getting a lock for each individual update -
+          // that could add massive performance overhead.
+          mutex.lock(() async {
+            if (updates != null) {
+              _updatesController.add(updates!);
+              updates = null;
+            }
           });
+        } else {
+          updates!.tables.addAll(message.tables);
         }
+      } else if (message is InitDb) {
+        await _initialized;
       }
     });
   }
 
   SqliteConnectionImpl _openPrimaryConnection({String? debugName}) {
     return SqliteConnectionImpl(
-        upstreamPort: _eventsPort.sendPort,
+        upstreamPort: _eventsPort.client(),
         primary: true,
         updates: updates,
         debugName: debugName,

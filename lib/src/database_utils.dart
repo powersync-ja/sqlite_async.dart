@@ -106,3 +106,7 @@ Future<Set<String>> getSourceTables(SqliteReadContext ctx, String sql) async {
   Set<String> tables = {for (var row in tableRows) row['tbl_name']};
   return tables;
 }
+
+class InitDb {
+  const InitDb();
+}

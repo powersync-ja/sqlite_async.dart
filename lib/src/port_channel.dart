@@ -2,7 +2,20 @@ import 'dart:async';
 import 'dart:collection';
 import 'dart:isolate';
 
-class PortClient {
+abstract class PortClient {
+  Future<T> post<T>(Object message);
+  void fire(Object message);
+
+  factory PortClient.parent() {
+    return ParentPortClient();
+  }
+
+  factory PortClient.child(SendPort upstream) {
+    return ChildPortClient(upstream);
+  }
+}
+
+class ParentPortClient implements PortClient {
   late Future<SendPort> sendPort;
   ReceivePort receivePort = ReceivePort();
   bool closed = false;
@@ -10,7 +23,7 @@ class PortClient {
 
   Map<int, Completer<Object?>> handlers = HashMap();
 
-  PortClient() {
+  ParentPortClient() {
     final initCompleter = Completer<SendPort>();
     sendPort = initCompleter.future;
     receivePort.listen((message) {
@@ -54,6 +67,7 @@ class PortClient {
     }
   }
 
+  @override
   Future<T> post<T>(Object message) async {
     if (closed) {
       throw ClosedException();
@@ -61,12 +75,20 @@ class PortClient {
     var completer = Completer<T>();
     var id = _nextId++;
     handlers[id] = completer;
-    (await sendPort).send(_RequestMessage(id, message));
+    (await sendPort).send(_RequestMessage(id, message, receivePort.sendPort));
     return await completer.future;
   }
 
-  PortServer server() {
-    return PortServer(receivePort.sendPort);
+  @override
+  void fire(Object message) async {
+    if (closed) {
+      throw ClosedException();
+    }
+    (await sendPort).send(_FireMessage(message));
+  }
+
+  RequestPortServer server() {
+    return RequestPortServer(receivePort.sendPort);
   }
 
   close() async {
@@ -83,24 +105,104 @@ class PortClient {
   }
 }
 
+class SerializedPortClient {
+  final SendPort sendPort;
+
+  SerializedPortClient(this.sendPort);
+
+  ChildPortClient open() {
+    return ChildPortClient(sendPort);
+  }
+}
+
+class ChildPortClient implements PortClient {
+  final SendPort sendPort;
+  final ReceivePort receivePort = ReceivePort();
+  int _nextId = 1;
+
+  final Map<int, Completer<Object?>> handlers = HashMap();
+
+  ChildPortClient(this.sendPort) {
+    receivePort.listen((message) {
+      if (message is _PortChannelResult) {
+        final handler = handlers.remove(message.requestId);
+        assert(handler != null);
+        if (message.success) {
+          handler!.complete(message.result);
+        } else {
+          handler!.completeError(message.error, message.stackTrace);
+        }
+      }
+    });
+  }
+
+  @override
+  Future<T> post<T>(Object message) async {
+    var completer = Completer<T>();
+    var id = _nextId++;
+    handlers[id] = completer;
+    sendPort.send(_RequestMessage(id, message, receivePort.sendPort));
+    return await completer.future;
+  }
+
+  @override
+  void fire(Object message) {
+    sendPort.send(_FireMessage(message));
+  }
+}
+
+class RequestPortServer {
+  final SendPort port;
+
+  RequestPortServer(this.port);
+
+  open(Future<Object?> Function(Object? message) handle) {
+    return PortServer.forSendPort(port, handle);
+  }
+}
+
 class PortServer {
-  SendPort port;
-  late ReceivePort receivePort;
-  late Future<Object?> Function(Object? message) handle;
+  final ReceivePort _receivePort = ReceivePort();
+  final Future<Object?> Function(Object? message) handle;
 
-  PortServer(this.port);
+  PortServer(this.handle) {
+    _init();
+  }
 
-  void init(Future<Object?> Function(Object? message) handle) {
-    this.handle = handle;
-    receivePort = ReceivePort();
-    port.send(_InitMessage(receivePort.sendPort));
-    receivePort.listen((message) async {
-      final request = message as _RequestMessage;
-      try {
-        var result = await handle(request.message);
-        port.send(_PortChannelResult.success(request.id, result));
-      } catch (e, stacktrace) {
-        port.send(_PortChannelResult.error(request.id, e, stacktrace));
+  PortServer.forSendPort(SendPort port, this.handle) {
+    port.send(_InitMessage(_receivePort.sendPort));
+    _init();
+  }
+
+  SendPort get sendPort {
+    return _receivePort.sendPort;
+  }
+
+  client() {
+    return SerializedPortClient(sendPort);
+  }
+
+  close() {
+    _receivePort.close();
+  }
+
+  _init() {
+    _receivePort.listen((request) async {
+      if (request is _FireMessage) {
+        handle(request.message);
+      } else if (request is _RequestMessage) {
+        if (request.id == 0) {
+          // Fire and forget
+          handle(request.message);
+        } else {
+          try {
+            var result = await handle(request.message);
+            request.reply.send(_PortChannelResult.success(request.id, result));
+          } catch (e, stacktrace) {
+            request.reply
+                .send(_PortChannelResult.error(request.id, e, stacktrace));
+          }
+        }
       }
     });
   }
@@ -114,11 +216,18 @@ class _InitMessage {
   _InitMessage(this.port);
 }
 
+class _FireMessage {
+  final Object message;
+
+  const _FireMessage(this.message);
+}
+
 class _RequestMessage {
   final int id;
   final Object message;
+  final SendPort reply;
 
-  _RequestMessage(this.id, this.message);
+  _RequestMessage(this.id, this.message, this.reply);
 }
 
 class ClosedException implements Exception {
