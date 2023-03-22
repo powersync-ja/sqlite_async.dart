@@ -190,10 +190,10 @@ class SharedMutexServer {
 
   Future<void> _handle(Object? arg) async {
     if (arg is _AcquireMessage) {
-      var lock = Completer();
+      var lock = Completer.sync();
       mutex.lock(() async {
         assert(unlock == null);
-        unlock = Completer();
+        unlock = Completer.sync();
         lock.complete();
         await unlock!.future;
         unlock = null;
