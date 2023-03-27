@@ -4,28 +4,20 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import 'sqlite_options.dart';
 
-class SqliteOpenOptions {
-  final bool primaryConnection;
-  final bool readOnly;
-
-  const SqliteOpenOptions(
-      {required this.primaryConnection, required this.readOnly});
-
-  sqlite.OpenMode get openMode {
-    if (primaryConnection) {
-      return sqlite.OpenMode.readWriteCreate;
-    } else if (readOnly) {
-      return sqlite.OpenMode.readOnly;
-    } else {
-      return sqlite.OpenMode.readWrite;
-    }
-  }
-}
-
+/// Factory to create new SQLite database connections.
+///
+/// Since connections are opened in dedicated background isolates, this class
+/// must be safe to pass to different isolates.
 abstract class SqliteOpenFactory {
   FutureOr<sqlite.Database> open(SqliteOpenOptions options);
 }
 
+/// The default database factory.
+///
+/// This takes care of opening the database, and running PRAGMA statements
+/// to configure the connection.
+///
+/// Override the [open] method to customize the process.
 class DefaultSqliteOpenFactory implements SqliteOpenFactory {
   final String path;
   final SqliteOptions sqliteOptions;
@@ -63,5 +55,26 @@ class DefaultSqliteOpenFactory implements SqliteOpenFactory {
       db.execute(statement);
     }
     return db;
+  }
+}
+
+class SqliteOpenOptions {
+  /// Whether this is the primary write connection for the database.
+  final bool primaryConnection;
+
+  /// Whether this connection is read-only.
+  final bool readOnly;
+
+  const SqliteOpenOptions(
+      {required this.primaryConnection, required this.readOnly});
+
+  sqlite.OpenMode get openMode {
+    if (primaryConnection) {
+      return sqlite.OpenMode.readWriteCreate;
+    } else if (readOnly) {
+      return sqlite.OpenMode.readOnly;
+    } else {
+      return sqlite.OpenMode.readWrite;
+    }
   }
 }

@@ -9,6 +9,7 @@ import 'sqlite_connection_impl.dart';
 import 'sqlite_open_factory.dart';
 import 'update_notification.dart';
 
+/// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory {
   SqliteOpenFactory openFactory;
   SerializedMutex mutex;
@@ -19,6 +20,9 @@ class IsolateConnectionFactory {
       required this.mutex,
       required this.upstreamPort});
 
+  /// Open a new SqliteConnection.
+  ///
+  /// This opens a single connection in a background execution isolate.
   SqliteConnection open({String? debugName, bool readOnly = false}) {
     final updates = _IsolateUpdateListener(upstreamPort);
 

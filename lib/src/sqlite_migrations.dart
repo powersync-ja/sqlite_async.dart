@@ -5,9 +5,22 @@ import 'package:sqlite3/sqlite3.dart';
 
 import 'sqlite_connection.dart';
 
+/// Migrations to initialize and update a database.
 class SqliteMigrations {
+  /// Name of table used to store migrations.
+  ///
+  /// Defaults to "_migrations".
   String migrationTable;
+
+  /// List of migrations to execute, in order. Use [add] to add new migrations.
   List<SqliteMigration> migrations = [];
+
+  /// Optional: Migration to create database from scratch.
+  ///
+  /// Use this to speed up initialization for a fresh database.
+  ///
+  /// This must be supplied _in addition to_ migrations for the same version,
+  /// and should produce the same state for the database.
   SqliteMigration? createDatabase;
 
   SqliteMigrations({this.migrationTable = "_migrations"});
@@ -34,10 +47,12 @@ class SqliteMigrations {
     migrations.add(migration);
   }
 
+  /// The current version as specified by the migrations.
   get version {
     return migrations.isEmpty ? 0 : migrations.last.toVersion;
   }
 
+  /// Get the last applied migration version in the database.
   Future<int> getCurrentVersion(SqliteWriteContext db) async {
     try {
       final currentVersionRow = await db.getOptional(
@@ -69,6 +84,9 @@ class SqliteMigrations {
     }
   }
 
+  /// Initialize or update the database.
+  ///
+  /// Throws MigrationError if the database cannot be migrated.
   Future<void> migrate(SqliteConnection db) async {
     _validateCreateDatabase();
 
@@ -167,12 +185,22 @@ class MigrationError extends Error {
 typedef SqliteMigrationFunction = FutureOr<void> Function(
     SqliteWriteContext tx);
 
+/// A migration for a single database version.
 class SqliteMigration {
+  /// Function to execute for the migration.
   final SqliteMigrationFunction fn;
+
+  /// Database version that this migration upgrades to.
   final int toVersion;
 
   /// Optional: Add a down migration to allow this migration to be reverted
   /// if the user installs an older version.
+  ///
+  /// If the user will never downgrade the application/database version, this is
+  /// not required.
+  ///
+  /// Limited downgrade support can be added by only providing downMigrations
+  /// for the last migration(s).
   SqliteDownMigration? downMigration;
 
   SqliteMigration(this.toVersion, this.fn, {this.downMigration});
@@ -189,12 +217,18 @@ class _SqliteMigrationStatement {
   }
 }
 
+/// Set of down migration statements, persisted in the database.
+///
+/// Since this will execute in an older application version, only static
+/// SQL statements are supported.
 class SqliteDownMigration {
+  /// The database version after this downgrade.
   final int toVersion;
   final List<_SqliteMigrationStatement> _statements = [];
 
   SqliteDownMigration({required this.toVersion});
 
+  /// Add an statement to execute to downgrade the database version.
   add(String sql, [List<Object?>? params]) {
     _statements.add(_SqliteMigrationStatement(sql, params ?? []));
   }

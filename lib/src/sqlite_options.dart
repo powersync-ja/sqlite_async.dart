@@ -1,12 +1,12 @@
 class SqliteOptions {
-  /// SQLite journal mode. Defaults to [SqliteJOurnalMode.wal].
+  /// SQLite journal mode. Defaults to [SqliteJournalMode.wal].
   final SqliteJournalMode? journalMode;
 
-  /// SQLite synchronous flag. Defaults to [SqliteSynchronous.NORMAL], which
-  /// is safe for WAL journal mode.
+  /// SQLite synchronous flag. Defaults to [SqliteSynchronous.normal], which
+  /// is safe for WAL mode.
   final SqliteSynchronous? synchronous;
 
-  /// Journal/WAL size limit. Defaults to 2MB.
+  /// Journal/WAL size limit. Defaults to 6MB.
   /// The WAL may grow large than this limit during writes, but SQLite will
   /// attempt to truncate the file afterwards.
   final int? journalSizeLimit;
@@ -17,7 +17,9 @@ class SqliteOptions {
         synchronous = SqliteSynchronous.normal;
 
   const SqliteOptions(
-      {this.journalMode, this.journalSizeLimit, this.synchronous});
+      {this.journalMode = SqliteJournalMode.wal,
+      this.journalSizeLimit = 6 * 1024 * 1024,
+      this.synchronous = SqliteSynchronous.normal});
 }
 
 /// SQLite journal mode. Set on the primary connection.

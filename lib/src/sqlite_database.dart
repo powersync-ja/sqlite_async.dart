@@ -13,12 +13,10 @@ import 'sqlite_options.dart';
 import 'sqlite_queries.dart';
 import 'update_notification.dart';
 
-/// A managed database.
+/// A SQLite database instance.
 ///
-/// Use one instance per database file.
-///
-/// Use [SqliteDatabase.connect] to connect to the PowerSync service,
-/// to keep the local database in sync with the remote database.
+/// Use one instance per database file. If multiple instances are used, update
+/// notifications may not trigger, and calls may fail with "SQLITE_BUSY" errors.
 class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// Maximum number of concurrent read transactions.
   final int maxReaders;
@@ -56,22 +54,25 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// from the last committed write transaction.
   ///
   /// A maximum of [maxReaders] concurrent read transactions are allowed.
-  ///
-  /// Advanced: Use [sqliteSetup] to execute custom initialization logic in
-  /// each database isolate.
   factory SqliteDatabase(
       {required path,
       maxReaders = 5,
       options = const SqliteOptions.defaults()}) {
     final factory =
         DefaultSqliteOpenFactory(path: path, sqliteOptions: options);
-    return SqliteDatabase.withFactory(openFactory: factory);
+    return SqliteDatabase.withFactory(factory);
   }
 
   /// Advanced: Open a database with a specified factory.
   ///
-  /// Use when control is required over the opening process.
-  SqliteDatabase.withFactory({required this.openFactory, this.maxReaders = 5}) {
+  /// The factory is used to open each database connection in background isolates.
+  ///
+  /// Use when control is required over the opening process. Examples include:
+  ///  1. Specifying the path to `libsqlite.so` on Linux.
+  ///  2. Running additional per-connection PRAGMA statements on each connection.
+  ///  3. Creating custom SQLite functions.
+  ///  4. Creating temporary views or triggers.
+  SqliteDatabase.withFactory(this.openFactory, {this.maxReaders = 5}) {
     updates = _updatesController.stream;
 
     _listenForEvents();
@@ -137,6 +138,9 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
     });
   }
 
+  /// A connection factory that can be passed to different isolates.
+  ///
+  /// Use this to access the database in background isolates.s
   IsolateConnectionFactory isolateConnectionFactory() {
     return IsolateConnectionFactory(
         openFactory: openFactory,

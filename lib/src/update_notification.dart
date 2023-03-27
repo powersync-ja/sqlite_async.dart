@@ -1,6 +1,6 @@
 import 'package:collection/collection.dart';
 
-/// Represents an update to one or more tables, for the purpose of realtime change
+/// Notification of an update to one or more tables, for the purpose of realtime change
 /// notifications.
 class UpdateNotification {
   /// Table name

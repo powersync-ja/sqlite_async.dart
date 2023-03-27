@@ -49,8 +49,8 @@ void main() {
 
     // Manually verified
     test('Concurrency', () async {
-      final db = SqliteDatabase.withFactory(
-          openFactory: testFactory(path: path), maxReaders: 3);
+      final db =
+          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
       await db.initialize();
       await createTables(db);
 

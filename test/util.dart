@@ -55,7 +55,7 @@ SqliteOpenFactory testFactory({String? path}) {
 }
 
 Future<SqliteDatabase> setupDatabase({String? path}) async {
-  final db = SqliteDatabase.withFactory(openFactory: testFactory(path: path));
+  final db = SqliteDatabase.withFactory(testFactory(path: path));
   await db.initialize();
   return db;
 }
