@@ -1,4 +1,6 @@
+import 'dart:convert';
 import 'dart:isolate';
+import 'dart:math';
 
 import 'package:benchmarking/benchmarking.dart';
 import 'package:collection/collection.dart';
@@ -21,6 +23,29 @@ class SqliteBenchmark {
 }
 
 List<SqliteBenchmark> benchmarks = [
+  SqliteBenchmark('Insert: JSON1',
+      (SqliteDatabase db, List<List<String>> parameters) async {
+    await db.writeTransaction((tx) async {
+      for (var i = 0; i < parameters.length; i += 5000) {
+        var sublist = parameters.sublist(i, min(parameters.length, i + 5000));
+        await tx.execute(
+            "WITH list AS (SELECT e.value ->> 0 as name, e.value ->> 1 as email FROM json_each(?) e)"
+            'INSERT INTO customers(name, email) SELECT name, email FROM list',
+            [jsonEncode(sublist)]);
+      }
+    });
+  }, maxBatchSize: 20000),
+  SqliteBenchmark('Read: JSON1',
+      (SqliteDatabase db, List<List<String>> parameters) async {
+    await db.readTransaction((tx) async {
+      for (var i = 0; i < parameters.length; i += 10000) {
+        var sublist = List.generate(10000, (index) => index);
+        await tx.getAll(
+            'SELECT name, email FROM customers WHERE id IN (SELECT e.value FROM json_each(?) e)',
+            [jsonEncode(sublist)]);
+      }
+    });
+  }, maxBatchSize: 200000, enabled: false),
   SqliteBenchmark('writeLock in isolate',
       (SqliteDatabase db, List<List<String>> parameters) async {
     var factory = db.isolateConnectionFactory();
@@ -145,9 +170,10 @@ void main() async {
 
   createTables(SqliteDatabase db) async {
     await db.writeTransaction((tx) async {
+      await tx.execute('DROP TABLE IF EXISTS customers');
       await tx.execute(
-          'CREATE TABLE IF NOT EXISTS customers(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT)');
-      await tx.execute('DELETE FROM customers WHERE 1');
+          'CREATE TABLE customers(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT)');
+      // await tx.execute('CREATE INDEX customer_email ON customers(email, id)');
     });
     await db.execute('VACUUM');
     await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
@@ -171,10 +197,13 @@ void main() async {
     final rows1 = await db.execute('SELECT count(*) as count FROM customers');
     assert(rows1[0]['count'] == 0);
     final results = await asyncBenchmark(benchmark.name, () async {
+      final stopwatch = Stopwatch()..start();
       await benchmark.fn(db, limitedParameters);
+      final duration = stopwatch.elapsedMilliseconds;
+      print("${benchmark.name} $duration");
     }, teardown: () async {
-      // This would make the benchmark fair, but only if each benchmark uses the
-      // same batch size.
+      // This would make the benchmark fair if it runs inside the benchmark,
+      // but only if each benchmark uses the same batch size.
       await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
     });
 

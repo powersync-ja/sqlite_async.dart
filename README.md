@@ -15,6 +15,7 @@ query access.
 
 ## Features
 
- * Fast.
- * Direct SQL query access.
- * Uses a connection pool to allow concurrent queries.
+ * All operations are asynchronous by default - does not block the main isolate.
+ * Concurrent transactions supported by default - one write transaction and many multiple read transactions.
+ * Uses WAL mode with minimal locking.
+ * Direct synchronous access in an isolate is supported for performance-sensitive use cases. 

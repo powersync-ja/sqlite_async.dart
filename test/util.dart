@@ -10,13 +10,16 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
+const defaultSqlitePath = 'libsqlite3.so.0';
+// const defaultSqlitePath = './sqlite-autoconf-3410100/.libs/libsqlite3.so.0';
+
 class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
   String sqlitePath;
 
   TestSqliteOpenFactory(
       {required super.path,
       super.sqliteOptions,
-      this.sqlitePath = 'libsqlite3.so.0'});
+      this.sqlitePath = defaultSqlitePath});
 
   @override
   sqlite.Database open(SqliteOpenOptions options) {

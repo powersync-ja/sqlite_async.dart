@@ -13,7 +13,7 @@ class SqliteOptions {
 
   const SqliteOptions.defaults()
       : journalMode = SqliteJournalMode.wal,
-        journalSizeLimit = 2 * 1024 * 1024,
+        journalSizeLimit = 6 * 1024 * 1024, // 1.5x the default checkpoint size
         synchronous = SqliteSynchronous.normal;
 
   const SqliteOptions(
