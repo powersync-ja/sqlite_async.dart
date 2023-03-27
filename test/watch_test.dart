@@ -2,11 +2,9 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:math';
 
-import 'package:async/async.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/database_utils.dart';
-import 'package:sqlite_async/src/isolate_connection_factory.dart';
 import 'package:test/test.dart';
 
 import 'util.dart';

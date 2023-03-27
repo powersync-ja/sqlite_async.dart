@@ -238,6 +238,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
         throw sqlite.SqliteException(
             0, 'Transaction must be closed within the read or write lock');
       }
+      return null;
     } else if (data is _SqliteIsolateStatement) {
       if (data.sql == 'BEGIN' || data.sql == 'BEGIN IMMEDIATE') {
         if (txId != null) {
@@ -282,6 +283,9 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
       }
     } else if (data is _SqliteIsolateConnectionClose) {
       db.dispose();
+      return null;
+    } else {
+      throw ArgumentError('Unknown data type $data');
     }
   });
 

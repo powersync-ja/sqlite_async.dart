@@ -121,8 +121,10 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
         } else {
           updates!.tables.addAll(message.tables);
         }
+        return null;
       } else if (message is InitDb) {
         await _initialized;
+        return null;
       } else if (message is SubscribeToUpdates) {
         if (subscriptions.containsKey(message.port)) {
           return;
@@ -131,9 +133,13 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
           message.port.send(event);
         });
         subscriptions[message.port] = subscription;
+        return null;
       } else if (message is UnsubscribeToUpdates) {
         final subscription = subscriptions.remove(message.port);
         subscription?.cancel();
+        return null;
+      } else {
+        throw ArgumentError('Unknown message type: $message');
       }
     });
   }

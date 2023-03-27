@@ -2,6 +2,7 @@ import 'package:sqlite_async/sqlite_async.dart';
 
 // This example shows using a custom class and SQLite's JSON1 functionality,
 // to efficiently map between custom data objects and SQLite.
+// This is especially useful for bulk INSERT, UPDATE or DELETE statements,
 
 class User {
   int? id;
@@ -51,13 +52,13 @@ SELECT name, email FROM (${User.selectJsonData('?')})
 RETURNING id''', [users]);
   var ids = idRows.map((row) => row['id']).toList();
 
-  // Alternative using json1 functions directly
+  // Alternative, using json1 functions directly
   await db.execute('''
 INSERT INTO users(name, email)
 SELECT e.value ->> 'name', e.value ->> 'email' FROM json_each(?) e
 RETURNING id''', [users]);
 
-  // Select by id
+  // Select using "WHERE id IN ..."
   var queriedUsers = (await db.getAll(
           "SELECT id, name, email FROM users WHERE id IN (SELECT json_each.value FROM json_each(?)) ORDER BY name",
           [ids]))
@@ -66,12 +67,17 @@ RETURNING id''', [users]);
 
   print(queriedUsers);
 
-  // Bulk update
+  // Bulk update using UPDATE FROM
   await db.execute('''
 UPDATE users
   SET name = args.name, email = args.email
 FROM (${User.selectJsonData('?')}) as args
   WHERE users.id = args.id''', [queriedUsers]);
+
+  // Bulk delete using "WHERE id IN ..."
+  await db.execute('''
+DELETE FROM users WHERE id IN (SELECT json_each.value FROM json_each(?))''',
+      [queriedUsers.map((u) => u.id).toList()]);
 
   await db.close();
 }

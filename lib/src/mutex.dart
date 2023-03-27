@@ -97,12 +97,17 @@ class SimpleMutex implements Mutex {
     await lock(() async {});
   }
 
+  /// Get a serialized instance that can be passed over to a different isolate.
   SerializedMutex get shared {
     _shared ??= SharedMutexServer._withMutex(this);
     return _shared!.serialized;
   }
 }
 
+/// Serialized version of a Mutex, can be passed over to different isolates.
+/// Use [open] to get a Mutex instance.
+///
+/// Uses [SendPort] to communicate with the source mutex.
 class SerializedMutex {
   final SerializedPortClient client;
 
@@ -113,6 +118,9 @@ class SerializedMutex {
   }
 }
 
+/// Mutex instantiated from a source mutex, potentially in a different isolate.
+///
+/// Uses a [SendPort] to communicate with the source mutex.
 class SharedMutex implements Mutex {
   final ChildPortClient client;
 
@@ -175,11 +183,6 @@ class SharedMutexServer {
   final Mutex mutex;
 
   late final PortServer server;
-
-  factory SharedMutexServer._() {
-    final Mutex mutex = Mutex();
-    return SharedMutexServer._withMutex(mutex);
-  }
 
   SharedMutexServer._withMutex(this.mutex) {
     server = PortServer((Object? arg) async {

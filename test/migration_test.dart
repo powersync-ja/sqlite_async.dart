@@ -1,8 +1,6 @@
-import 'dart:math';
-
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
-import 'package:sqlite3/sqlite3.dart' as sqlite;
+
 import 'util.dart';
 
 void main() {

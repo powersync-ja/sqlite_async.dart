@@ -7,3 +7,7 @@
 pubspec.lock
 
 .idea
+*.db
+*.db-*
+test-db
+sqlite-autoconf-*
