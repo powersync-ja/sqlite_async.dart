@@ -123,3 +123,20 @@ class UnsubscribeToUpdates {
 
   UnsubscribeToUpdates(this.port);
 }
+
+Object? mapParameter(Object? parameter) {
+  if (parameter == null ||
+      parameter is int ||
+      parameter is String ||
+      parameter is bool ||
+      parameter is num ||
+      parameter is List<int>) {
+    return parameter;
+  } else {
+    return jsonEncode(parameter);
+  }
+}
+
+List<Object?> mapParameters(List<Object?> parameters) {
+  return [for (var p in parameters) mapParameter(p)];
+}

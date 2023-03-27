@@ -259,7 +259,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
         txId = null;
       }
       try {
-        final result = db.select(data.sql, data.args);
+        final result = db.select(data.sql, mapParameters(data.args));
         if (updatedTables.isNotEmpty) {
           client.fire(UpdateNotification(updatedTables));
           updatedTables = {};
