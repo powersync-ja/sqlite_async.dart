@@ -15,4 +15,27 @@ jobs:
       - run: dart pub get
       - run: dart format --output=none --set-exit-if-changed .
       - run: dart analyze
-      - run: dart test
+
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        include:
+          - sqlite_version: "3410100"
+            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3410100.tar.gz"
+          - sqlite_version: "3380000"
+            sqlite_url: "https://www.sqlite.org/2022/sqlite-autoconf-3380000.tar.gz"
+    steps:
+      - uses: actions/checkout@v3
+      - uses: dart-lang/setup-dart@v1
+
+      - name: Install dependencies
+        run: dart pub get
+
+      - name: Install SQLite
+        run: ./scripts/install_sqlite.sh ${{ matrix.sqlite_version }} ${{ matrix.sqlite_url }}
+
+      - name: Run Tests
+        run: |
+          export LD_LIBRARY_PATH=./sqlite-autoconf-${{ matrix.sqlite_version }}/.libs
+          dart test
