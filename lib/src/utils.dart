@@ -13,7 +13,7 @@
 /// ```
 PlaceholderQueryFragment selectJsonColumns(List<String> columns) {
   String extract = columns.map((e) {
-    return "json_extract(json_each.value, ${quoteString('\$.$e')}) as ${quoteIdentifier(e)}";
+    return "json_extract(json_each.value, ${quoteJsonPath(e)}) as ${quoteIdentifier(e)}";
   }).join(', ');
 
   return PlaceholderQueryFragment._("SELECT $extract FROM json_each(", ")");
@@ -30,10 +30,13 @@ PlaceholderQueryFragment selectJsonColumnMap(Map<Object, String>? columnMap) {
   String extract;
   if (columnMap != null) {
     extract = columnMap.entries.map((e) {
-      if (e.key is int) {
-        return "json_extract(json_each.value, ${quoteString('\$[${e.key}]')}) as ${quoteIdentifier(e.value)}";
+      final key = e.key;
+      if (key is int) {
+        return "json_extract(json_each.value, ${quoteJsonIndex(key)}) as ${quoteIdentifier(e.value)}";
+      } else if (key is String) {
+        return "json_extract(json_each.value, ${quoteJsonPath(key)})  as ${quoteIdentifier(e.value)}";
       } else {
-        return "json_extract(json_each.value, ${quoteString('\$.${e.key}')})  as ${quoteIdentifier(e.value)}";
+        throw ArgumentError('Key must be an int or String');
       }
     }).join(', ');
   } else {
@@ -49,6 +52,14 @@ String quoteIdentifier(String s) {
 
 String quoteString(String s) {
   return "'${s.replaceAll("'", "''")}'";
+}
+
+String quoteJsonPath(String path) {
+  return quoteString('\$.$path');
+}
+
+String quoteJsonIndex(int index) {
+  return quoteString('\$[$index]');
 }
 
 /// A query fragment that can be embedded in another query.

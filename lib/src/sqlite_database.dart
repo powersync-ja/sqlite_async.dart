@@ -18,6 +18,9 @@ import 'update_notification.dart';
 /// Use one instance per database file. If multiple instances are used, update
 /// notifications may not trigger, and calls may fail with "SQLITE_BUSY" errors.
 class SqliteDatabase with SqliteQueries implements SqliteConnection {
+  /// The maximum number of concurrent read transactions if not explicitly specified.
+  static const int defaultMaxReaders = 5;
+
   /// Maximum number of concurrent read transactions.
   final int maxReaders;
 
@@ -56,11 +59,11 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// A maximum of [maxReaders] concurrent read transactions are allowed.
   factory SqliteDatabase(
       {required path,
-      maxReaders = 5,
-      options = const SqliteOptions.defaults()}) {
+      int maxReaders = defaultMaxReaders,
+      SqliteOptions options = const SqliteOptions.defaults()}) {
     final factory =
         DefaultSqliteOpenFactory(path: path, sqliteOptions: options);
-    return SqliteDatabase.withFactory(factory);
+    return SqliteDatabase.withFactory(factory, maxReaders: maxReaders);
   }
 
   /// Advanced: Open a database with a specified factory.
@@ -72,7 +75,8 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   ///  2. Running additional per-connection PRAGMA statements on each connection.
   ///  3. Creating custom SQLite functions.
   ///  4. Creating temporary views or triggers.
-  SqliteDatabase.withFactory(this.openFactory, {this.maxReaders = 5}) {
+  SqliteDatabase.withFactory(this.openFactory,
+      {this.maxReaders = defaultMaxReaders}) {
     updates = _updatesController.stream;
 
     _listenForEvents();
@@ -146,7 +150,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
 
   /// A connection factory that can be passed to different isolates.
   ///
-  /// Use this to access the database in background isolates.s
+  /// Use this to access the database in background isolates.
   IsolateConnectionFactory isolateConnectionFactory() {
     return IsolateConnectionFactory(
         openFactory: openFactory,

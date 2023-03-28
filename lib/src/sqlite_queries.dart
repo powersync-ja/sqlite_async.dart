@@ -2,7 +2,6 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import 'database_utils.dart';
 import 'sqlite_connection.dart';
-import 'throttle.dart';
 import 'update_notification.dart';
 
 /// Mixin to provide default query functionality.
@@ -52,8 +51,9 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
     assert(updates != null,
         'updates stream must be provided to allow query watching');
     final tables = triggerOnTables ?? await getSourceTables(this, sql);
-    final filteredStream = updates!.transform(filterTablesTransformer(tables));
-    final throttledStream = throttleUpdateNotifications(
+    final filteredStream =
+        updates!.transform(UpdateNotification.filterTablesTransformer(tables));
+    final throttledStream = UpdateNotification.throttleStream(
         filteredStream, throttle,
         addOne: UpdateNotification.empty());
 
@@ -89,9 +89,9 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
     assert(updates != null,
         'updates stream must be provided to allow query watching');
     final filteredStream = tables != null
-        ? updates!.transform(filterTablesTransformer(tables))
+        ? updates!.transform(UpdateNotification.filterTablesTransformer(tables))
         : updates!;
-    final throttledStream = throttleUpdateNotifications(
+    final throttledStream = UpdateNotification.throttleStream(
         filteredStream, throttle,
         addOne: triggerImmediately ? UpdateNotification.empty() : null);
     return throttledStream;

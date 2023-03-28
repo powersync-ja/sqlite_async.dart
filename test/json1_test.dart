@@ -20,8 +20,6 @@ class TestUser {
 }
 
 void main() {
-  setupLogger();
-
   group('Basic Tests', () {
     late String path;
 

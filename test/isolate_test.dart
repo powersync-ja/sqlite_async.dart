@@ -5,8 +5,6 @@ import 'package:test/test.dart';
 import 'util.dart';
 
 void main() {
-  setupLogger();
-
   group('Isolate Tests', () {
     late String path;
 

@@ -163,8 +163,6 @@ List<SqliteBenchmark> benchmarks = [
 ];
 
 void main() async {
-  setupLogger();
-
   var parameters = List.generate(
       20000, (index) => ['Test user $index', 'user$index@example.org']);
 

@@ -10,8 +10,6 @@ import 'package:test/test.dart';
 import 'util.dart';
 
 void main() {
-  setupLogger();
-
   createTables(SqliteDatabase db) async {
     await db.writeTransaction((tx) async {
       await tx.execute(

@@ -4,7 +4,6 @@ import 'dart:isolate';
 
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
-import 'package:logging/logging.dart';
 import 'package:sqlite3/open.dart' as sqlite_open;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
@@ -95,11 +94,4 @@ String dbPath() {
   var dbName = "test-db/$testShortName.db";
   Directory("test-db").createSync(recursive: false);
   return dbName;
-}
-
-setupLogger() {
-  Logger.root.level = Level.ALL;
-  Logger.root.onRecord.listen((event) {
-    print(event);
-  });
 }

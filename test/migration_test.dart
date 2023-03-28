@@ -4,8 +4,6 @@ import 'package:test/test.dart';
 import 'util.dart';
 
 void main() {
-  setupLogger();
-
   group('Basic Tests', () {
     late String path;
 

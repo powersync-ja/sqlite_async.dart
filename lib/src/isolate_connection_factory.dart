@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+
 import 'database_utils.dart';
 import 'mutex.dart';
 import 'port_channel.dart';
@@ -39,6 +41,19 @@ class IsolateConnectionFactory {
           openMutex.close();
           updates.close();
         });
+  }
+
+  /// Opens a synchronous sqlite.Database directly in the current isolate.
+  ///
+  /// This gives direct access to the database, but:
+  ///  1. No app-level locking is performed automatically. Transactions may fail
+  ///     with SQLITE_BUSY if another isolate is using the database at the same time.
+  ///  2. Other connections are not notified of any updates to tables made within
+  ///     this connection.
+  Future<sqlite.Database> openRawDatabase({bool readOnly = false}) async {
+    final db = await openFactory
+        .open(SqliteOpenOptions(primaryConnection: false, readOnly: readOnly));
+    return db;
   }
 }
 

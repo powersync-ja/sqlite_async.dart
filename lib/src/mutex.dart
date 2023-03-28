@@ -13,6 +13,9 @@ abstract class Mutex {
   /// timeout is a timeout for acquiring the lock, not for the callback
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout});
 
+  /// Release resources used by the Mutex.
+  ///
+  /// Subsequent calls to [lock] may fail, or may never call the callback.
   Future<void> close();
 }
 
@@ -32,7 +35,7 @@ class SimpleMutex implements Mutex {
 
   bool get locked => last != null;
 
-  SharedMutexServer? _shared;
+  _SharedMutexServer? _shared;
 
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) async {
@@ -99,15 +102,15 @@ class SimpleMutex implements Mutex {
 
   /// Get a serialized instance that can be passed over to a different isolate.
   SerializedMutex get shared {
-    _shared ??= SharedMutexServer._withMutex(this);
+    _shared ??= _SharedMutexServer._withMutex(this);
     return _shared!.serialized;
   }
 }
 
 /// Serialized version of a Mutex, can be passed over to different isolates.
-/// Use [open] to get a Mutex instance.
+/// Use [open] to get a [SharedMutex] instance.
 ///
-/// Uses [SendPort] to communicate with the source mutex.
+/// Uses a [SendPort] to communicate with the source mutex.
 class SerializedMutex {
   final SerializedPortClient client;
 
@@ -176,15 +179,15 @@ class SharedMutex implements Mutex {
   }
 }
 
-/// Like Mutex, but can be coped across Isolates.
-class SharedMutexServer {
+/// Manages a [SerializedMutex], allowing a [Mutex] to be shared across isolates.
+class _SharedMutexServer {
   Completer? unlock;
   late final SerializedMutex serialized;
   final Mutex mutex;
 
   late final PortServer server;
 
-  SharedMutexServer._withMutex(this.mutex) {
+  _SharedMutexServer._withMutex(this.mutex) {
     server = PortServer((Object? arg) async {
       return await _handle(arg);
     });

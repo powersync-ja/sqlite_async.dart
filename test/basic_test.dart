@@ -6,8 +6,6 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'util.dart';
 
 void main() {
-  setupLogger();
-
   group('Basic Tests', () {
     late String path;
 
