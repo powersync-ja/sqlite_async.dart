@@ -218,13 +218,30 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
   final server = params.portServer;
   final commandPort = ReceivePort();
 
+  Timer? updateDebouncer;
   Set<String> updatedTables = {};
   int? txId;
   Object? txError;
 
+  void maybeFireUpdates() {
+    if (updatedTables.isNotEmpty) {
+      client.fire(UpdateNotification(updatedTables));
+      updatedTables.clear();
+      updateDebouncer?.cancel();
+      updateDebouncer = null;
+    }
+  }
+
   db.updates.listen((event) {
     updatedTables.add(event.tableName);
+
+    // This handles two cases:
+    // 1. Update arrived after _SqliteIsolateClose (not sure if this could happen).
+    // 2. Long-running _SqliteIsolateClosure that should fire updates while running.
+    updateDebouncer ??=
+        Timer(const Duration(milliseconds: 10), maybeFireUpdates);
   });
+
   server.open((data) async {
     if (data is _SqliteIsolateClose) {
       if (txId != null) {
@@ -238,6 +255,8 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
         throw sqlite.SqliteException(
             0, 'Transaction must be closed within the read or write lock');
       }
+      // We would likely have received updates by this point - fire now.
+      maybeFireUpdates();
       return null;
     } else if (data is _SqliteIsolateStatement) {
       if (data.sql == 'BEGIN' || data.sql == 'BEGIN IMMEDIATE') {
@@ -261,10 +280,6 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
       }
       try {
         final result = db.select(data.sql, mapParameters(data.args));
-        if (updatedTables.isNotEmpty) {
-          client.fire(UpdateNotification(updatedTables));
-          updatedTables = {};
-        }
         return result;
       } catch (err) {
         if (txId != null) {
@@ -276,10 +291,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
       try {
         return await data.cb(db);
       } finally {
-        if (updatedTables.isNotEmpty) {
-          client.fire(UpdateNotification(updatedTables));
-          updatedTables = {};
-        }
+        maybeFireUpdates();
       }
     } else if (data is _SqliteIsolateConnectionClose) {
       db.dispose();

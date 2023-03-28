@@ -164,6 +164,28 @@ void main() {
           ]));
     });
 
+    test('single onChange', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+
+      const baseTime = 20;
+
+      const throttleDuration = Duration(milliseconds: baseTime);
+
+      final stream = db.onChange({'assets', 'customers'},
+          throttle: throttleDuration,
+          triggerImmediately: false).asyncMap((event) async {
+        // This is where queries would typically be executed
+        return event;
+      });
+
+      var eventsFuture = stream.take(1).toList();
+      await db.execute('INSERT INTO assets(make) VALUES (?)', ['test']);
+      var events = await eventsFuture;
+
+      expect(events, equals([UpdateNotification.single('assets')]));
+    });
+
     test('watch in isolate', () async {
       final db = await setupDatabase(path: path);
       await createTables(db);
