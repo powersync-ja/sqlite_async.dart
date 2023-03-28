@@ -1,5 +1,5 @@
 name: sqlite_async
-description: High-performance asynchronous interface for SQLite.
+description: High-performance asynchronous interface for SQLite on Dart and Flutter.
 version: 0.1.0
 repository: https://github.com/journeyapps/sqlite_async.dart
 environment:

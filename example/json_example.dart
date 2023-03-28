@@ -11,12 +11,12 @@ class User {
 
   User({this.id, required this.name, required this.email});
 
-  /// For mapping query results
+  /// For mapping query results.
   factory User.fromMap(Map<String, dynamic> data) {
     return User(id: data['id'], name: data['name'], email: data['email']);
   }
 
-  /// Used for query parameters
+  /// JSON representation, used for query parameters.
   Map<String, dynamic> toJson() {
     return {'id': id, 'name': name, 'email': email};
   }
@@ -27,6 +27,14 @@ class User {
   }
 
   /// Helper to use in queries.
+  /// This produces an equivalent to:
+  ///
+  /// ```sql
+  /// SELECT
+  ///       json_each.value ->> 'id' as id,
+  ///       json_each.value ->> 'name' as name,
+  ///       json_each.value ->> 'email' as email
+  /// FROM json_each(?)
   static final selectJsonData = selectJsonColumns(['id', 'name', 'email']);
 }
 
@@ -45,20 +53,22 @@ void main() async {
     User(name: 'Alice', email: 'alice@example.org')
   ];
 
-  // Insert data and get resulting ids
+  // Insert data and get resulting ids.
+  // Here, the list of users is automatically encoded as JSON using [User.toJson].
+  // "RETURNING id" is used to get the auto-generated ids.
   var idRows = await db.execute('''
 INSERT INTO users(name, email)
 SELECT name, email FROM (${User.selectJsonData('?')})
 RETURNING id''', [users]);
   var ids = idRows.map((row) => row['id']).toList();
 
-  // Alternative, using json1 functions directly
-  await db.execute('''
+  // Alternatively, using json1 functions directly.
+  var idRows2 = await db.execute('''
 INSERT INTO users(name, email)
 SELECT e.value ->> 'name', e.value ->> 'email' FROM json_each(?) e
 RETURNING id''', [users]);
 
-  // Select using "WHERE id IN ..."
+  // Select using "WHERE id IN ...".
   var queriedUsers = (await db.getAll(
           "SELECT id, name, email FROM users WHERE id IN (SELECT json_each.value FROM json_each(?)) ORDER BY name",
           [ids]))
@@ -67,14 +77,14 @@ RETURNING id''', [users]);
 
   print(queriedUsers);
 
-  // Bulk update using UPDATE FROM
+  // Bulk update using UPDATE FROM.
   await db.execute('''
 UPDATE users
   SET name = args.name, email = args.email
 FROM (${User.selectJsonData('?')}) as args
   WHERE users.id = args.id''', [queriedUsers]);
 
-  // Bulk delete using "WHERE id IN ..."
+  // Bulk delete using "WHERE id IN ...".
   await db.execute('''
 DELETE FROM users WHERE id IN (SELECT json_each.value FROM json_each(?))''',
       [queriedUsers.map((u) => u.id).toList()]);

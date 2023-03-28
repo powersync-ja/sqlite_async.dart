@@ -1,5 +1,8 @@
 import 'package:sqlite_async/sqlite_async.dart';
 
+/// Migrations to setup the database.
+///
+/// For more options, see `migration_example.dart`.
 final migrations = SqliteMigrations()
   ..add(SqliteMigration(1, (tx) async {
     await tx.execute(
@@ -7,7 +10,9 @@ final migrations = SqliteMigrations()
   }));
 
 void main() async {
+  // Open the database
   final db = SqliteDatabase(path: 'test.db');
+  // Run migrations - do this before any other queries
   await migrations.migrate(db);
 
   // Use execute() or executeBatch() for INSERT/UPDATE/DELETE statements
@@ -28,5 +33,6 @@ void main() async {
     await db.execute('INSERT INTO test_data(data) values(?)', ['Test4']);
   });
 
+  // Close database to release resources
   await db.close();
 }
