@@ -79,7 +79,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout}) async {
+      {Duration? lockTimeout, String? debugContext}) async {
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.
     return _connectionMutex.lock(() async {
@@ -94,7 +94,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout}) async {
+      {Duration? lockTimeout, String? debugContext}) async {
     final stopWatch = lockTimeout == null ? null : (Stopwatch()..start());
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.

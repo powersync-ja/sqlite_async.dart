@@ -1,8 +1,11 @@
+import 'dart:async';
 import 'dart:math';
 
+import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
-import 'package:sqlite3/sqlite3.dart' as sqlite;
+
 import 'util.dart';
 
 void main() {
@@ -108,18 +111,22 @@ void main() {
         await expectLater(() async {
           await db.execute(
               'INSERT INTO test_data(description) VALUES(?)', ['test']);
-        }, throwsA((e) => e is AssertionError));
+        }, throwsA((e) => e is LockError && e.message.contains('tx.execute')));
       });
     });
 
-    test('does allow read-only db calls within transaction callback', () async {
+    test('should not allow read-only db calls within transaction callback',
+        () async {
       final db = await setupDatabase(path: path);
       await createTables(db);
 
       await db.writeTransaction((tx) async {
-        // This uses a different connection, so it's fine.
-        // Perhaps we should warn on this, since it's likely unintentional?
-        await db.getAll('SELECT * FROM test_data');
+        // This uses a different connection, so it _could_ work.
+        // But it's likely unintentional and could cause weird bugs, so we don't
+        // allow it by default.
+        await expectLater(() async {
+          await db.getAll('SELECT * FROM test_data');
+        }, throwsA((e) => e is LockError && e.message.contains('tx.getAll')));
       });
 
       await db.readTransaction((tx) async {
@@ -129,24 +136,69 @@ void main() {
         // opens another connection, but doesn't use it.
         await expectLater(() async {
           await db.getAll('SELECT * FROM test_data');
-        }, throwsA((e) => e is AssertionError));
+        }, throwsA((e) => e is LockError && e.message.contains('tx.getAll')));
       });
     });
 
-    test('does allow read-only db calls within lock callback', () async {
+    test('should not allow read-only db calls within lock callback', () async {
       final db = await setupDatabase(path: path);
       await createTables(db);
       // Locks - should behave the same as transactions above
 
       await db.writeLock((tx) async {
-        await db.getAll('SELECT * FROM test_data');
+        await expectLater(() async {
+          await db.getOptional('SELECT * FROM test_data');
+        },
+            throwsA(
+                (e) => e is LockError && e.message.contains('tx.getOptional')));
       });
 
       await db.readLock((tx) async {
         await expectLater(() async {
-          await db.getAll('SELECT * FROM test_data');
-        }, throwsA((e) => e is AssertionError));
+          await db.getOptional('SELECT * FROM test_data');
+        },
+            throwsA(
+                (e) => e is LockError && e.message.contains('tx.getOptional')));
       });
+    });
+
+    test(
+        'should allow read-only db calls within transaction callback in separate zone',
+        () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+
+      // Get a reference to the parent zone (outside the transaction).
+      final zone = Zone.current;
+
+      // Each of these are fine, since it could use a separate connection.
+      // Note: In highly concurrent cases, it could exhaust the connection pool and cause a deadlock.
+
+      await db.writeTransaction((tx) async {
+        // Use the parent zone to avoid the "recursive lock" error.
+        await zone.fork().run(() async {
+          await db.getAll('SELECT * FROM test_data');
+        });
+      });
+
+      await db.readTransaction((tx) async {
+        await zone.fork().run(() async {
+          await db.getAll('SELECT * FROM test_data');
+        });
+      });
+
+      await db.readTransaction((tx) async {
+        await zone.fork().run(() async {
+          await db.execute('SELECT * FROM test_data');
+        });
+      });
+
+      // Note: This would deadlock, since it shares a global write lock.
+      // await db.writeTransaction((tx) async {
+      //   await zone.fork().run(() async {
+      //     await db.execute('SELECT * FROM test_data');
+      //   });
+      // });
     });
 
     test('should allow PRAMGAs', () async {

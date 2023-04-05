@@ -50,58 +50,60 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout}) async {
+      {Duration? lockTimeout, String? debugContext}) async {
     await _expandPool();
 
-    bool haveLock = false;
-    var completer = Completer<T>();
+    return _runZoned(() async {
+      bool haveLock = false;
+      var completer = Completer<T>();
 
-    var futures = _readConnections.sublist(0).map((connection) async {
-      try {
-        return await connection.readLock((ctx) async {
-          if (haveLock) {
-            // Already have a different lock - release this one.
-            return false;
-          }
-          haveLock = true;
+      var futures = _readConnections.sublist(0).map((connection) async {
+        try {
+          return await connection.readLock((ctx) async {
+            if (haveLock) {
+              // Already have a different lock - release this one.
+              return false;
+            }
+            haveLock = true;
 
-          var future = callback(ctx);
-          completer.complete(future);
+            var future = callback(ctx);
+            completer.complete(future);
 
-          // We have to wait for the future to complete before we can release the
-          // lock.
-          try {
-            await future;
-          } catch (_) {
-            // Ignore
-          }
+            // We have to wait for the future to complete before we can release the
+            // lock.
+            try {
+              await future;
+            } catch (_) {
+              // Ignore
+            }
 
-          return true;
-        }, lockTimeout: lockTimeout);
-      } on TimeoutException {
-        return false;
+            return true;
+          }, lockTimeout: lockTimeout, debugContext: debugContext);
+        } on TimeoutException {
+          return false;
+        }
+      });
+
+      final stream = Stream<bool>.fromFutures(futures);
+      var gotAny = await stream.any((element) => element);
+
+      if (!gotAny) {
+        // All TimeoutExceptions
+        throw TimeoutException('Failed to get a read connection', lockTimeout);
       }
-    });
 
-    final stream = Stream<bool>.fromFutures(futures);
-    var gotAny = await stream.any((element) => element);
-
-    if (!gotAny) {
-      // All TimeoutExceptions
-      throw TimeoutException('Failed to get a read connection', lockTimeout);
-    }
-
-    try {
-      return await completer.future;
-    } catch (e) {
-      // throw e;
-      rethrow;
-    }
+      try {
+        return await completer.future;
+      } catch (e) {
+        // throw e;
+        rethrow;
+      }
+    }, debugContext: debugContext ?? 'get*()');
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout}) {
+      {Duration? lockTimeout, String? debugContext}) {
     if (closed) {
       throw AssertionError('Closed');
     }
@@ -113,7 +115,25 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
         mutex: mutex,
         readOnly: false,
         openFactory: _factory);
-    return _writeConnection!.writeLock(callback, lockTimeout: lockTimeout);
+    return _runZoned(() {
+      return _writeConnection!.writeLock(callback,
+          lockTimeout: lockTimeout, debugContext: debugContext);
+    }, debugContext: debugContext ?? 'execute()');
+  }
+
+  /// The [Mutex] on individual connections do already error in recursive locks.
+  ///
+  /// We duplicate the same check here, to:
+  /// 1. Also error when the recursive transaction is handled by a different
+  ///    connection (with a different lock).
+  /// 2. Give a more specific error message when it happens.
+  T _runZoned<T>(T Function() callback, {required String debugContext}) {
+    if (Zone.current[this] != null) {
+      throw LockError(
+          'Recursive lock is not allowed. Use `tx.$debugContext` instead of `db.$debugContext`.');
+    }
+    var zone = Zone.current.fork(zoneValues: {this: true});
+    return zone.run(callback);
   }
 
   Future<void> _expandPool() async {

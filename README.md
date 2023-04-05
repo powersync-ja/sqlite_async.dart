@@ -23,6 +23,9 @@ query access.
  * Automatically convert query args to JSON where applicable, making JSON1 operations simple.
  * Direct SQL queries - no wrapper classes or code generation required.
 
+See this [blog post](https://www.powersync.co/blog/sqlite-optimizations-for-ultra-high-performance),
+explaining why these features are important for using SQLite.
+
 ## Installation
 
 ```sh
@@ -65,8 +68,8 @@ void main() async {
   // 1. Atomic persistence (all updates are either applied or rolled back).
   // 2. Improved throughput.
   await db.writeTransaction((tx) async {
-    await db.execute('INSERT INTO test_data(data) values(?)', ['Test3']);
-    await db.execute('INSERT INTO test_data(data) values(?)', ['Test4']);
+    await tx.execute('INSERT INTO test_data(data) values(?)', ['Test3']);
+    await tx.execute('INSERT INTO test_data(data) values(?)', ['Test4']);
   });
 
   await db.close();

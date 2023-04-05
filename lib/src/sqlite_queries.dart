@@ -17,7 +17,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       [List<Object?> parameters = const []]) async {
     return writeLock((ctx) async {
       return ctx.execute(sql, parameters);
-    });
+    }, debugContext: 'execute()');
   }
 
   @override
@@ -25,14 +25,14 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       [List<Object?> parameters = const []]) {
     return readLock((ctx) async {
       return ctx.getAll(sql, parameters);
-    });
+    }, debugContext: 'getAll()');
   }
 
   @override
   Future<sqlite.Row> get(String sql, [List<Object?> parameters = const []]) {
     return readLock((ctx) async {
       return ctx.get(sql, parameters);
-    });
+    }, debugContext: 'get()');
   }
 
   @override
@@ -40,7 +40,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       [List<Object?> parameters = const []]) {
     return readLock((ctx) async {
       return ctx.getOptional(sql, parameters);
-    });
+    }, debugContext: 'getOptional()');
   }
 
   @override
@@ -103,7 +103,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       {Duration? lockTimeout}) async {
     return readLock((ctx) async {
       return await internalReadTransaction(ctx, callback);
-    }, lockTimeout: lockTimeout);
+    }, lockTimeout: lockTimeout, debugContext: 'readTransaction()');
   }
 
   @override
@@ -112,7 +112,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       {Duration? lockTimeout}) async {
     return writeLock((ctx) async {
       return await internalWriteTransaction(ctx, callback);
-    }, lockTimeout: lockTimeout);
+    }, lockTimeout: lockTimeout, debugContext: 'writeTransaction()');
   }
 
   /// See [SqliteReadContext.computeWithDatabase].

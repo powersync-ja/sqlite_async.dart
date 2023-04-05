@@ -94,13 +94,13 @@ abstract class SqliteConnection extends SqliteWriteContext {
   ///
   /// In most cases, [readTransaction] should be used instead.
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout});
+      {Duration? lockTimeout, String? debugContext});
 
   /// Takes a global lock, without starting a transaction.
   ///
   /// In most cases, [writeTransaction] should be used instead.
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout});
+      {Duration? lockTimeout, String? debugContext});
 
   Future<void> close();
 }
