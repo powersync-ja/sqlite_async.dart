@@ -23,6 +23,9 @@ query access.
  * Automatically convert query args to JSON where applicable, making JSON1 operations simple.
  * Direct SQL queries - no wrapper classes or code generation required.
 
+See this [blog post](https://www.powersync.co/blog/sqlite-optimizations-for-ultra-high-performance),
+explaining why these features are important for using SQLite.
+
 ## Installation
 
 ```sh
