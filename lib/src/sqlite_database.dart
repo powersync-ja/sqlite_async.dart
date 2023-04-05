@@ -209,13 +209,15 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout}) {
-    return _pool.readLock(callback, lockTimeout: lockTimeout);
+      {Duration? lockTimeout, String? debugContext}) {
+    return _pool.readLock(callback,
+        lockTimeout: lockTimeout, debugContext: debugContext);
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout}) {
-    return _pool.writeLock(callback, lockTimeout: lockTimeout);
+      {Duration? lockTimeout, String? debugContext}) {
+    return _pool.writeLock(callback,
+        lockTimeout: lockTimeout, debugContext: debugContext);
   }
 }

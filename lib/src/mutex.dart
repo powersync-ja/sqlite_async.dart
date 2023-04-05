@@ -40,7 +40,7 @@ class SimpleMutex implements Mutex {
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) async {
     if (Zone.current[this] != null) {
-      throw AssertionError('Recursive lock is not allowed');
+      throw LockError('Recursive lock is not allowed');
     }
     var zone = Zone.current.fork(zoneValues: {this: true});
 
@@ -132,7 +132,7 @@ class SharedMutex implements Mutex {
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) async {
     if (Zone.current[this] != null) {
-      throw AssertionError('Recursive lock is not allowed');
+      throw LockError('Recursive lock is not allowed');
     }
     return runZoned(() async {
       await _acquire(timeout: timeout);
@@ -222,4 +222,15 @@ class _AcquireMessage {
 
 class _UnlockMessage {
   const _UnlockMessage();
+}
+
+class LockError extends Error {
+  final String message;
+
+  LockError(this.message);
+
+  @override
+  String toString() {
+    return 'LockError: $message';
+  }
 }
