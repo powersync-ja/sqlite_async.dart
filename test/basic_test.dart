@@ -175,6 +175,7 @@ void main() {
       // Note: In highly concurrent cases, it could exhaust the connection pool and cause a deadlock.
 
       await db.writeTransaction((tx) async {
+        // Use the parent zone to avoid the "recursive lock" error.
         await zone.fork().run(() async {
           await db.getAll('SELECT * FROM test_data');
         });
@@ -192,7 +193,7 @@ void main() {
         });
       });
 
-      // This would deadlock, since it shares a global write lock.
+      // Note: This would deadlock, since it shares a global write lock.
       // await db.writeTransaction((tx) async {
       //   await zone.fork().run(() async {
       //     await db.execute('SELECT * FROM test_data');
