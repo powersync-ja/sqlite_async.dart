@@ -34,7 +34,7 @@ void main() {
     for (var sqlite in findSqliteLibraries()) {
       test('getSourceTables - $sqlite', () async {
         final db = SqliteDatabase.withFactory(
-            TestSqliteOpenFactory(path: path, sqlitePath: sqlite));
+            SqlcipherOpenFactory(path: path, sqlitePath: sqlite));
         await db.initialize();
         await createTables(db);
 

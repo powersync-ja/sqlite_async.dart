@@ -9,52 +9,60 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
-const defaultSqlitePath = 'libsqlite3.so.0';
+// const defaultSqlitePath = 'libsqlite3.so.0';
+const defaultSqlitePath = '/usr/lib/x86_64-linux-gnu/libsqlcipher.so.0';
 // const defaultSqlitePath = './sqlite-autoconf-3410100/.libs/libsqlite3.so.0';
 
-class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
-  String sqlitePath;
+class SqlcipherOpenFactory extends DefaultSqliteOpenFactory {
+  String? key;
 
-  TestSqliteOpenFactory(
-      {required super.path,
-      super.sqliteOptions,
-      this.sqlitePath = defaultSqlitePath});
+  SqlcipherOpenFactory({required super.path, super.sqliteOptions, this.key});
 
   @override
   sqlite.Database open(SqliteOpenOptions options) {
-    sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
-      return DynamicLibrary.open(sqlitePath);
-    });
     final db = super.open(options);
 
-    db.createFunction(
-      functionName: 'test_sleep',
-      argumentCount: const sqlite.AllowedArgumentCount(1),
-      function: (args) {
-        final millis = args[0] as int;
-        sleep(Duration(milliseconds: millis));
-        return millis;
-      },
-    );
-
-    db.createFunction(
-      functionName: 'test_connection_name',
-      argumentCount: const sqlite.AllowedArgumentCount(0),
-      function: (args) {
-        return Isolate.current.debugName;
-      },
-    );
-
+    if (key != null) {
+      // Make sure that SQLCipher is used, not plain SQLite.
+      final versionRows = db.select('PRAGMA cipher_version');
+      if (versionRows.isEmpty) {
+        throw AssertionError(
+            'SQLite library is plain SQLite; SQLCipher expected.');
+      }
+    }
     return db;
+  }
+
+  @override
+  List<String> pragmaStatements(SqliteOpenOptions options) {
+    final defaultStatements = super.pragmaStatements(options);
+    if (key != null) {
+      return [
+        // Run this as the first statement
+        "PRAGMA KEY = '$key'",
+        for (var statement in defaultStatements) statement
+      ];
+    } else {
+      return defaultStatements;
+    }
   }
 }
 
-SqliteOpenFactory testFactory({String? path}) {
-  return TestSqliteOpenFactory(path: path ?? dbPath());
+SqliteOpenFactory testFactory({String? path, String? key}) {
+  return SqlcipherOpenFactory(path: path ?? dbPath(), key: key);
 }
 
 Future<SqliteDatabase> setupDatabase({String? path}) async {
   final db = SqliteDatabase.withFactory(testFactory(path: path));
+  await db.initialize();
+  return db;
+}
+
+Future<SqliteDatabase> setupCipherDatabase({
+  required String key,
+  String? path,
+}) async {
+  final db = SqliteDatabase.withFactory(testFactory(path: path, key: key));
   await db.initialize();
   return db;
 }
