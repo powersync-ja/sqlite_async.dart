@@ -103,4 +103,7 @@ abstract class SqliteConnection extends SqliteWriteContext {
       {Duration? lockTimeout, String? debugContext});
 
   Future<void> close();
+
+  /// Returns true if the connection is closed
+  bool get closed;
 }

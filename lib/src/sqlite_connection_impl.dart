@@ -44,6 +44,10 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     await _isolateClient.ready;
   }
 
+  bool get closed {
+    return _isolateClient.closed;
+  }
+
   Future<void> _open(SqliteOpenFactory openFactory,
       {required bool primary,
       required SerializedPortClient upstreamPort}) async {
@@ -212,9 +216,20 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
     // running migrations, and other setup.
     await client.post(const InitDb());
   }
+
   final db = await params.openFactory.open(SqliteOpenOptions(
       primaryConnection: params.primary, readOnly: params.readOnly));
 
+  runZonedGuarded(() async {
+    await _sqliteConnectionIsolateInner(params, client, db);
+  }, (error, stack) {
+    db.dispose();
+    throw error;
+  });
+}
+
+Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
+    ChildPortClient client, sqlite.Database db) async {
   final server = params.portServer;
   final commandPort = ReceivePort();
 

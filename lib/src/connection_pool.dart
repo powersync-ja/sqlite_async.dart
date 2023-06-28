@@ -58,6 +58,9 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       var completer = Completer<T>();
 
       var futures = _readConnections.sublist(0).map((connection) async {
+        if (connection.closed) {
+          _readConnections.remove(connection);
+        }
         try {
           return await connection.readLock((ctx) async {
             if (haveLock) {
@@ -106,6 +109,9 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       {Duration? lockTimeout, String? debugContext}) {
     if (closed) {
       throw AssertionError('Closed');
+    }
+    if (_writeConnection?.closed == true) {
+      _writeConnection = null;
     }
     _writeConnection ??= SqliteConnectionImpl(
         upstreamPort: _upstreamPort,
