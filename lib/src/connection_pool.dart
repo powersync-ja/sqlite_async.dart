@@ -26,6 +26,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final Mutex mutex;
 
+  @override
   bool closed = false;
 
   /// Open a new connection pool.

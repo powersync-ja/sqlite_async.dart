@@ -1,9 +1,7 @@
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite3/open.dart' as sqlite_open;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 /// Since the functions need to be created on every SQLite connection,

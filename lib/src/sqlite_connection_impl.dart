@@ -44,6 +44,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     await _isolateClient.ready;
   }
 
+  @override
   bool get closed {
     return _isolateClient.closed;
   }

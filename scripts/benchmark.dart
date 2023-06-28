@@ -60,13 +60,13 @@ List<SqliteBenchmark> benchmarks = [
   }, maxBatchSize: 10000, enabled: true),
   SqliteBenchmark('Write lock',
       (SqliteDatabase db, List<List<String>> parameters) async {
-    for (var params in parameters) {
+    for (var _ in parameters) {
       await db.writeLock((tx) async {});
     }
   }, maxBatchSize: 5000, enabled: false),
   SqliteBenchmark('Read lock',
       (SqliteDatabase db, List<List<String>> parameters) async {
-    for (var params in parameters) {
+    for (var _ in parameters) {
       await db.readLock((tx) async {});
     }
   }, maxBatchSize: 5000, enabled: false),

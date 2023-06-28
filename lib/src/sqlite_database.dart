@@ -104,6 +104,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
     await _initialized;
   }
 
+  @override
   bool get closed {
     return _pool.closed;
   }
