@@ -16,7 +16,8 @@ abstract class PortClient {
 }
 
 class ParentPortClient implements PortClient {
-  late Future<SendPort> sendPort;
+  late Future<SendPort> sendPortFuture;
+  SendPort? sendPort;
   ReceivePort receivePort = ReceivePort();
   bool closed = false;
   int _nextId = 1;
@@ -24,8 +25,11 @@ class ParentPortClient implements PortClient {
   Map<int, Completer<Object?>> handlers = HashMap();
 
   ParentPortClient() {
-    final initCompleter = Completer<SendPort>();
-    sendPort = initCompleter.future;
+    final initCompleter = Completer<SendPort>.sync();
+    sendPortFuture = initCompleter.future;
+    sendPortFuture.then((value) {
+      sendPort = value;
+    });
     receivePort.listen((message) {
       if (message is _InitMessage) {
         assert(!initCompleter.isCompleted);
@@ -56,7 +60,7 @@ class ParentPortClient implements PortClient {
   }
 
   Future<void> get ready async {
-    await sendPort;
+    await sendPortFuture;
   }
 
   void _cancelAll(Object error) {
@@ -72,10 +76,11 @@ class ParentPortClient implements PortClient {
     if (closed) {
       throw ClosedException();
     }
-    var completer = Completer<T>();
+    var completer = Completer<T>.sync();
     var id = _nextId++;
     handlers[id] = completer;
-    (await sendPort).send(_RequestMessage(id, message, receivePort.sendPort));
+    final port = sendPort ?? await sendPortFuture;
+    port.send(_RequestMessage(id, message, null));
     return await completer.future;
   }
 
@@ -84,7 +89,8 @@ class ParentPortClient implements PortClient {
     if (closed) {
       throw ClosedException();
     }
-    (await sendPort).send(_FireMessage(message));
+    final port = sendPort ?? await sendPortFuture;
+    port.send(_FireMessage(message));
   }
 
   RequestPortServer server() {
@@ -138,7 +144,7 @@ class ChildPortClient implements PortClient {
 
   @override
   Future<T> post<T>(Object message) async {
-    var completer = Completer<T>();
+    var completer = Completer<T>.sync();
     var id = _nextId++;
     handlers[id] = completer;
     sendPort.send(_RequestMessage(id, message, receivePort.sendPort));
@@ -177,12 +183,13 @@ class RequestPortServer {
 class PortServer {
   final ReceivePort _receivePort = ReceivePort();
   final Future<Object?> Function(Object? message) handle;
+  final SendPort? replyPort;
 
-  PortServer(this.handle) {
+  PortServer(this.handle) : replyPort = null {
     _init();
   }
 
-  PortServer.forSendPort(SendPort port, this.handle) {
+  PortServer.forSendPort(SendPort port, this.handle) : replyPort = port {
     port.send(_InitMessage(_receivePort.sendPort));
     _init();
   }
@@ -208,11 +215,12 @@ class PortServer {
           // Fire and forget
           handle(request.message);
         } else {
+          final replyPort = request.reply ?? this.replyPort;
           try {
             var result = await handle(request.message);
-            request.reply.send(_PortChannelResult.success(request.id, result));
+            replyPort!.send(_PortChannelResult.success(request.id, result));
           } catch (e, stacktrace) {
-            request.reply
+            replyPort!
                 .send(_PortChannelResult.error(request.id, e, stacktrace));
           }
         }
@@ -238,7 +246,7 @@ class _FireMessage {
 class _RequestMessage {
   final int id;
   final Object message;
-  final SendPort reply;
+  final SendPort? reply;
 
   _RequestMessage(this.id, this.message, this.reply);
 }
