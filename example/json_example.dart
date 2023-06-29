@@ -63,6 +63,7 @@ RETURNING id''', [users]);
   var ids = idRows.map((row) => row['id']).toList();
 
   // Alternatively, using json1 functions directly.
+  // ignore: unused_local_variable
   var idRows2 = await db.execute('''
 INSERT INTO users(name, email)
 SELECT e.value ->> 'name', e.value ->> 'email' FROM json_each(?) e

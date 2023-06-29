@@ -44,6 +44,11 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     await _isolateClient.ready;
   }
 
+  @override
+  bool get closed {
+    return _isolateClient.closed;
+  }
+
   Future<void> _open(SqliteOpenFactory openFactory,
       {required bool primary,
       required SerializedPortClient upstreamPort}) async {
@@ -68,7 +73,15 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   @override
   Future<void> close() async {
     await _connectionMutex.lock(() async {
-      await _isolateClient.post(const _SqliteIsolateConnectionClose());
+      if (readOnly) {
+        await _isolateClient.post(const _SqliteIsolateConnectionClose());
+      } else {
+        // In some cases, disposing a write connection lock the database.
+        // We use the lock here to avoid "database is locked" errors.
+        await _writeMutex.lock(() async {
+          await _isolateClient.post(const _SqliteIsolateConnectionClose());
+        });
+      }
       _isolate.kill();
     });
   }
@@ -212,9 +225,20 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
     // running migrations, and other setup.
     await client.post(const InitDb());
   }
+
   final db = await params.openFactory.open(SqliteOpenOptions(
       primaryConnection: params.primary, readOnly: params.readOnly));
 
+  runZonedGuarded(() async {
+    await _sqliteConnectionIsolateInner(params, client, db);
+  }, (error, stack) {
+    db.dispose();
+    throw error;
+  });
+}
+
+Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
+    ChildPortClient client, sqlite.Database db) async {
   final server = params.portServer;
   final commandPort = ReceivePort();
 

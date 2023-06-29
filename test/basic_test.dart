@@ -249,6 +249,78 @@ void main() {
         await db.execute('BEGIN');
       }, throwsA((e) => e is sqlite.SqliteException));
     });
+
+    test('should handle normal errors', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+      Error? caughtError;
+      final syntheticError = ArgumentError('foobar');
+      await db.computeWithDatabase<void>((db) async {
+        throw syntheticError;
+      }).catchError((error) {
+        caughtError = error;
+      });
+      expect(caughtError.toString(), equals(syntheticError.toString()));
+
+      // Check that we can still continue afterwards
+      final computed = await db.computeWithDatabase((db) async {
+        return 5;
+      });
+      expect(computed, equals(5));
+    });
+
+    test('should handle uncaught errors', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+      Object? caughtError;
+      await db.computeWithDatabase<void>((db) async {
+        Future<void> asyncCompute() async {
+          throw ArgumentError('uncaught async error');
+        }
+
+        asyncCompute();
+      }).catchError((error) {
+        caughtError = error;
+      });
+      // This may change into a better error in the future
+      expect(caughtError.toString(), equals("Instance of 'ClosedException'"));
+
+      // Check that we can still continue afterwards
+      final computed = await db.computeWithDatabase((db) async {
+        return 5;
+      });
+      expect(computed, equals(5));
+    });
+
+    test('should handle uncaught errors in read connections', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+      for (var i = 0; i < 10; i++) {
+        Object? caughtError;
+
+        await db.readTransaction((ctx) async {
+          await ctx.computeWithDatabase((db) async {
+            Future<void> asyncCompute() async {
+              throw ArgumentError('uncaught async error');
+            }
+
+            asyncCompute();
+          });
+        }).catchError((error) {
+          caughtError = error;
+        });
+        // This may change into a better error in the future
+        expect(caughtError.toString(), equals("Instance of 'ClosedException'"));
+      }
+
+      // Check that we can still continue afterwards
+      final computed = await db.readTransaction((ctx) async {
+        return await ctx.computeWithDatabase((db) async {
+          return 5;
+        });
+      });
+      expect(computed, equals(5));
+    });
   });
 }
 
