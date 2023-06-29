@@ -1,3 +1,8 @@
+## 0.4.0
+
+- Ensure database connections are cleaned up on unhandled Isolate errors.
+- Minor performance improvements.
+
 ## 0.3.0
 
 - Better error messages for recursive transactions.
