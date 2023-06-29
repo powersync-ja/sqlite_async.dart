@@ -73,7 +73,15 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   @override
   Future<void> close() async {
     await _connectionMutex.lock(() async {
-      await _isolateClient.post(const _SqliteIsolateConnectionClose());
+      if (readOnly) {
+        await _isolateClient.post(const _SqliteIsolateConnectionClose());
+      } else {
+        // In some cases, disposing a write connection lock the database.
+        // We use the lock here to avoid "database is locked" errors.
+        await _writeMutex.lock(() async {
+          await _isolateClient.post(const _SqliteIsolateConnectionClose());
+        });
+      }
       _isolate.kill();
     });
   }
