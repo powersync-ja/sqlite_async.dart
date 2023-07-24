@@ -1,3 +1,8 @@
+## 0.5.0
+
+- No code changes.
+- Updated dependencies to support sqlite3 2.x.
+
 ## 0.4.0
 
 - Ensure database connections are cleaned up on unhandled Isolate errors.
