@@ -20,7 +20,7 @@ class TestUser {
 }
 
 void main() {
-  group('Basic Tests', () {
+  group('json1 Tests', () {
     late String path;
 
     setUp(() async {
