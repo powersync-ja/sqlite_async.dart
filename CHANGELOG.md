@@ -1,3 +1,8 @@
+## 0.5.1
+
+- Fix `watch` when called with query parameters.
+- Clean up `-wal` and `-shm` files on close.
+
 ## 0.5.0
 
 - No code changes.
