@@ -174,9 +174,12 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   @override
   Future<void> close() async {
     closed = true;
-    await _writeConnection?.close();
     for (var connection in _readConnections) {
       await connection.close();
     }
+    // Closing the write connection cleans up the journal files (-shm and -wal files).
+    // It can only do that if there are no other open connections, so we close the
+    // read-only connections first.
+    await _writeConnection?.close();
   }
 }

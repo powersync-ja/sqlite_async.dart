@@ -245,6 +245,72 @@ void main() {
         lastTime = r;
       }
     });
+
+    test('watch with parameters', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+
+      const baseTime = 20;
+
+      const throttleDuration = Duration(milliseconds: baseTime);
+
+      final rows = await db.execute(
+          'INSERT INTO customers(name) VALUES (?) RETURNING id',
+          ['a customer']);
+      final id = rows[0]['id'];
+
+      final stream = db.watch(
+          'SELECT count() AS count FROM assets WHERE customer_id = ?',
+          parameters: [id],
+          throttle: throttleDuration);
+
+      var done = false;
+      inserts() async {
+        while (!done) {
+          await db.execute(
+              'INSERT INTO assets(make, customer_id) VALUES (?, ?)',
+              ['test', id]);
+          await Future.delayed(
+              Duration(milliseconds: Random().nextInt(baseTime * 2)));
+        }
+      }
+
+      const numberOfQueries = 10;
+
+      inserts();
+      try {
+        List<DateTime> times = [];
+        final results = await stream.take(numberOfQueries).map((e) {
+          times.add(DateTime.now());
+          return e;
+        }).toList();
+
+        var lastCount = 0;
+        for (var r in results) {
+          final count = r.first['count'];
+          // This is not strictly incrementing, since we can't guarantee the
+          // exact order between reads and writes.
+          // We can guarantee that there will always be a read after the last write,
+          // but the previous read may have been after the same write in some cases.
+          expect(count, greaterThanOrEqualTo(lastCount));
+          lastCount = count;
+        }
+
+        // The number of read queries must not be greater than the number of writes overall.
+        expect(numberOfQueries, lessThanOrEqualTo(results.last.first['count']));
+
+        DateTime? lastTime;
+        for (var r in times) {
+          if (lastTime != null) {
+            var diff = r.difference(lastTime);
+            expect(diff, greaterThanOrEqualTo(throttleDuration));
+          }
+          lastTime = r;
+        }
+      } finally {
+        done = true;
+      }
+    });
   });
 }
 

@@ -57,8 +57,9 @@ Future<Set<String>> getSourceTablesText(
 }
 
 /// Given a SELECT query, return the tables that the query depends on.
-Future<Set<String>> getSourceTables(SqliteReadContext ctx, String sql) async {
-  final rows = await ctx.getAll('EXPLAIN $sql');
+Future<Set<String>> getSourceTables(SqliteReadContext ctx, String sql,
+    [List<Object?> parameters = const []]) async {
+  final rows = await ctx.getAll('EXPLAIN $sql', parameters);
   List<int> rootpages = [];
   for (var row in rows) {
     if (row['opcode'] == 'OpenRead' && row['p3'] == 0 && row['p2'] is int) {
