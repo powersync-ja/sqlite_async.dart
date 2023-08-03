@@ -50,7 +50,8 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       Iterable<String>? triggerOnTables}) async* {
     assert(updates != null,
         'updates stream must be provided to allow query watching');
-    final tables = triggerOnTables ?? await getSourceTables(this, sql);
+    final tables =
+        triggerOnTables ?? await getSourceTables(this, sql, parameters);
     final filteredStream =
         updates!.transform(UpdateNotification.filterTablesTransformer(tables));
     final throttledStream = UpdateNotification.throttleStream(
