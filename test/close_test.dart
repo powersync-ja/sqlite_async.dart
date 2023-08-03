@@ -26,7 +26,7 @@ void main() {
     }
 
     test('Open and close', () async {
-      // Test that that the journal files are properly deleted after closing.
+      // Test that the journal files are properly deleted after closing.
       // If the write connection is closed before the read connections, that is
       // not the case.
 
