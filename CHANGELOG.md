@@ -1,3 +1,7 @@
+## 0.5.2
+
+- Fix releasing of locks when closing `SharedMutex``.
+
 ## 0.5.1
 
 - Fix `watch` when called with query parameters.

@@ -125,6 +125,7 @@ class ChildPortClient implements PortClient {
   final SendPort sendPort;
   final ReceivePort receivePort = ReceivePort();
   int _nextId = 1;
+  bool closed = false;
 
   final Map<int, Completer<Object?>> handlers = HashMap();
 
@@ -144,6 +145,9 @@ class ChildPortClient implements PortClient {
 
   @override
   Future<T> post<T>(Object message) async {
+    if (closed) {
+      throw const ClosedException();
+    }
     var completer = Completer<T>.sync();
     var id = _nextId++;
     handlers[id] = completer;
@@ -153,11 +157,14 @@ class ChildPortClient implements PortClient {
 
   @override
   void fire(Object message) {
+    if (closed) {
+      throw ClosedException();
+    }
     sendPort.send(_FireMessage(message));
   }
 
   void _cancelAll(Object error) {
-    var handlers = this.handlers;
+    var handlers = HashMap<int, Completer<Object?>>.from(this.handlers);
     this.handlers.clear();
     for (var message in handlers.values) {
       message.completeError(error);
@@ -165,6 +172,7 @@ class ChildPortClient implements PortClient {
   }
 
   void close() {
+    closed = true;
     _cancelAll(const ClosedException());
     receivePort.close();
   }
