@@ -1,4 +1,4 @@
-import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite3/common.dart' as sqlite;
 
 import 'database_utils.dart';
 import 'sqlite_connection.dart';
@@ -122,7 +122,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   /// write transaction.
   @override
   Future<T> computeWithDatabase<T>(
-      Future<T> Function(sqlite.Database db) compute) {
+      Future<T> Function(sqlite.CommonDatabase db) compute) {
     return writeTransaction((tx) async {
       return tx.computeWithDatabase(compute);
     });

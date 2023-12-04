@@ -9,6 +9,7 @@ import 'port_channel.dart';
 import 'sqlite_connection.dart';
 import 'sqlite_connection_impl.dart';
 import 'sqlite_open_factory.dart';
+import 'sqlite_default_open_factory.dart';
 import 'sqlite_options.dart';
 import 'sqlite_queries.dart';
 import 'update_notification.dart';
