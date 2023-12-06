@@ -34,7 +34,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// This must be safe to pass to different isolates.
   ///
   /// Use a custom class for this to customize the open process.
-  final AbstractDefaultSqliteOpenFactory<Database> openFactory;
+  final SqliteOpenFactory<Database> openFactory;
 
   /// Use this stream to subscribe to notifications of updates to tables.
   @override

@@ -1,5 +1,7 @@
 import 'dart:async';
 
+import 'package:sqlite3/sqlite3.dart';
+
 import 'mutex.dart';
 import 'port_channel.dart';
 import 'sqlite_connection.dart';
@@ -14,7 +16,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
-  final SqliteOpenFactory _factory;
+  final SqliteOpenFactory<Database> _factory;
   final SerializedPortClient _upstreamPort;
 
   @override
