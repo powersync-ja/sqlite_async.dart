@@ -29,7 +29,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   final bool readOnly;
 
   SqliteConnectionImpl(
-      {required SqliteOpenFactory openFactory,
+      {required SqliteOpenFactory<sqlite.Database> openFactory,
       required Mutex mutex,
       required SerializedPortClient upstreamPort,
       this.updates,
@@ -49,7 +49,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     return _isolateClient.closed;
   }
 
-  Future<void> _open(SqliteOpenFactory openFactory,
+  Future<void> _open(SqliteOpenFactory<sqlite.Database> openFactory,
       {required bool primary,
       required SerializedPortClient upstreamPort}) async {
     await _connectionMutex.lock(() async {
@@ -334,7 +334,7 @@ class _SqliteConnectionParams {
 
   final SerializedPortClient port;
   final bool primary;
-  final SqliteOpenFactory openFactory;
+  final SqliteOpenFactory<sqlite.Database> openFactory;
 
   _SqliteConnectionParams(
       {required this.openFactory,

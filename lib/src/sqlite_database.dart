@@ -3,16 +3,17 @@ import 'dart:isolate';
 
 import 'connection_pool.dart';
 import 'database_utils.dart';
+import 'default_sqlite_open_factory.dart';
 import 'isolate_connection_factory.dart';
 import 'mutex.dart';
 import 'port_channel.dart';
 import 'sqlite_connection.dart';
 import 'sqlite_connection_impl.dart';
 import 'sqlite_open_factory.dart';
-import 'sqlite_default_open_factory.dart';
 import 'sqlite_options.dart';
 import 'sqlite_queries.dart';
 import 'update_notification.dart';
+import 'package:sqlite3/sqlite3.dart';
 
 /// A SQLite database instance.
 ///
@@ -33,7 +34,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// This must be safe to pass to different isolates.
   ///
   /// Use a custom class for this to customize the open process.
-  final SqliteOpenFactory openFactory;
+  final AbstractDefaultSqliteOpenFactory<Database> openFactory;
 
   /// Use this stream to subscribe to notifications of updates to tables.
   @override

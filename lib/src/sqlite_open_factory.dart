@@ -8,8 +8,29 @@ import 'sqlite_options.dart';
 ///
 /// Since connections are opened in dedicated background isolates, this class
 /// must be safe to pass to different isolates.
-abstract class SqliteOpenFactory {
-  FutureOr<sqlite.CommonDatabase> open(SqliteOpenOptions options);
+abstract class SqliteOpenFactory<T extends sqlite.CommonDatabase> {
+  FutureOr<T> open(SqliteOpenOptions options);
+}
+
+class SqliteOpenOptions {
+  /// Whether this is the primary write connection for the database.
+  final bool primaryConnection;
+
+  /// Whether this connection is read-only.
+  final bool readOnly;
+
+  const SqliteOpenOptions(
+      {required this.primaryConnection, required this.readOnly});
+
+  sqlite.OpenMode get openMode {
+    if (primaryConnection) {
+      return sqlite.OpenMode.readWriteCreate;
+    } else if (readOnly) {
+      return sqlite.OpenMode.readOnly;
+    } else {
+      return sqlite.OpenMode.readWrite;
+    }
+  }
 }
 
 /// The default database factory.
@@ -18,11 +39,12 @@ abstract class SqliteOpenFactory {
 /// to configure the connection.
 ///
 /// Override the [open] method to customize the process.
-class DefaultSqliteOpenFactory implements SqliteOpenFactory {
+abstract class AbstractDefaultSqliteOpenFactory<T extends sqlite.CommonDatabase>
+    implements SqliteOpenFactory<T> {
   final String path;
   final SqliteOptions sqliteOptions;
 
-  const DefaultSqliteOpenFactory(
+  const AbstractDefaultSqliteOpenFactory(
       {required this.path,
       this.sqliteOptions = const SqliteOptions.defaults()});
 
@@ -44,37 +66,5 @@ class DefaultSqliteOpenFactory implements SqliteOpenFactory {
       statements.add('PRAGMA synchronous = ${sqliteOptions.synchronous!.name}');
     }
     return statements;
-  }
-
-  @override
-  sqlite.CommonDatabase open(SqliteOpenOptions options) {
-    final mode = options.openMode;
-    var db = sqlite.sqlite3.open(path, mode: mode, mutex: false);
-
-    for (var statement in pragmaStatements(options)) {
-      db.execute(statement);
-    }
-    return db;
-  }
-}
-
-class SqliteOpenOptions {
-  /// Whether this is the primary write connection for the database.
-  final bool primaryConnection;
-
-  /// Whether this connection is read-only.
-  final bool readOnly;
-
-  const SqliteOpenOptions(
-      {required this.primaryConnection, required this.readOnly});
-
-  sqlite.OpenMode get openMode {
-    if (primaryConnection) {
-      return sqlite.OpenMode.readWriteCreate;
-    } else if (readOnly) {
-      return sqlite.OpenMode.readOnly;
-    } else {
-      return sqlite.OpenMode.readWrite;
-    }
   }
 }

@@ -13,7 +13,7 @@ import 'update_notification.dart';
 
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory {
-  SqliteOpenFactory openFactory;
+  SqliteOpenFactory<sqlite.Database> openFactory;
   SerializedMutex mutex;
   SerializedPortClient upstreamPort;
 

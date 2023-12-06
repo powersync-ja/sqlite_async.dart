@@ -49,7 +49,7 @@ class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
   }
 }
 
-SqliteOpenFactory testFactory({String? path}) {
+SqliteOpenFactory<sqlite.Database> testFactory({String? path}) {
   return TestSqliteOpenFactory(path: path ?? dbPath());
 }
 
