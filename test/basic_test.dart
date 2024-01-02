@@ -222,18 +222,30 @@ void main() {
       await createTables(db);
 
       var tp = db.writeTransaction((tx) async {
-        tx.execute('INSERT INTO test_data(description) VALUES(?)', ['test1']);
-        tx.execute('INSERT INTO test_data(description) VALUES(?)', ['test2']);
-        ignore(tx.execute('INSERT INTO test_data(description) VALUES(json(?))',
-            ['test3'])); // Errors
-        // Will not be executed because of the above error
+        tx.execute(
+            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+            [1, 'test1']);
+        tx.execute(
+            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+            [2, 'test2']);
         ignore(tx.execute(
-            'INSERT INTO test_data(description) VALUES(?) RETURNING *',
-            ['test4']));
+            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+            [2, 'test3'])); // Errors
+
+        // Will not be executed because of the above rollback
+        ignore(tx.execute(
+            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+            [4, 'test4']));
       });
 
       // The error propagates up to the transaction
-      await expectLater(tp, throwsA((e) => e is sqlite.SqliteException));
+      await expectLater(
+          tp,
+          throwsA((e) =>
+              e is sqlite.SqliteException &&
+              e.message
+                  .contains('Transaction rolled back by earlier statement') &&
+              e.message.contains('UNIQUE constraint failed')));
 
       expect(await db.get('SELECT count() count FROM test_data'),
           equals({'count': 0}));
@@ -320,6 +332,27 @@ void main() {
         });
       });
       expect(computed, equals(5));
+    });
+
+    test('should allow resuming transaction after errors', () async {
+      final db = await setupDatabase(path: path);
+      await createTables(db);
+      await db.writeTransaction((tx) async {
+        var caught = false;
+        try {
+          // This error does not rollback the transaction
+          await tx.execute('NOT A VALID STATEMENT');
+        } catch (e) {
+          // Ignore
+          caught = true;
+        }
+        expect(caught, equals(true));
+
+        final rs = await tx.execute(
+            'INSERT INTO test_data(description) VALUES(?) RETURNING description',
+            ['Test Data']);
+        expect(rs.rows[0], equals(['Test Data']));
+      });
     });
   });
 }

@@ -269,10 +269,8 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
   server.open((data) async {
     if (data is _SqliteIsolateClose) {
       if (txId != null) {
-        try {
+        if (!db.autocommit) {
           db.execute('ROLLBACK');
-        } catch (e) {
-          // Ignore
         }
         txId = null;
         txError = null;
@@ -290,7 +288,8 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
         txId = data.ctxId;
       } else if (txId != null && txId != data.ctxId) {
         // Locks should prevent this from happening
-        throw AssertionError('Mixed transactions: $txId and ${data.ctxId}');
+        throw sqlite.SqliteException(
+            0, 'Mixed transactions: $txId and ${data.ctxId}');
       } else if (data.sql == 'ROLLBACK') {
         // This is the only valid way to clear an error
         txError = null;
@@ -307,7 +306,13 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
         return result;
       } catch (err) {
         if (txId != null) {
-          txError = err;
+          if (db.autocommit) {
+            // Transaction rolled back
+            txError = sqlite.SqliteException(0,
+                'Transaction rolled back by earlier statement: ${err.toString()}');
+          } else {
+            // Recoverable error
+          }
         }
         rethrow;
       }
