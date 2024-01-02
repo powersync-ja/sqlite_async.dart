@@ -13,6 +13,15 @@ abstract class SqliteReadContext {
   Future<sqlite.Row?> getOptional(String sql,
       [List<Object?> parameters = const []]);
 
+  /// For transactions, returns true if the transaction is open.
+  ///
+  /// This means the lock is still held, and the transaction has not been committed
+  /// or rolled back (whether explicit rollback, or because of an error).
+  ///
+  /// For database connections, returns true if the connection hasn't been closed
+  /// yet.
+  Future<bool> isOpen();
+
   /// Run a function within a database isolate, with direct synchronous access
   /// to the underlying database.
   ///

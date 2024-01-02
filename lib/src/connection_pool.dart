@@ -50,6 +50,11 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
         _upstreamPort = upstreamPort;
 
   @override
+  Future<bool> isOpen() async {
+    return !closed;
+  }
+
+  @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await _expandPool();

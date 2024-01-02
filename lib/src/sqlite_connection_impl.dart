@@ -49,6 +49,11 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     return _isolateClient.closed;
   }
 
+  @override
+  Future<bool> isOpen() async {
+    return !closed;
+  }
+
   Future<void> _open(SqliteOpenFactory openFactory,
       {required bool primary,
       required SerializedPortClient upstreamPort}) async {
@@ -174,6 +179,13 @@ class _TransactionContext implements SqliteWriteContext {
         rethrow;
       }
     }
+  }
+
+  @override
+  Future<bool> isOpen() {
+    return computeWithDatabase((db) async {
+      return !db.autocommit;
+    });
   }
 
   @override

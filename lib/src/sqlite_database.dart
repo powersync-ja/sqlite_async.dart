@@ -109,6 +109,11 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
     return _pool.closed;
   }
 
+  @override
+  Future<bool> isOpen() async {
+    return !closed;
+  }
+
   void _listenForEvents() {
     UpdateNotification? updates;
 

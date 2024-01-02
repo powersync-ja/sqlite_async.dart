@@ -222,15 +222,21 @@ void main() {
       await createTables(db);
 
       var tp = db.writeTransaction((tx) async {
-        tx.execute(
+        await tx.execute(
             'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
             [1, 'test1']);
-        tx.execute(
+        await tx.execute(
             'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
             [2, 'test2']);
-        ignore(tx.execute(
-            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-            [2, 'test3'])); // Errors
+        expect(await tx.isOpen(), equals(true));
+        try {
+          await tx.execute(
+              'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+              [2, 'test3']);
+        } catch (e) {
+          // Ignore
+        }
+        expect(await tx.isOpen(), equals(false));
 
         // Will not be executed because of the above rollback
         ignore(tx.execute(
@@ -337,7 +343,9 @@ void main() {
     test('should allow resuming transaction after errors', () async {
       final db = await setupDatabase(path: path);
       await createTables(db);
+      SqliteWriteContext? savedTx;
       await db.writeTransaction((tx) async {
+        savedTx = tx;
         var caught = false;
         try {
           // This error does not rollback the transaction
@@ -348,11 +356,14 @@ void main() {
         }
         expect(caught, equals(true));
 
+        expect(await tx.isOpen(), equals(true));
+
         final rs = await tx.execute(
             'INSERT INTO test_data(description) VALUES(?) RETURNING description',
             ['Test Data']);
         expect(rs.rows[0], equals(['Test Data']));
       });
+      expect(await savedTx!.isOpen(), equals(false));
     });
   });
 }
