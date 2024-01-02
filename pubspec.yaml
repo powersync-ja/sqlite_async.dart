@@ -3,7 +3,7 @@ description: High-performance asynchronous interface for SQLite on Dart and Flut
 version: 0.5.2
 repository: https://github.com/journeyapps/sqlite_async.dart
 environment:
-  sdk: '>=2.19.1 <4.0.0'
+  sdk: '>=3.2.0 <4.0.0'
 
 dependencies:
   sqlite3: '^2.3.0'
