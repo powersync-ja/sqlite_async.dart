@@ -228,7 +228,7 @@ void main() {
         await tx.execute(
             'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
             [2, 'test2']);
-        expect(await tx.isOpen(), equals(true));
+        expect(await tx.getAutoCommit(), equals(false));
         try {
           await tx.execute(
               'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
@@ -236,7 +236,8 @@ void main() {
         } catch (e) {
           // Ignore
         }
-        expect(await tx.isOpen(), equals(false));
+        expect(await tx.getAutoCommit(), equals(true));
+        expect(tx.closed, equals(false));
 
         // Will not be executed because of the above rollback
         ignore(tx.execute(
@@ -356,14 +357,16 @@ void main() {
         }
         expect(caught, equals(true));
 
-        expect(await tx.isOpen(), equals(true));
+        expect(await tx.getAutoCommit(), equals(false));
+        expect(tx.closed, equals(false));
 
         final rs = await tx.execute(
             'INSERT INTO test_data(description) VALUES(?) RETURNING description',
             ['Test Data']);
         expect(rs.rows[0], equals(['Test Data']));
       });
-      expect(await savedTx!.isOpen(), equals(false));
+      expect(await savedTx!.getAutoCommit(), equals(true));
+      expect(savedTx!.closed, equals(true));
     });
   });
 }

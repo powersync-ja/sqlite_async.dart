@@ -109,9 +109,11 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
     return _pool.closed;
   }
 
+  /// Returns true if the _write_ connection is in auto-commit mode
+  /// (no active transaction).
   @override
-  Future<bool> isOpen() async {
-    return !closed;
+  Future<bool> getAutoCommit() {
+    return _pool.getAutoCommit();
   }
 
   void _listenForEvents() {

@@ -50,8 +50,18 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   }
 
   @override
-  Future<bool> isOpen() async {
-    return !closed;
+  Future<bool> getAutoCommit() async {
+    if (closed) {
+      throw AssertionError('Closed');
+    }
+    // We use a _TransactionContext without a lock here.
+    // It is safe to call this in the middle of another transaction.
+    final ctx = _TransactionContext(_isolateClient);
+    try {
+      return await ctx.getAutoCommit();
+    } finally {
+      await ctx.close();
+    }
   }
 
   Future<void> _open(SqliteOpenFactory openFactory,
@@ -151,6 +161,11 @@ class _TransactionContext implements SqliteWriteContext {
   _TransactionContext(this._sendPort);
 
   @override
+  bool get closed {
+    return _closed;
+  }
+
+  @override
   Future<sqlite.ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
     return getAll(sql, parameters);
@@ -182,10 +197,12 @@ class _TransactionContext implements SqliteWriteContext {
   }
 
   @override
-  Future<bool> isOpen() {
-    return computeWithDatabase((db) async {
-      return !db.autocommit;
-    });
+  Future<bool> getAutoCommit() async {
+    return await computeWithDatabase(
+      (db) async {
+        return db.autocommit;
+      },
+    );
   }
 
   @override

@@ -49,9 +49,13 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       : _writeConnection = writeConnection,
         _upstreamPort = upstreamPort;
 
+  /// Returns true if the _write_ connection is currently in autocommit mode.
   @override
-  Future<bool> isOpen() async {
-    return !closed;
+  Future<bool> getAutoCommit() async {
+    if (_writeConnection == null) {
+      throw AssertionError('Closed');
+    }
+    return await _writeConnection!.getAutoCommit();
   }
 
   @override

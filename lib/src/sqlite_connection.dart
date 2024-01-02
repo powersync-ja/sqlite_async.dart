@@ -13,14 +13,17 @@ abstract class SqliteReadContext {
   Future<sqlite.Row?> getOptional(String sql,
       [List<Object?> parameters = const []]);
 
-  /// For transactions, returns true if the transaction is open.
-  ///
-  /// This means the lock is still held, and the transaction has not been committed
-  /// or rolled back (whether explicit rollback, or because of an error).
+  /// For transactions, returns true if the lock is held (even if it has been
+  /// rolled back).
   ///
   /// For database connections, returns true if the connection hasn't been closed
   /// yet.
-  Future<bool> isOpen();
+  bool get closed;
+
+  /// Returns true if auto-commit is enabled. This means the database is not
+  /// currently in a transaction. This may be true even if a transaction lock
+  /// is still held, when the transaction has been committed or rolled back.
+  Future<bool> getAutoCommit();
 
   /// Run a function within a database isolate, with direct synchronous access
   /// to the underlying database.
@@ -114,5 +117,6 @@ abstract class SqliteConnection extends SqliteWriteContext {
   Future<void> close();
 
   /// Returns true if the connection is closed
+  @override
   bool get closed;
 }
