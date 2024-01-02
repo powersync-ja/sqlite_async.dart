@@ -30,6 +30,12 @@ jobs:
     strategy:
       matrix:
         include:
+          - sqlite_version: "3440200"
+            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3440200.tar.gz"
+            dart_sdk: 3.2.4
+          - sqlite_version: "3430200"
+            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3430200.tar.gz"
+            dart_sdk: 3.2.4
           - sqlite_version: "3420000"
             sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3420000.tar.gz"
             dart_sdk: 3.2.4
