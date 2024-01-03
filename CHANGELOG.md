@@ -1,3 +1,9 @@
+## 0.6.0
+
+- Allow catching errors and continuing the transaction. This is technically a breaking change, although it should not be an issue in most cases.
+- Add `tx.closed` and `db/tx.getAutoCommit()` to check whether transactions are active.
+- Requires sqlite3 ^2.3.0 and Dart ^3.2.0.
+
 ## 0.5.2
 
 - Fix releasing of locks when closing `SharedMutex``.
