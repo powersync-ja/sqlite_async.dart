@@ -12,7 +12,6 @@ class DefaultSqliteOpenFactory
   Database open(SqliteOpenOptions options) {
     final mode = options.openMode;
 
-    print('ttt' + path + mode.toString());
     var db = sqlite3.open(path, mode: mode, mutex: false);
 
     for (var statement in pragmaStatements(options)) {
