@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/database/abstract_sqlite_database.dart';
 import 'package:test/test.dart';
 
 import 'util.dart';
@@ -21,7 +22,7 @@ void main() {
       await cleanDb(path: path);
     });
 
-    createTables(SqliteDatabase db) async {
+    createTables(AbstractSqliteDatabase db) async {
       await db.writeTransaction((tx) async {
         await tx.execute(
             'CREATE TABLE test_data(id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT)');

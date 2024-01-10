@@ -1,6 +1,6 @@
 import 'package:sqlite3/common.dart' as sqlite;
 
-import 'database_utils.dart';
+import 'utils/shared_utils.dart';
 import 'sqlite_connection.dart';
 import 'update_notification.dart';
 

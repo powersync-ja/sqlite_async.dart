@@ -3,13 +3,13 @@ import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'database_utils.dart';
-import 'mutex.dart';
+import '../../mutex.dart';
+import '../../sqlite_connection.dart';
+import '../../sqlite_open_factory.dart';
+import '../../update_notification.dart';
+import '../../utils/native_database_utils.dart';
 import 'port_channel.dart';
-import 'sqlite_connection.dart';
 import 'sqlite_connection_impl.dart';
-import 'sqlite_open_factory.dart';
-import 'update_notification.dart';
 
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory {

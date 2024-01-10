@@ -3,13 +3,13 @@ import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'database_utils.dart';
-import 'mutex.dart';
+import '../../utils/database_utils.dart';
+import '../../mutex.dart';
 import 'port_channel.dart';
-import 'sqlite_connection.dart';
-import 'sqlite_open_factory.dart';
-import 'sqlite_queries.dart';
-import 'update_notification.dart';
+import '../../sqlite_connection.dart';
+import '../../sqlite_open_factory.dart';
+import '../../sqlite_queries.dart';
+import '../../update_notification.dart';
 
 typedef TxCallback<T> = Future<T> Function(sqlite.Database db);
 

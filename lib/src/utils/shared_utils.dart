@@ -1,8 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
-import 'dart:isolate';
 
-import 'sqlite_connection.dart';
+import '../sqlite_connection.dart';
 
 Future<T> internalReadTransaction<T>(SqliteReadContext ctx,
     Future<T> Function(SqliteReadContext tx) callback) async {
@@ -76,18 +75,6 @@ Future<Set<String>> getSourceTables(SqliteReadContext ctx, String sql,
 
 class InitDb {
   const InitDb();
-}
-
-class SubscribeToUpdates {
-  final SendPort port;
-
-  SubscribeToUpdates(this.port);
-}
-
-class UnsubscribeToUpdates {
-  final SendPort port;
-
-  UnsubscribeToUpdates(this.port);
 }
 
 Object? mapParameter(Object? parameter) {

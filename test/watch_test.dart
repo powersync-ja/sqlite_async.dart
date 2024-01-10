@@ -4,13 +4,15 @@ import 'dart:math';
 
 import 'package:sqlite3/sqlite3.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite_async/src/database_utils.dart';
+import 'package:sqlite_async/src/database/abstract_sqlite_database.dart';
+import 'package:sqlite_async/src/database/native/isolate_connection_factory.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'package:test/test.dart';
 
 import 'util.dart';
 
 void main() {
-  createTables(SqliteDatabase db) async {
+  createTables(AbstractSqliteDatabase db) async {
     await db.writeTransaction((tx) async {
       await tx.execute(
           'CREATE TABLE assets(id INTEGER PRIMARY KEY AUTOINCREMENT, make TEXT, customer_id INTEGER)');

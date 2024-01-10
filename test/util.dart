@@ -6,7 +6,10 @@ import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
 import 'package:sqlite3/open.dart' as sqlite_open;
 import 'package:sqlite3/sqlite3.dart' as sqlite;
-import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/database/abstract_sqlite_database.dart';
+import 'package:sqlite_async/src/open_factory/abstract_open_factory.dart';
+import 'package:sqlite_async/src/database/native/native_sqlite_database.dart';
+import 'package:sqlite_async/src/open_factory/native/native_sqlite_open_factory.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 const defaultSqlitePath = 'libsqlite3.so.0';
