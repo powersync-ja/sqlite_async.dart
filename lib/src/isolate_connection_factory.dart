@@ -15,7 +15,7 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   late AbstractIsolateConnectionFactory adapter;
   
     IsolateConnectionFactory({
-    required AbstractDefaultSqliteOpenFactory openFactory,
+    required SqliteOpenFactory openFactory,
   }) {
     super.openFactory = openFactory;
     adapter = base.IsolateConnectionFactory(openFactory: openFactory);

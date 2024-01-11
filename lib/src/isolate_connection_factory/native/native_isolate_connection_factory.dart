@@ -18,7 +18,7 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   SerializedPortClient upstreamPort;
 
   IsolateConnectionFactory(
-      {required AbstractDefaultSqliteOpenFactory<sqlite.Database> openFactory,
+      {required SqliteOpenFactory<sqlite.Database> openFactory,
       required this.mutex,
       required this.upstreamPort}) {
     super.openFactory = openFactory;

@@ -7,6 +7,7 @@ import '../../../mutex.dart';
 import '../../utils/database_utils.dart';
 import '../../sqlite_connection.dart';
 import '../../open_factory/native/native_sqlite_open_factory.dart';
+import '../../isolate_connection_factory/native/native_isolate_connection_factory.dart';
 import '../../open_factory/abstract_open_factory.dart';
 import '../../sqlite_options.dart';
 import '../../update_notification.dart';
@@ -14,27 +15,19 @@ import '../abstract_sqlite_database.dart';
 import 'port_channel.dart';
 import 'connection_pool.dart';
 import 'sqlite_connection_impl.dart';
-import '../../isolate_connection_factory/web/native_isolate_connection_factory.dart';
 
 /// A SQLite database instance.
 ///
 /// Use one instance per database file. If multiple instances are used, update
 /// notifications may not trigger, and calls may fail with "SQLITE_BUSY" errors.
 class SqliteDatabase extends AbstractSqliteDatabase {
-  /// Use this stream to subscribe to notifications of updates to tables.
   @override
-  late final Stream<UpdateNotification> updates;
-
-  final AbstractDefaultSqliteOpenFactory<Database> openFactory;
-
-  final StreamController<UpdateNotification> _updatesController =
-      StreamController.broadcast();
+  final SqliteOpenFactory<Database> openFactory;
 
   late final PortServer _eventsPort;
 
   late final SqliteConnectionImpl _internalConnection;
   late final SqliteConnectionPool _pool;
-  late final Future<void> _initialized;
 
   /// Global lock to serialize write transactions.
   final SimpleMutex mutex = SimpleMutex();
@@ -69,9 +62,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   ///  4. Creating temporary views or triggers.
   SqliteDatabase.withFactory(this.openFactory,
       {int maxReaders = AbstractSqliteDatabase.defaultMaxReaders}) {
-    updates = _updatesController.stream;
-
-    super.maxReaders = maxReaders;
+    updates = updatesController.stream;
 
     _listenForEvents();
 
@@ -84,18 +75,11 @@ class SqliteDatabase extends AbstractSqliteDatabase {
         maxReaders: maxReaders,
         mutex: mutex);
 
-    _initialized = _init();
+    isInitialized = _init();
   }
 
   Future<void> _init() async {
     await _internalConnection.ready;
-  }
-
-  /// Wait for initialization to complete.
-  ///
-  /// While initializing is automatic, this helps to catch and report initialization errors.
-  Future<void> initialize() async {
-    await _initialized;
   }
 
   @override
@@ -117,7 +101,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
           // that could add massive performance overhead.
           mutex.lock(() async {
             if (updates != null) {
-              _updatesController.add(updates!);
+              updatesController.add(updates!);
               updates = null;
             }
           });
@@ -126,13 +110,13 @@ class SqliteDatabase extends AbstractSqliteDatabase {
         }
         return null;
       } else if (message is InitDb) {
-        await _initialized;
+        await isInitialized;
         return null;
       } else if (message is SubscribeToUpdates) {
         if (subscriptions.containsKey(message.port)) {
           return;
         }
-        final subscription = _updatesController.stream.listen((event) {
+        final subscription = updatesController.stream.listen((event) {
           message.port.send(event);
         });
         subscriptions[message.port] = subscription;
@@ -171,7 +155,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   Future<void> close() async {
     await _pool.close();
-    _updatesController.close();
+    updatesController.close();
     _eventsPort.close();
     await mutex.close();
   }

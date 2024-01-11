@@ -49,6 +49,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
     super.maxReaders = maxReaders;
     adapter =
         base.SqliteDatabase.withFactory(openFactory, maxReaders: maxReaders);
+    isInitialized = adapter.isInitialized;
     updates = adapter.updates;
   }
 

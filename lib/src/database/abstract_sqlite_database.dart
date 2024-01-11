@@ -28,18 +28,16 @@ abstract class AbstractSqliteDatabase
   @override
   late final Stream<UpdateNotification> updates;
 
-  final StreamController<UpdateNotification> _updatesController =
+  final StreamController<UpdateNotification> updatesController =
       StreamController.broadcast();
 
-  late final Future<void> _initialized;
-
-  Future<void> _init();
+  late final Future<void> isInitialized;
 
   /// Wait for initialization to complete.
   ///
   /// While initializing is automatic, this helps to catch and report initialization errors.
   Future<void> initialize() async {
-    await _initialized;
+    await isInitialized;
   }
 
   /// A connection factory that can be passed to different isolates.

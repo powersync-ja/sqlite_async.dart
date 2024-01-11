@@ -8,7 +8,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   bool get closed => throw UnimplementedError();
 
-  late final CommonDatabase con;
+  // late final CommonDatabase con;
 
   // late final Future<void> _initialized;
 
@@ -40,12 +40,16 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   ///  2. Running additional per-connection PRAGMA statements on each connection.
   ///  3. Creating custom SQLite functions.
   ///  4. Creating temporary views or triggers.
-  SqliteDatabase.withFactory(AbstractDefaultSqliteOpenFactory openFactory,
+  SqliteDatabase.withFactory(SqliteOpenFactory openFactory,
       {int maxReaders = AbstractSqliteDatabase.defaultMaxReaders}) {
     super.openFactory = openFactory;
     super.maxReaders = maxReaders;
+    updates = updatesController.stream;
+    isInitialized = _init();
     // con = openFactory.open(options)
   }
+
+  Future<void> _init() async {}
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,

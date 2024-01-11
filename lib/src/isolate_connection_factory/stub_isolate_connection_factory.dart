@@ -7,7 +7,7 @@ import 'abstract_isolate_connection_factory.dart';
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   IsolateConnectionFactory({
-    required AbstractDefaultSqliteOpenFactory openFactory,
+    required SqliteOpenFactory openFactory,
   }) {
     super.openFactory = openFactory;
   }
