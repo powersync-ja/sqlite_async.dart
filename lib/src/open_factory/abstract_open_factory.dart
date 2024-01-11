@@ -49,11 +49,11 @@ abstract class AbstractDefaultSqliteOpenFactory<T extends sqlite.CommonDatabase>
 
   List<String> pragmaStatements(SqliteOpenOptions options);
 
-  T openDB(SqliteOpenOptions options);
+  FutureOr<T> openDB(SqliteOpenOptions options);
 
   @override
-  T open(SqliteOpenOptions options) {
-    var db = openDB(options);
+  FutureOr<T> open(SqliteOpenOptions options) async {
+    var db = await openDB(options);
 
     for (var statement in pragmaStatements(options)) {
       db.execute(statement);

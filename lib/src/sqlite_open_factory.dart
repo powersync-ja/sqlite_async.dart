@@ -1,23 +1,26 @@
 export './open_factory/abstract_open_factory.dart';
 
+import 'dart:async';
+
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/definitions.dart';
 
-import './open_factory/stub_sqlite_open_factory.dart' as base
-    if (dart.library.io) './open_factory/native/native_sqlite_open_factory.dart'
-    if (dart.library.html) './open_factory/web/web_sqlite_open_factory.dart';
+import './open_factory/open_factory_adapter.dart' as base;
 
-class DefaultSqliteOpenFactory<T extends CommonDatabase> extends AbstractDefaultSqliteOpenFactory<T> {
+class DefaultSqliteOpenFactory<T extends CommonDatabase>
+    extends AbstractDefaultSqliteOpenFactory<T> {
   late AbstractDefaultSqliteOpenFactory<T> adapter;
 
   DefaultSqliteOpenFactory(
       {required super.path,
       super.sqliteOptions = const SqliteOptions.defaults()}) {
-        adapter = base.DefaultSqliteOpenFactory(path: path, sqliteOptions: super.sqliteOptions) as AbstractDefaultSqliteOpenFactory<T>;
-      }
+    adapter = base.DefaultSqliteOpenFactory(
+            path: path, sqliteOptions: super.sqliteOptions)
+        as AbstractDefaultSqliteOpenFactory<T>;
+  }
 
   @override
-  T openDB(SqliteOpenOptions options) {
+  FutureOr<T> openDB(SqliteOpenOptions options) {
     return adapter.openDB(options);
   }
 

@@ -9,17 +9,18 @@ class DefaultSqliteOpenFactory
       super.sqliteOptions = const SqliteOptions.defaults()});
 
   @override
-  CommonDatabase openDB(SqliteOpenOptions options) {
-    if (sqliteOptions.wasmSqlite3 == null) {
+  Future<CommonDatabase> openDB(SqliteOpenOptions options) async {
+    if (sqliteOptions.wasmSqlite3Loader == null) {
       throw ArgumentError('WASM Sqlite3 implementation was not provided');
     }
 
-    return sqliteOptions.wasmSqlite3!.open("/" + path);
+    final sqlite = await sqliteOptions.wasmSqlite3Loader!();
+    return sqlite.open("/" + path);
   }
 
   @override
   List<String> pragmaStatements(SqliteOpenOptions options) {
-    // WAL mode is not supported on web
+    // WAL mode is not supported
     return [];
   }
 }

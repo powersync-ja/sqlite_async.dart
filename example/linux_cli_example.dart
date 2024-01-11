@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:ffi';
 
 import 'package:sqlite3/common.dart';
@@ -16,7 +17,7 @@ class TestOpenFactory extends DefaultSqliteOpenFactory {
       this.sqlitePath = defaultSqlitePath});
 
   @override
-  CommonDatabase open(SqliteOpenOptions options) {
+  FutureOr<CommonDatabase> open(SqliteOpenOptions options) async {
     // For details, see:
     // https://pub.dev/packages/sqlite3#manually-providing-sqlite3-libraries
     sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {

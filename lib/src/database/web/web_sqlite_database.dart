@@ -8,7 +8,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   bool get closed => throw UnimplementedError();
 
-  // late final CommonDatabase con;
+  late final CommonDatabase con;
 
   // late final Future<void> _initialized;
 
@@ -46,20 +46,24 @@ class SqliteDatabase extends AbstractSqliteDatabase {
     super.maxReaders = maxReaders;
     updates = updatesController.stream;
     isInitialized = _init();
-    // con = openFactory.open(options)
   }
 
-  Future<void> _init() async {}
+  Future<void> _init() async {
+    con = await openFactory
+        .open(SqliteOpenOptions(primaryConnection: true, readOnly: false));
+  }
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
+      {Duration? lockTimeout, String? debugContext}) async {
+    await isInitialized;
     throw UnimplementedError();
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
+      {Duration? lockTimeout, String? debugContext}) async {
+    await isInitialized;
     throw UnimplementedError();
   }
 

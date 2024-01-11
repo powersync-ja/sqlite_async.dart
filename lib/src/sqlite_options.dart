@@ -1,4 +1,19 @@
+import 'dart:async';
+
 import 'package:sqlite3/wasm.dart';
+
+Future<WasmSqlite3> loadWasmSqlite() async {
+  // TODO conditionally load debug version and specify DB name
+  final wasmSqlite3 =
+      await WasmSqlite3.loadFromUrl(Uri.parse('sqlite3.debug.wasm'));
+
+  wasmSqlite3.registerVirtualFileSystem(
+    await IndexedDbFileSystem.open(dbName: 'sqlite3-example'),
+    makeDefault: true,
+  );
+
+  return wasmSqlite3;
+}
 
 class SqliteOptions {
   /// SQLite journal mode. Defaults to [SqliteJournalMode.wal].
@@ -22,19 +37,19 @@ class SqliteOptions {
   ///       makeDefault: true,
   ///    );
   ///  Pass the initialized wasmSqlite3 here
-  final WasmSqlite3? wasmSqlite3;
+  final FutureOr<WasmSqlite3> Function()? wasmSqlite3Loader;
 
   const SqliteOptions.defaults()
       : journalMode = SqliteJournalMode.wal,
         journalSizeLimit = 6 * 1024 * 1024, // 1.5x the default checkpoint size
         synchronous = SqliteSynchronous.normal,
-        wasmSqlite3 = null;
+        wasmSqlite3Loader = loadWasmSqlite;
 
   const SqliteOptions(
       {this.journalMode = SqliteJournalMode.wal,
       this.journalSizeLimit = 6 * 1024 * 1024,
       this.synchronous = SqliteSynchronous.normal,
-      this.wasmSqlite3 = null});
+      this.wasmSqlite3Loader = loadWasmSqlite});
 }
 
 /// SQLite journal mode. Set on the primary connection.
