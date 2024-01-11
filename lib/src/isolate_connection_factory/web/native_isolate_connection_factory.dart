@@ -8,19 +8,21 @@ import '../../sqlite_connection.dart';
 import '../../sqlite_open_factory.dart';
 import '../../update_notification.dart';
 import '../../utils/native_database_utils.dart';
-import 'port_channel.dart';
-import 'sqlite_connection_impl.dart';
+import '../../database/native/port_channel.dart';
+import '../../database/native/sqlite_connection_impl.dart';
+import '../abstract_isolate_connection_factory.dart';
 
 /// A connection factory that can be passed to different isolates.
-class IsolateConnectionFactory {
-  SqliteOpenFactory<sqlite.Database> openFactory;
+class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   SerializedMutex mutex;
   SerializedPortClient upstreamPort;
 
   IsolateConnectionFactory(
-      {required this.openFactory,
+      {required AbstractDefaultSqliteOpenFactory<sqlite.Database> openFactory,
       required this.mutex,
-      required this.upstreamPort});
+      required this.upstreamPort}) {
+    super.openFactory = openFactory;
+  }
 
   /// Open a new SqliteConnection.
   ///
@@ -31,7 +33,8 @@ class IsolateConnectionFactory {
     var openMutex = mutex.open();
 
     return _IsolateSqliteConnection(
-        openFactory: openFactory,
+        openFactory:
+            openFactory as AbstractDefaultSqliteOpenFactory<sqlite.Database>,
         mutex: openMutex,
         upstreamPort: upstreamPort,
         readOnly: readOnly,
@@ -41,19 +44,6 @@ class IsolateConnectionFactory {
           openMutex.close();
           updates.close();
         });
-  }
-
-  /// Opens a synchronous sqlite.Database directly in the current isolate.
-  ///
-  /// This gives direct access to the database, but:
-  ///  1. No app-level locking is performed automatically. Transactions may fail
-  ///     with SQLITE_BUSY if another isolate is using the database at the same time.
-  ///  2. Other connections are not notified of any updates to tables made within
-  ///     this connection.
-  Future<sqlite.Database> openRawDatabase({bool readOnly = false}) async {
-    final db = await openFactory
-        .open(SqliteOpenOptions(primaryConnection: false, readOnly: readOnly));
-    return db;
   }
 }
 

@@ -1,9 +1,8 @@
 import 'dart:async';
 
+import 'package:sqlite_async/src/isolate_connection_factory/abstract_isolate_connection_factory.dart';
+
 import '../../definitions.dart';
-import '../sqlite_connection.dart';
-import '../sqlite_queries.dart';
-import '../update_notification.dart';
 
 /// A SQLite database instance.
 ///
@@ -42,6 +41,11 @@ abstract class AbstractSqliteDatabase
   Future<void> initialize() async {
     await _initialized;
   }
+
+  /// A connection factory that can be passed to different isolates.
+  ///
+  /// Use this to access the database in background isolates.
+  AbstractIsolateConnectionFactory isolateConnectionFactory();
 
   /// Open a read-only transaction.
   ///

@@ -4,11 +4,8 @@ import 'dart:math';
 
 import 'package:sqlite3/sqlite3.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite_async/src/database/abstract_sqlite_database.dart';
-import 'package:sqlite_async/src/database/native/isolate_connection_factory.dart';
-import 'package:sqlite_async/src/utils/shared_utils.dart';
+import 'package:sqlite_async/src/utils/database_utils.dart';
 import 'package:test/test.dart';
-
 import 'util.dart';
 
 void main() {
@@ -316,7 +313,7 @@ void main() {
   });
 }
 
-Future<List<Object>> inIsolateWatch(IsolateConnectionFactory factory,
+Future<List<Object>> inIsolateWatch(AbstractIsolateConnectionFactory factory,
     int numberOfQueries, Duration throttleDuration) async {
   return await Isolate.run(() async {
     final db = factory.open();

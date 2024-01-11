@@ -4,8 +4,9 @@ import 'dart:math';
 
 import 'package:benchmarking/benchmarking.dart';
 import 'package:collection/collection.dart';
-import 'package:sqlite_async/src/database/abstract_sqlite_database.dart';
-import 'package:sqlite_async/src/database/native/native_sqlite_database.dart';
+import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/database/native/native_sqlite_database.dart'
+    as native_sqlite_database;
 
 import '../test/util.dart';
 
@@ -48,7 +49,8 @@ List<SqliteBenchmark> benchmarks = [
   }, maxBatchSize: 200000, enabled: false),
   SqliteBenchmark('writeLock in isolate',
       (SqliteDatabase db, List<List<String>> parameters) async {
-    var factory = db.isolateConnectionFactory();
+    var factory = (db as native_sqlite_database.SqliteDatabase)
+        .isolateConnectionFactory();
     var len = parameters.length;
     await Isolate.run(() async {
       final db = factory.open();
@@ -88,7 +90,8 @@ List<SqliteBenchmark> benchmarks = [
   }, maxBatchSize: 1000),
   SqliteBenchmark('Insert: executeBatch in isolate',
       (SqliteDatabase db, List<List<String>> parameters) async {
-    var factory = db.isolateConnectionFactory();
+    var factory = (db as native_sqlite_database.SqliteDatabase)
+        .isolateConnectionFactory();
     await Isolate.run(() async {
       final db = factory.open();
       await db.executeBatch(
@@ -98,7 +101,8 @@ List<SqliteBenchmark> benchmarks = [
   }, maxBatchSize: 20000, enabled: true),
   SqliteBenchmark('Insert: direct write in isolate',
       (SqliteDatabase db, List<List<String>> parameters) async {
-    var factory = db.isolateConnectionFactory();
+    var factory = (db as native_sqlite_database.SqliteDatabase)
+        .isolateConnectionFactory();
     await Isolate.run(() async {
       final db = factory.open();
       for (var params in parameters) {

@@ -3,6 +3,7 @@
 /// See [SqliteDatabase] as a starting point.
 library;
 
+export 'src/isolate_connection_factory.dart';
 export 'src/sqlite_connection.dart';
 export 'src/sqlite_database.dart';
 export 'src/sqlite_migrations.dart';

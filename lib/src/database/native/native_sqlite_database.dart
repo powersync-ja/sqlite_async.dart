@@ -14,7 +14,7 @@ import '../abstract_sqlite_database.dart';
 import 'port_channel.dart';
 import 'connection_pool.dart';
 import 'sqlite_connection_impl.dart';
-import 'isolate_connection_factory.dart';
+import '../../isolate_connection_factory/web/native_isolate_connection_factory.dart';
 
 /// A SQLite database instance.
 ///
@@ -25,7 +25,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   late final Stream<UpdateNotification> updates;
 
-  final SqliteOpenFactory<Database> openFactory;
+  final AbstractDefaultSqliteOpenFactory<Database> openFactory;
 
   final StreamController<UpdateNotification> _updatesController =
       StreamController.broadcast();

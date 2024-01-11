@@ -1,7 +1,4 @@
-import 'package:sqlite_async/src/sqlite_connection.dart';
-
-import '../../definitions.dart';
-import './abstract_sqlite_database.dart';
+import 'package:sqlite_async/sqlite_async.dart';
 
 class SqliteDatabase extends AbstractSqliteDatabase {
   @override
@@ -34,6 +31,12 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   Future<void> close() {
     // TODO: implement close
+    throw UnimplementedError();
+  }
+
+  @override
+  IsolateConnectionFactory isolateConnectionFactory() {
+    // TODO: implement isolateConnectionFactory
     throw UnimplementedError();
   }
 }
