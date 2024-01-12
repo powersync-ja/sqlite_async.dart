@@ -1,12 +1,15 @@
+import 'dart:async';
+
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite_async/src/sqlite_connection.dart';
-
-import '../abstract_sqlite_database.dart';
+import 'package:mutex/mutex.dart';
+import 'package:sqlite_async/src/database/web/web_db_context.dart';
 
 class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   bool get closed => throw UnimplementedError();
+
+  late Mutex mutex;
 
   late final CommonDatabase con;
 
@@ -45,32 +48,37 @@ class SqliteDatabase extends AbstractSqliteDatabase {
     super.openFactory = openFactory;
     super.maxReaders = maxReaders;
     updates = updatesController.stream;
+    mutex = Mutex();
     isInitialized = _init();
   }
 
   Future<void> _init() async {
     con = await openFactory
         .open(SqliteOpenOptions(primaryConnection: true, readOnly: false));
+    con.updates.forEach((element) {
+      final tables = Set<String>();
+      tables.add(element.tableName);
+      updatesController.add(UpdateNotification(tables));
+    });
   }
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await isInitialized;
-    throw UnimplementedError();
+    return mutex.protect(() => callback(WebReadContext(con)));
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await isInitialized;
-    throw UnimplementedError();
+    return mutex.protect(() => callback(WebWriteContext(con)));
   }
 
   @override
-  Future<void> close() {
-    // TODO: implement close
-    throw UnimplementedError();
+  Future<void> close() async {
+    con.dispose();
   }
 
   @override
