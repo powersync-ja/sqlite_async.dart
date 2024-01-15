@@ -4,9 +4,14 @@ import '../abstract_open_factory.dart';
 
 class DefaultSqliteOpenFactory
     extends AbstractDefaultSqliteOpenFactory<CommonDatabase> {
-  const DefaultSqliteOpenFactory(
+  // TODO only 1 connection for now
+  CommonDatabase? connection;
+
+  DefaultSqliteOpenFactory(
       {required super.path,
-      super.sqliteOptions = const SqliteOptions.defaults()});
+      super.sqliteOptions = const SqliteOptions.defaults()}) {
+    connection = null;
+  }
 
   @override
   Future<CommonDatabase> openDB(SqliteOpenOptions options) async {
@@ -14,8 +19,13 @@ class DefaultSqliteOpenFactory
       throw ArgumentError('WASM Sqlite3 implementation was not provided');
     }
 
+    // TODO, only 1 connection for now
+    if (connection != null) {
+      return connection!;
+    }
+
     final sqlite = await sqliteOptions.wasmSqlite3Loader!();
-    return sqlite.open("/" + path);
+    return connection = sqlite.open("/" + path);
   }
 
   @override

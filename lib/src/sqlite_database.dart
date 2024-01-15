@@ -1,7 +1,6 @@
 // This follows the pattern from here: https://stackoverflow.com/questions/58710226/how-to-import-platform-specific-dependency-in-flutter-dart-combine-web-with-an
 // To conditionally export an implementation for either web or "native" platforms
 // The sqlite library uses dart:ffi which is not supported on web
-
 import 'package:sqlite_async/sqlite_async.dart';
 export 'package:sqlite_async/src/database/abstract_sqlite_database.dart';
 import './database/sqlite_database_adapter.dart' as base;
@@ -29,9 +28,10 @@ class SqliteDatabase extends AbstractSqliteDatabase {
       {required path,
       int maxReaders = AbstractSqliteDatabase.defaultMaxReaders,
       SqliteOptions options = const SqliteOptions.defaults()}) {
-    final factory =
+    super.openFactory =
         DefaultSqliteOpenFactory(path: path, sqliteOptions: options);
-    adapter = base.SqliteDatabase.withFactory(factory, maxReaders: maxReaders);
+    adapter =
+        base.SqliteDatabase.withFactory(openFactory, maxReaders: maxReaders);
     updates = adapter.updates;
   }
 
@@ -47,6 +47,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   SqliteDatabase.withFactory(SqliteOpenFactory openFactory,
       {int maxReaders = AbstractSqliteDatabase.defaultMaxReaders}) {
     super.maxReaders = maxReaders;
+    super.openFactory = openFactory;
     adapter =
         base.SqliteDatabase.withFactory(openFactory, maxReaders: maxReaders);
     isInitialized = adapter.isInitialized;

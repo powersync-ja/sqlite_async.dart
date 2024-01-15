@@ -2,17 +2,22 @@ import 'dart:async';
 
 import 'package:sqlite3/wasm.dart';
 
-Future<WasmSqlite3> loadWasmSqlite() async {
-  // TODO conditionally load debug version and specify DB name
-  final wasmSqlite3 =
-      await WasmSqlite3.loadFromUrl(Uri.parse('sqlite3.debug.wasm'));
+WasmSqlite3? _wasmSqlite = null;
 
-  wasmSqlite3.registerVirtualFileSystem(
+Future<WasmSqlite3> loadWasmSqlite() async {
+  if (_wasmSqlite != null) {
+    return _wasmSqlite!;
+  }
+
+  // TODO conditionally load debug version and specify DB name
+  _wasmSqlite = await WasmSqlite3.loadFromUrl(Uri.parse('sqlite3.debug.wasm'));
+
+  _wasmSqlite!.registerVirtualFileSystem(
     await IndexedDbFileSystem.open(dbName: 'sqlite3-example'),
     makeDefault: true,
   );
 
-  return wasmSqlite3;
+  return _wasmSqlite!;
 }
 
 class SqliteOptions {
