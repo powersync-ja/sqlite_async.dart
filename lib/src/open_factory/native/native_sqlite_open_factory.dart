@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:sqlite3/sqlite3.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 import '../abstract_open_factory.dart';
 
@@ -34,5 +37,10 @@ class DefaultSqliteOpenFactory
       statements.add('PRAGMA synchronous = ${sqliteOptions.synchronous!.name}');
     }
     return statements;
+  }
+
+  @override
+  FutureOr<SQLExecutor> openWeb(SqliteOpenOptions options) {
+    throw UnimplementedError();
   }
 }

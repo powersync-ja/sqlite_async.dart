@@ -1,4 +1,7 @@
+import 'dart:async';
+
 import 'package:sqlite3/common.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 
@@ -14,6 +17,12 @@ class DefaultSqliteOpenFactory extends AbstractDefaultSqliteOpenFactory {
 
   @override
   List<String> pragmaStatements(SqliteOpenOptions options) {
+    throw UnimplementedError();
+  }
+
+  @override
+  FutureOr<SQLExecutor> openWeb(SqliteOpenOptions options) {
+    // TODO: implement openWeb
     throw UnimplementedError();
   }
 }

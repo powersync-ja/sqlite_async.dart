@@ -28,4 +28,9 @@ class DefaultSqliteOpenFactory<T extends CommonDatabase>
   List<String> pragmaStatements(SqliteOpenOptions options) {
     return adapter.pragmaStatements(options);
   }
+
+  @override
+  FutureOr<SQLExecutor> openWeb(SqliteOpenOptions options) {
+    return adapter.openWeb(options);
+  }
 }

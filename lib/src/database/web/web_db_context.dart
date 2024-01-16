@@ -1,20 +1,22 @@
+import 'dart:async';
+
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
 class WebReadContext implements SqliteReadContext {
-  CommonDatabase db;
+  SQLExecutor db;
 
-  WebReadContext(CommonDatabase this.db);
+  WebReadContext(SQLExecutor this.db);
 
   @override
   Future<T> computeWithDatabase<T>(
       Future<T> Function(CommonDatabase db) compute) {
-    return compute(db);
+    throw UnimplementedError();
   }
 
   @override
   Future<Row> get(String sql, [List<Object?> parameters = const []]) async {
-    return db.select(sql, parameters).first;
+    return (await db.select(sql, parameters)).first;
   }
 
   @override
@@ -27,7 +29,7 @@ class WebReadContext implements SqliteReadContext {
   Future<Row?> getOptional(String sql,
       [List<Object?> parameters = const []]) async {
     try {
-      return db.select(sql, parameters).first;
+      return (await db.select(sql, parameters)).first;
     } catch (ex) {
       return null;
     }
@@ -35,25 +37,17 @@ class WebReadContext implements SqliteReadContext {
 }
 
 class WebWriteContext extends WebReadContext implements SqliteWriteContext {
-  WebWriteContext(CommonDatabase super.db);
+  WebWriteContext(SQLExecutor super.db);
 
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    final result = db.select(sql, parameters);
-    return result;
+    return db.select(sql, parameters);
   }
 
   @override
   Future<void> executeBatch(
       String sql, List<List<Object?>> parameterSets) async {
-    final statement = db.prepare(sql, checkNoTail: true);
-    try {
-      for (var parameters in parameterSets) {
-        statement.execute(parameters);
-      }
-    } finally {
-      statement.dispose();
-    }
+    return db.executeBatch(sql, parameterSets);
   }
 }

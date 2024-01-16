@@ -1,6 +1,4 @@
 import 'dart:async';
-
-import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:mutex/mutex.dart';
 import 'package:sqlite_async/src/database/web/web_db_context.dart';
@@ -9,9 +7,10 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   bool get closed => throw UnimplementedError();
 
+  late final Future<SQLExecutor> executorFuture;
   late Mutex mutex;
-
-  late final CommonDatabase con;
+  late final SQLExecutor executor;
+  late final String dbPath;
 
   // late final Future<void> _initialized;
 
@@ -45,19 +44,17 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   ///  4. Creating temporary views or triggers.
   SqliteDatabase.withFactory(SqliteOpenFactory openFactory,
       {int maxReaders = AbstractSqliteDatabase.defaultMaxReaders}) {
-    super.openFactory = openFactory;
-    super.maxReaders = maxReaders;
+    executorFuture = openFactory.openWeb(
+            SqliteOpenOptions(primaryConnection: true, readOnly: false))
+        as Future<SQLExecutor>;
     updates = updatesController.stream;
     mutex = Mutex();
     isInitialized = _init();
   }
 
   Future<void> _init() async {
-    con = await openFactory
-        .open(SqliteOpenOptions(primaryConnection: true, readOnly: false));
-    con.updates.forEach((element) {
-      final tables = Set<String>();
-      tables.add(element.tableName);
+    executor = await executorFuture;
+    executor.updateStream.forEach((tables) {
       updatesController.add(UpdateNotification(tables));
     });
   }
@@ -66,19 +63,20 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await isInitialized;
-    return mutex.protect(() => callback(WebReadContext(con)));
+    return mutex.protect(() => callback(WebReadContext(executor)));
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await isInitialized;
-    return mutex.protect(() => callback(WebWriteContext(con)));
+    return mutex.protect(() => callback(WebWriteContext(executor)));
   }
 
   @override
   Future<void> close() async {
-    con.dispose();
+    await isInitialized;
+    await executor.close();
   }
 
   @override

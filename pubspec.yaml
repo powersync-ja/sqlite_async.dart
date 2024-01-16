@@ -6,6 +6,7 @@ environment:
   sdk: ">=2.19.1 <4.0.0"
 
 dependencies:
+  drift: ^2.14.1
   sqlite3: ">=2.3.0 <3.0.0"
   async: ^2.10.0
   collection: ^1.17.0

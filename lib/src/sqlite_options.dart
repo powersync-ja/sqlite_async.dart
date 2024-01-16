@@ -1,23 +1,13 @@
-import 'dart:async';
+class WebSqliteOptions {
+  final String workerUri;
+  final String wasmUri;
 
-import 'package:sqlite3/wasm.dart';
+  const WebSqliteOptions.defaults()
+      : workerUri = 'drift_worker.js',
+        wasmUri = 'sqlite3.wasm';
 
-WasmSqlite3? _wasmSqlite = null;
-
-Future<WasmSqlite3> loadWasmSqlite() async {
-  if (_wasmSqlite != null) {
-    return _wasmSqlite!;
-  }
-
-  // TODO conditionally load debug version and specify DB name
-  _wasmSqlite = await WasmSqlite3.loadFromUrl(Uri.parse('sqlite3.debug.wasm'));
-
-  _wasmSqlite!.registerVirtualFileSystem(
-    await IndexedDbFileSystem.open(dbName: 'sqlite3-example'),
-    makeDefault: true,
-  );
-
-  return _wasmSqlite!;
+  const WebSqliteOptions(
+      {this.wasmUri = 'sqlite3.wasm', this.workerUri = 'drift_worker.js'});
 }
 
 class SqliteOptions {
@@ -33,28 +23,19 @@ class SqliteOptions {
   /// attempt to truncate the file afterwards.
   final int? journalSizeLimit;
 
-  /// The implementation for SQLite
-  /// This is required for Web WASM
-  ///   final wasmSqlite3 =
-  ///       await WasmSqlite3.loadFromUrl(Uri.parse('sqlite3.debug.wasm'));
-  ///   wasmSqlite3.registerVirtualFileSystem(
-  ///       await IndexedDbFileSystem.open(dbName: 'sqlite3-example'),
-  ///       makeDefault: true,
-  ///    );
-  ///  Pass the initialized wasmSqlite3 here
-  final FutureOr<WasmSqlite3> Function()? wasmSqlite3Loader;
+  final WebSqliteOptions webSqliteOptions;
 
   const SqliteOptions.defaults()
       : journalMode = SqliteJournalMode.wal,
         journalSizeLimit = 6 * 1024 * 1024, // 1.5x the default checkpoint size
         synchronous = SqliteSynchronous.normal,
-        wasmSqlite3Loader = loadWasmSqlite;
+        webSqliteOptions = const WebSqliteOptions.defaults();
 
   const SqliteOptions(
       {this.journalMode = SqliteJournalMode.wal,
       this.journalSizeLimit = 6 * 1024 * 1024,
       this.synchronous = SqliteSynchronous.normal,
-      this.wasmSqlite3Loader = loadWasmSqlite});
+      this.webSqliteOptions = const WebSqliteOptions.defaults()});
 }
 
 /// SQLite journal mode. Set on the primary connection.
