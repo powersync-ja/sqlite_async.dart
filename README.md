@@ -75,3 +75,6 @@ void main() async {
   await db.close();
 }
 ```
+
+# Web
+Web requires sqlite3.dart version 2.3.0 or greater with the matching WASM file provided.

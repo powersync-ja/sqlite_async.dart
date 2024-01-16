@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:meta/meta.dart';
 
 import 'package:sqlite3/common.dart' as sqlite;
 import '../../definitions.dart';
@@ -49,6 +50,7 @@ abstract class AbstractDefaultSqliteOpenFactory<T extends sqlite.CommonDatabase>
 
   List<String> pragmaStatements(SqliteOpenOptions options);
 
+  @protected
   FutureOr<T> openDB(SqliteOpenOptions options);
 
   @override
