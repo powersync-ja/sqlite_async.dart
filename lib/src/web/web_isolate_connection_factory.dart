@@ -1,16 +1,17 @@
 import 'dart:async';
 
 import 'package:sqlite_async/sqlite3_common.dart';
-import 'package:sqlite_async/src/database/web/web_sqlite_connection_impl.dart';
-import 'package:sqlite_async/src/isolate_connection_factory/abstract_isolate_connection_factory.dart';
-import 'package:sqlite_async/src/open_factory/web/web_sqlite_open_factory_impl.dart';
-import 'package:sqlite_async/src/sqlite_open_factory.dart';
+import 'package:sqlite_async/src/common/abstract_isolate_connection_factory.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 import 'package:mutex/mutex.dart';
+
+import 'database/web_sqlite_connection_impl.dart';
 
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   @override
-  DefaultSqliteOpenFactoryImplementation openFactory;
+  DefaultSqliteOpenFactory openFactory;
 
   Mutex mutex;
 

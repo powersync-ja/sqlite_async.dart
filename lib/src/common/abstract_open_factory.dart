@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'package:meta/meta.dart';
 
-import 'package:sqlite3/common.dart' as sqlite;
-import '../../definitions.dart';
+import 'package:sqlite_async/sqlite3_common.dart' as sqlite;
+import 'package:sqlite_async/src/sqlite_options.dart';
 
 /// Factory to create new SQLite database connections.
 ///

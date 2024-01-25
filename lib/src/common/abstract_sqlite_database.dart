@@ -1,8 +1,10 @@
 import 'dart:async';
 
-import 'package:sqlite_async/src/isolate_connection_factory/abstract_isolate_connection_factory.dart';
-
-import '../../definitions.dart';
+import 'package:sqlite_async/src/common/abstract_isolate_connection_factory.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/sqlite_queries.dart';
+import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
 
 /// A SQLite database instance.
 ///
@@ -21,7 +23,7 @@ abstract class AbstractSqliteDatabase extends SqliteConnection
   /// This must be safe to pass to different isolates.
   ///
   /// Use a custom class for this to customize the open process.
-  SqliteOpenFactory get openFactory;
+  AbstractDefaultSqliteOpenFactory get openFactory;
 
   /// Use this stream to subscribe to notifications of updates to tables.
   Stream<UpdateNotification> get updates;

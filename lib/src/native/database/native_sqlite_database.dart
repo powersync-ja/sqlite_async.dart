@@ -1,15 +1,15 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:sqlite_async/src/open_factory/native/native_sqlite_open_factory_impl.dart';
+import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 
 import '../../../mutex.dart';
 import '../../utils/database_utils.dart';
 import '../../sqlite_connection.dart';
-import '../../isolate_connection_factory/native/native_isolate_connection_factory.dart';
+import '../native_isolate_connection_factory.dart';
 import '../../sqlite_options.dart';
 import '../../update_notification.dart';
-import '../abstract_sqlite_database.dart';
+import '../../common/abstract_sqlite_database.dart';
 import 'port_channel.dart';
 import 'connection_pool.dart';
 import 'native_sqlite_connection_impl.dart';
@@ -20,7 +20,7 @@ import 'native_sqlite_connection_impl.dart';
 /// notifications may not trigger, and calls may fail with "SQLITE_BUSY" errors.
 class SqliteDatabaseImplementation extends AbstractSqliteDatabase {
   @override
-  final DefaultSqliteOpenFactoryImplementation openFactory;
+  final DefaultSqliteOpenFactory openFactory;
 
   @override
   late Stream<UpdateNotification> updates;
@@ -53,8 +53,8 @@ class SqliteDatabaseImplementation extends AbstractSqliteDatabase {
       {required path,
       int maxReaders = AbstractSqliteDatabase.defaultMaxReaders,
       SqliteOptions options = const SqliteOptions.defaults()}) {
-    final factory = DefaultSqliteOpenFactoryImplementation(
-        path: path, sqliteOptions: options);
+    final factory =
+        DefaultSqliteOpenFactory(path: path, sqliteOptions: options);
     return SqliteDatabaseImplementation.withFactory(factory,
         maxReaders: maxReaders);
   }

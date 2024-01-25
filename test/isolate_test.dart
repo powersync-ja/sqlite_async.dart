@@ -1,7 +1,6 @@
 import 'dart:isolate';
 
 import 'package:test/test.dart';
-import 'package:sqlite_async/src/database/native/native_sqlite_database.dart';
 
 import 'util.dart';
 
@@ -19,7 +18,7 @@ void main() {
     });
 
     test('Basic Isolate usage', () async {
-      final db = await setupDatabase(path: path) as SqliteDatabase;
+      final db = await setupDatabase(path: path);
       final factory = db.isolateConnectionFactory();
 
       final result = await Isolate.run(() async {

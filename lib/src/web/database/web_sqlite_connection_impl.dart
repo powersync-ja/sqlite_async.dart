@@ -1,10 +1,15 @@
 import 'dart:async';
 import 'package:meta/meta.dart';
-import 'package:sqlite_async/sqlite_async.dart';
 import 'package:mutex/mutex.dart';
-import 'package:sqlite_async/src/database/web/executor/sqlite_executor.dart';
-import 'package:sqlite_async/src/database/web/web_db_context.dart';
-import 'package:sqlite_async/src/open_factory/web/web_sqlite_open_factory_impl.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+
+import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_queries.dart';
+import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
+
+import 'executor/sqlite_executor.dart';
+import 'web_db_context.dart';
 
 class WebSqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   @override
@@ -16,7 +21,7 @@ class WebSqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   late Stream<UpdateNotification> updates;
 
   late final Mutex mutex;
-  DefaultSqliteOpenFactoryImplementation openFactory;
+  DefaultSqliteOpenFactory openFactory;
 
   @protected
   final StreamController<UpdateNotification> updatesController =

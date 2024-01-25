@@ -1,11 +1,11 @@
 import 'package:sqlite3/sqlite3.dart';
 
-import 'package:sqlite_async/src/open_factory/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 
-class DefaultSqliteOpenFactoryImplementation
+class DefaultSqliteOpenFactory
     extends AbstractDefaultSqliteOpenFactory<Database> {
-  const DefaultSqliteOpenFactoryImplementation(
+  const DefaultSqliteOpenFactory(
       {required super.path,
       super.sqliteOptions = const SqliteOptions.defaults()});
 

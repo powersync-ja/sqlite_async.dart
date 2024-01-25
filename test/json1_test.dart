@@ -1,5 +1,5 @@
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite_async/src/database/abstract_sqlite_database.dart';
+import 'package:sqlite_async/src/common/abstract_sqlite_database.dart';
 import 'package:test/test.dart';
 
 import 'util.dart';

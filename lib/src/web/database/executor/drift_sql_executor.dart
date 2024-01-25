@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:drift/drift.dart';
 import 'package:drift/wasm.dart';
 import 'package:sqlite3/common.dart';
-import 'package:sqlite_async/src/database/web/executor/sqlite_executor.dart';
+import 'sqlite_executor.dart';
 
 class DriftWebSQLExecutor extends SQLExecutor {
   WasmDatabaseResult db;

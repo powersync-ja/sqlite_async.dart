@@ -1,15 +1,16 @@
 import 'dart:async';
 import 'package:mutex/mutex.dart';
-import 'package:sqlite_async/src/database/web/web_sqlite_connection_impl.dart';
 
-import 'package:sqlite_async/src/isolate_connection_factory/web/web_isolate_connection_factory.dart';
+import 'package:sqlite_async/src/common/abstract_sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
-import 'package:sqlite_async/src/sqlite_database.dart';
-import 'package:sqlite_async/src/open_factory/web/web_sqlite_open_factory_impl.dart';
+import 'package:sqlite_async/src/web/web_isolate_connection_factory.dart';
+import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 
-class SqliteDatabaseImplementation extends AbstractSqliteDatabase {
+import 'web_sqlite_connection_impl.dart';
+
+class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   bool get closed {
     return _connection.closed;
@@ -25,7 +26,7 @@ class SqliteDatabaseImplementation extends AbstractSqliteDatabase {
   late Future<void> isInitialized;
 
   @override
-  DefaultSqliteOpenFactoryImplementation openFactory;
+  DefaultSqliteOpenFactory openFactory;
 
   late final Mutex mutex;
   late final IsolateConnectionFactory _isolateConnectionFactory;
@@ -41,14 +42,13 @@ class SqliteDatabaseImplementation extends AbstractSqliteDatabase {
   /// from the last committed write transaction.
   ///
   /// A maximum of [maxReaders] concurrent read transactions are allowed.
-  factory SqliteDatabaseImplementation(
+  factory SqliteDatabase(
       {required path,
       int maxReaders = AbstractSqliteDatabase.defaultMaxReaders,
       SqliteOptions options = const SqliteOptions.defaults()}) {
-    final factory = DefaultSqliteOpenFactoryImplementation(
-        path: path, sqliteOptions: options);
-    return SqliteDatabaseImplementation.withFactory(factory,
-        maxReaders: maxReaders);
+    final factory =
+        DefaultSqliteOpenFactory(path: path, sqliteOptions: options);
+    return SqliteDatabase.withFactory(factory, maxReaders: maxReaders);
   }
 
   /// Advanced: Open a database with a specified factory.
@@ -60,7 +60,7 @@ class SqliteDatabaseImplementation extends AbstractSqliteDatabase {
   ///  2. Running additional per-connection PRAGMA statements on each connection.
   ///  3. Creating custom SQLite functions.
   ///  4. Creating temporary views or triggers.
-  SqliteDatabaseImplementation.withFactory(this.openFactory,
+  SqliteDatabase.withFactory(this.openFactory,
       {this.maxReaders = AbstractSqliteDatabase.defaultMaxReaders}) {
     updates = updatesController.stream;
     mutex = Mutex();

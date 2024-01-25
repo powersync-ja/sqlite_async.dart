@@ -1,15 +1,17 @@
 import 'dart:async';
 
 import 'package:drift/wasm.dart';
-import 'package:sqlite_async/src/database/web/executor/drift_sql_executor.dart';
-import 'package:sqlite_async/src/database/web/executor/sqlite_executor.dart';
-import 'package:sqlite_async/src/sqlite_options.dart';
-import '../abstract_open_factory.dart';
 import 'package:sqlite3/wasm.dart';
 
-class DefaultSqliteOpenFactoryImplementation
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/sqlite_options.dart';
+
+import 'database/executor/drift_sql_executor.dart';
+import 'database/executor/sqlite_executor.dart';
+
+class DefaultSqliteOpenFactory
     extends AbstractDefaultSqliteOpenFactory<CommonDatabase> {
-  DefaultSqliteOpenFactoryImplementation(
+  DefaultSqliteOpenFactory(
       {required super.path,
       super.sqliteOptions = const SqliteOptions.defaults()});
 

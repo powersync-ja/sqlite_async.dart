@@ -3,7 +3,7 @@
 //  (MIT)
 import 'dart:async';
 
-import 'database/native/port_channel.dart';
+import 'package:sqlite_async/src/native/database/port_channel.dart';
 
 abstract class Mutex {
   factory Mutex() {

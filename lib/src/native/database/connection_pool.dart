@@ -1,14 +1,12 @@
 import 'dart:async';
 
-import 'package:sqlite3/sqlite3.dart';
-
 import '../../mutex.dart';
 import '../../sqlite_connection.dart';
-import '../../sqlite_open_factory.dart';
 import '../../sqlite_queries.dart';
 import '../../update_notification.dart';
 import 'port_channel.dart';
 import 'native_sqlite_connection_impl.dart';
+import '../native_sqlite_open_factory.dart';
 
 /// A connection pool with a single write connection and multiple read connections.
 class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
@@ -16,7 +14,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
-  final SqliteOpenFactory<Database> _factory;
+  final DefaultSqliteOpenFactory _factory;
   final SerializedPortClient _upstreamPort;
 
   @override
