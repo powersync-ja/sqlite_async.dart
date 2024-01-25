@@ -1,16 +1,16 @@
 import 'package:sqlite3/sqlite3.dart';
+import 'package:sqlite_async/sqlite3_common.dart';
 
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 
-class DefaultSqliteOpenFactory
-    extends AbstractDefaultSqliteOpenFactory<Database> {
+class DefaultSqliteOpenFactory extends AbstractDefaultSqliteOpenFactory {
   const DefaultSqliteOpenFactory(
       {required super.path,
       super.sqliteOptions = const SqliteOptions.defaults()});
 
   @override
-  Database openDB(SqliteOpenOptions options) {
+  CommonDatabase openDB(SqliteOpenOptions options) {
     final mode = options.openMode;
     var db = sqlite3.open(path, mode: mode, mutex: false);
     return db;

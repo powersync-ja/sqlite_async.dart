@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 
@@ -12,7 +13,7 @@ import '../../sqlite_connection.dart';
 import '../../sqlite_queries.dart';
 import '../../update_notification.dart';
 
-typedef TxCallback<T> = Future<T> Function(sqlite.Database db);
+typedef TxCallback<T> = Future<T> Function(CommonDatabase db);
 
 /// Implements a SqliteConnection using a separate isolate for the database
 /// operations.
@@ -179,7 +180,7 @@ class _TransactionContext implements SqliteWriteContext {
 
   @override
   Future<T> computeWithDatabase<T>(
-      Future<T> Function(sqlite.Database db) compute) async {
+      Future<T> Function(CommonDatabase db) compute) async {
     return _sendPort.post<T>(_SqliteIsolateClosure(compute));
   }
 
@@ -239,7 +240,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
 }
 
 Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
-    ChildPortClient client, sqlite.Database db) async {
+    ChildPortClient client, CommonDatabase db) async {
   final server = params.portServer;
   final commandPort = ReceivePort();
 
