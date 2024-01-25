@@ -4,10 +4,10 @@ import 'dart:isolate';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 
 import '../../utils/database_utils.dart';
-import '../../mutex.dart';
 import 'port_channel.dart';
 import '../../sqlite_connection.dart';
 import '../../sqlite_queries.dart';

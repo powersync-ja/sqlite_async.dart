@@ -4,8 +4,7 @@ import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/common/abstract_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
-import 'package:mutex/mutex.dart';
-
+import 'web_mutex.dart';
 import 'database/web_sqlite_connection_impl.dart';
 
 /// A connection factory that can be passed to different isolates.

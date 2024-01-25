@@ -1,6 +1,8 @@
 import 'dart:async';
 
-import '../../mutex.dart';
+import 'package:sqlite_async/src/common/abstract_mutex.dart';
+import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
+
 import '../../sqlite_connection.dart';
 import '../../sqlite_queries.dart';
 import '../../update_notification.dart';
