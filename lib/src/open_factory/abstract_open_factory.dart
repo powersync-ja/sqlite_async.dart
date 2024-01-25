@@ -8,17 +8,10 @@ import '../../definitions.dart';
 ///
 /// Since connections are opened in dedicated background isolates, this class
 /// must be safe to pass to different isolates.
-abstract class SqliteOpenFactory<Database extends sqlite.CommonDatabase,
-    Executor extends SQLExecutor> {
+abstract class SqliteOpenFactory<Database extends sqlite.CommonDatabase> {
   String get path;
 
   FutureOr<Database> open(SqliteOpenOptions options);
-
-  /// This includes a limited set of async only SQL APIs required
-  /// for SqliteDatabase connections
-  FutureOr<Executor> openExecutor(SqliteOpenOptions options) {
-    throw UnimplementedError();
-  }
 }
 
 class SqliteOpenOptions {
@@ -49,8 +42,8 @@ class SqliteOpenOptions {
 ///
 /// Override the [open] method to customize the process.
 abstract class AbstractDefaultSqliteOpenFactory<
-        Database extends sqlite.CommonDatabase, Executor extends SQLExecutor>
-    implements SqliteOpenFactory<Database, Executor> {
+        Database extends sqlite.CommonDatabase>
+    implements SqliteOpenFactory<Database> {
   final String path;
   final SqliteOptions sqliteOptions;
 

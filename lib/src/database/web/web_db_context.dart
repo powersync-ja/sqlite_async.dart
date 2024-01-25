@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/database/web/executor/sqlite_executor.dart';
 
 class WebReadContext implements SqliteReadContext {
   SQLExecutor db;

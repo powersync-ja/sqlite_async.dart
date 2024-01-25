@@ -12,7 +12,7 @@ import '../../update_notification.dart';
 import '../abstract_sqlite_database.dart';
 import 'port_channel.dart';
 import 'connection_pool.dart';
-import 'sqlite_connection_impl.dart';
+import 'native_sqlite_connection_impl.dart';
 
 /// A SQLite database instance.
 ///

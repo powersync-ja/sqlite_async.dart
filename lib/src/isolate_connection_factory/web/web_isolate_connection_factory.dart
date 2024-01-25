@@ -1,26 +1,26 @@
 import 'dart:async';
 
-import 'package:sqlite3/common.dart';
-
-import '../../sqlite_connection.dart';
-import '../../sqlite_open_factory.dart';
-import '../abstract_isolate_connection_factory.dart';
+import 'package:sqlite_async/sqlite3_common.dart';
+import 'package:sqlite_async/src/database/web/web_sqlite_connection_impl.dart';
+import 'package:sqlite_async/src/isolate_connection_factory/abstract_isolate_connection_factory.dart';
+import 'package:sqlite_async/src/open_factory/web/web_sqlite_open_factory_impl.dart';
+import 'package:sqlite_async/src/sqlite_open_factory.dart';
+import 'package:mutex/mutex.dart';
 
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   @override
-  AbstractDefaultSqliteOpenFactory openFactory;
+  DefaultSqliteOpenFactoryImplementation openFactory;
 
-  IsolateConnectionFactory({
-    required this.openFactory,
-  });
+  Mutex mutex;
+
+  IsolateConnectionFactory({required this.openFactory, required this.mutex});
 
   /// Open a new SqliteConnection.
   ///
   /// This opens a single connection in a background execution isolate.
-  SqliteConnection open({String? debugName, bool readOnly = false}) {
-    // TODO
-    return {} as SqliteConnection;
+  WebSqliteConnectionImpl open({String? debugName, bool readOnly = false}) {
+    return WebSqliteConnectionImpl(mutex: mutex, openFactory: openFactory);
   }
 
   /// Opens a synchronous sqlite.Database directly in the current isolate.

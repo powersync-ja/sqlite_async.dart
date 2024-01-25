@@ -2,20 +2,6 @@ import 'dart:async';
 
 import 'package:sqlite3/common.dart' as sqlite;
 
-// Abstract class which provides base methods required for Context providers
-abstract class SQLExecutor {
-  bool get closed;
-
-  Stream<Set<String>> updateStream = Stream.empty();
-
-  Future<void> close();
-
-  FutureOr<sqlite.ResultSet> select(String sql,
-      [List<Object?> parameters = const []]);
-
-  FutureOr<void> executeBatch(String sql, List<List<Object?>> parameterSets) {}
-}
-
 /// Abstract class representing calls available in a read-only or read-write context.
 abstract class SqliteReadContext {
   /// Execute a read-only (SELECT) query and return the results.
