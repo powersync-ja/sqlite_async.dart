@@ -9,17 +9,14 @@ import '../abstract_open_factory.dart';
 
 class DriftWebSQLExecutor extends SQLExecutor {
   WasmDatabaseResult db;
-  final StreamController<Set<String>> updatesController =
-      StreamController.broadcast();
 
   DriftWebSQLExecutor(WasmDatabaseResult this.db) {
     // Pass on table updates
-    db.resolvedExecutor.streamQueries
+    updateStream = db.resolvedExecutor.streamQueries
         .updatesForSync(TableUpdateQuery.any())
-        .forEach((tables) {
-      updatesController.add(tables.map((e) => e.table).toSet());
+        .map((tables) {
+      return tables.map((e) => e.table).toSet();
     });
-    updateStream = updatesController.stream;
   }
 
   @override
@@ -29,8 +26,8 @@ class DriftWebSQLExecutor extends SQLExecutor {
 
   @override
   Future<void> executeBatch(String sql, List<List<Object?>> parameterSets) {
-    return db.resolvedExecutor.runBatched(BatchedStatements(
-        [sql], [ArgumentsForBatchedStatement(0, parameterSets)]));
+    return db.resolvedExecutor.runBatched(BatchedStatements([sql],
+        parameterSets.map((e) => ArgumentsForBatchedStatement(0, e)).toList()));
   }
 
   @override
@@ -95,8 +92,8 @@ class DefaultSqliteOpenFactory
       driftWorkerUri: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
     );
 
-    await db.resolvedExecutor.ensureOpen(SqliteUser());
     executor = DriftWebSQLExecutor(db);
+    await db.resolvedExecutor.ensureOpen(SqliteUser());
 
     return executor!;
   }
