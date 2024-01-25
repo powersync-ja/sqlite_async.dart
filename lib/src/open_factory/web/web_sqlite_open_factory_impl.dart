@@ -10,7 +10,10 @@ import '../abstract_open_factory.dart';
 class DriftWebSQLExecutor extends SQLExecutor {
   WasmDatabaseResult db;
 
-  DriftWebSQLExecutor(WasmDatabaseResult this.db) {
+  @override
+  bool closed = false;
+
+  DriftWebSQLExecutor(this.db) {
     // Pass on table updates
     updateStream = db.resolvedExecutor.streamQueries
         .updatesForSync(TableUpdateQuery.any())
@@ -21,6 +24,7 @@ class DriftWebSQLExecutor extends SQLExecutor {
 
   @override
   close() {
+    closed = true;
     return db.resolvedExecutor.close();
   }
 
@@ -51,11 +55,11 @@ class SqliteUser extends QueryExecutorUser {
   int get schemaVersion => 1;
 }
 
-class DefaultSqliteOpenFactory
-    extends AbstractDefaultSqliteOpenFactory<CommonDatabase> {
-  DefaultSqliteOpenFactory(
+class DefaultSqliteOpenFactoryImplementation
+    extends AbstractDefaultSqliteOpenFactory<CommonDatabase, SQLExecutor> {
+  DefaultSqliteOpenFactoryImplementation(
       {required super.path,
-      super.sqliteOptions = const SqliteOptions.defaults()}) {}
+      super.sqliteOptions = const SqliteOptions.defaults()});
 
   @override
 
@@ -75,10 +79,10 @@ class DefaultSqliteOpenFactory
 
   @override
 
-  /// The Drift SQLite package provides built in async Webworker functionality
+  /// The Drift SQLite package provides built in async Web worker functionality
   /// and automatic persistence storage selection.
-  /// Due to being asynchronous, the underlaying CommonDatabase is not accessible
-  Future<SQLExecutor> openWeb(SqliteOpenOptions options) async {
+  /// Due to being asynchronous, the under laying CommonDatabase is not accessible
+  Future<SQLExecutor> openExecutor(SqliteOpenOptions options) async {
     final db = await WasmDatabase.open(
       databaseName: path,
       sqlite3Uri: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),

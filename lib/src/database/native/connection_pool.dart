@@ -16,7 +16,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
-  final SqliteOpenFactory<Database> _factory;
+  final SqliteOpenFactory<Database, void> _factory;
   final SerializedPortClient _upstreamPort;
 
   @override

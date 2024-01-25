@@ -1,11 +1,9 @@
 import 'dart:async';
 import 'dart:isolate';
 
-import 'package:sqlite3/sqlite3.dart' as sqlite;
-
+import 'package:sqlite_async/src/open_factory/native/native_sqlite_open_factory_impl.dart';
 import '../../mutex.dart';
 import '../../sqlite_connection.dart';
-import '../../sqlite_open_factory.dart';
 import '../../update_notification.dart';
 import '../../utils/native_database_utils.dart';
 import '../../database/native/port_channel.dart';
@@ -14,15 +12,16 @@ import '../abstract_isolate_connection_factory.dart';
 
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
+  @override
+  DefaultSqliteOpenFactoryImplementation openFactory;
+
   SerializedMutex mutex;
   SerializedPortClient upstreamPort;
 
   IsolateConnectionFactory(
-      {required SqliteOpenFactory<sqlite.Database> openFactory,
+      {required this.openFactory,
       required this.mutex,
-      required this.upstreamPort}) {
-    super.openFactory = openFactory;
-  }
+      required this.upstreamPort});
 
   /// Open a new SqliteConnection.
   ///
@@ -33,8 +32,7 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
     var openMutex = mutex.open();
 
     return _IsolateSqliteConnection(
-        openFactory:
-            openFactory as AbstractDefaultSqliteOpenFactory<sqlite.Database>,
+        openFactory: openFactory,
         mutex: openMutex,
         upstreamPort: upstreamPort,
         readOnly: readOnly,

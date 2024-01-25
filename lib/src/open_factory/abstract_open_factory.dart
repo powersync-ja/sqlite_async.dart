@@ -8,14 +8,15 @@ import '../../definitions.dart';
 ///
 /// Since connections are opened in dedicated background isolates, this class
 /// must be safe to pass to different isolates.
-abstract class SqliteOpenFactory<T extends sqlite.CommonDatabase> {
+abstract class SqliteOpenFactory<Database extends sqlite.CommonDatabase,
+    Executor extends SQLExecutor> {
   String get path;
 
-  FutureOr<T> open(SqliteOpenOptions options);
+  FutureOr<Database> open(SqliteOpenOptions options);
 
   /// This includes a limited set of async only SQL APIs required
   /// for SqliteDatabase connections
-  FutureOr<SQLExecutor> openWeb(SqliteOpenOptions options) {
+  FutureOr<Executor> openExecutor(SqliteOpenOptions options) {
     throw UnimplementedError();
   }
 }
@@ -47,8 +48,9 @@ class SqliteOpenOptions {
 /// to configure the connection.
 ///
 /// Override the [open] method to customize the process.
-abstract class AbstractDefaultSqliteOpenFactory<T extends sqlite.CommonDatabase>
-    implements SqliteOpenFactory<T> {
+abstract class AbstractDefaultSqliteOpenFactory<
+        Database extends sqlite.CommonDatabase, Executor extends SQLExecutor>
+    implements SqliteOpenFactory<Database, Executor> {
   final String path;
   final SqliteOptions sqliteOptions;
 
@@ -59,10 +61,10 @@ abstract class AbstractDefaultSqliteOpenFactory<T extends sqlite.CommonDatabase>
   List<String> pragmaStatements(SqliteOpenOptions options);
 
   @protected
-  FutureOr<T> openDB(SqliteOpenOptions options);
+  FutureOr<Database> openDB(SqliteOpenOptions options);
 
   @override
-  FutureOr<T> open(SqliteOpenOptions options) async {
+  FutureOr<Database> open(SqliteOpenOptions options) async {
     var db = await openDB(options);
 
     for (var statement in pragmaStatements(options)) {

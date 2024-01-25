@@ -4,7 +4,7 @@ import 'package:sqlite_async/definitions.dart';
 
 /// A connection factory that can be passed to different isolates.
 abstract class AbstractIsolateConnectionFactory {
-  late SqliteOpenFactory<CommonDatabase> openFactory;
+  AbstractDefaultSqliteOpenFactory get openFactory;
 
   /// Open a new SqliteConnection.
   ///

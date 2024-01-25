@@ -3,16 +3,33 @@
 // The sqlite library uses dart:ffi which is not supported on web
 import 'package:sqlite_async/sqlite_async.dart';
 export 'package:sqlite_async/src/database/abstract_sqlite_database.dart';
-import './database/sqlite_database_adapter.dart' as base;
+import 'database/sqlite_database_impl.dart';
 
 class SqliteDatabase extends AbstractSqliteDatabase {
   static const int defaultMaxReaders = AbstractSqliteDatabase.defaultMaxReaders;
 
+  late AbstractSqliteDatabase adapter;
+
+  @override
+  int get maxReaders {
+    return adapter.maxReaders;
+  }
+
+  @override
+  Future<void> get isInitialized {
+    return adapter.isInitialized;
+  }
+
+  @override
+  SqliteOpenFactory get openFactory {
+    return adapter.openFactory;
+  }
+
   /// Use this stream to subscribe to notifications of updates to tables.
   @override
-  late final Stream<UpdateNotification> updates;
-
-  late AbstractSqliteDatabase adapter;
+  Stream<UpdateNotification> get updates {
+    return adapter.updates;
+  }
 
   /// Open a SqliteDatabase.
   ///
@@ -28,11 +45,10 @@ class SqliteDatabase extends AbstractSqliteDatabase {
       {required path,
       int maxReaders = AbstractSqliteDatabase.defaultMaxReaders,
       SqliteOptions options = const SqliteOptions.defaults()}) {
-    super.openFactory =
+    final openFactory =
         DefaultSqliteOpenFactory(path: path, sqliteOptions: options);
-    adapter =
-        base.SqliteDatabase.withFactory(openFactory, maxReaders: maxReaders);
-    updates = adapter.updates;
+    adapter = SqliteDatabaseImplementation.withFactory(openFactory,
+        maxReaders: maxReaders);
   }
 
   /// Advanced: Open a database with a specified factory.
@@ -46,12 +62,8 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   ///  4. Creating temporary views or triggers.
   SqliteDatabase.withFactory(SqliteOpenFactory openFactory,
       {int maxReaders = AbstractSqliteDatabase.defaultMaxReaders}) {
-    super.maxReaders = maxReaders;
-    super.openFactory = openFactory;
-    adapter =
-        base.SqliteDatabase.withFactory(openFactory, maxReaders: maxReaders);
-    isInitialized = adapter.isInitialized;
-    updates = adapter.updates;
+    adapter = SqliteDatabaseImplementation.withFactory(openFactory,
+        maxReaders: maxReaders);
   }
 
   @override
