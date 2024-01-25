@@ -53,9 +53,6 @@ class SqliteUser extends QueryExecutorUser {
 
 class DefaultSqliteOpenFactory
     extends AbstractDefaultSqliteOpenFactory<CommonDatabase> {
-  // TODO only 1 connection for now
-  SQLExecutor? executor;
-
   DefaultSqliteOpenFactory(
       {required super.path,
       super.sqliteOptions = const SqliteOptions.defaults()}) {}
@@ -82,20 +79,16 @@ class DefaultSqliteOpenFactory
   /// and automatic persistence storage selection.
   /// Due to being asynchronous, the underlaying CommonDatabase is not accessible
   Future<SQLExecutor> openWeb(SqliteOpenOptions options) async {
-    if (executor != null) {
-      return executor!;
-    }
-
     final db = await WasmDatabase.open(
       databaseName: path,
       sqlite3Uri: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
       driftWorkerUri: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
     );
 
-    executor = DriftWebSQLExecutor(db);
+    final executor = DriftWebSQLExecutor(db);
     await db.resolvedExecutor.ensureOpen(SqliteUser());
 
-    return executor!;
+    return executor;
   }
 
   @override
