@@ -19,6 +19,7 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   /// Open a new SqliteConnection.
   ///
   /// This opens a single connection in a background execution isolate.
+  @override
   WebSqliteConnectionImpl open({String? debugName, bool readOnly = false}) {
     return WebSqliteConnectionImpl(mutex: mutex, openFactory: openFactory);
   }
@@ -30,6 +31,7 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   ///     with SQLITE_BUSY if another isolate is using the database at the same time.
   ///  2. Other connections are not notified of any updates to tables made within
   ///     this connection.
+  @override
   Future<CommonDatabase> openRawDatabase({bool readOnly = false}) async {
     return openFactory
         .open(SqliteOpenOptions(primaryConnection: false, readOnly: readOnly));

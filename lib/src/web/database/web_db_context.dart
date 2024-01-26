@@ -7,7 +7,7 @@ import 'executor/sqlite_executor.dart';
 class WebReadContext implements SqliteReadContext {
   SQLExecutor db;
 
-  WebReadContext(SQLExecutor this.db);
+  WebReadContext(this.db);
 
   @override
   Future<T> computeWithDatabase<T>(
@@ -38,7 +38,7 @@ class WebReadContext implements SqliteReadContext {
 }
 
 class WebWriteContext extends WebReadContext implements SqliteWriteContext {
-  WebWriteContext(SQLExecutor super.db);
+  WebWriteContext(super.db);
 
   @override
   Future<ResultSet> execute(String sql,

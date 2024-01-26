@@ -26,6 +26,7 @@ abstract class AbstractSqliteDatabase extends SqliteConnection
   AbstractDefaultSqliteOpenFactory get openFactory;
 
   /// Use this stream to subscribe to notifications of updates to tables.
+  @override
   Stream<UpdateNotification> get updates;
 
   final StreamController<UpdateNotification> updatesController =

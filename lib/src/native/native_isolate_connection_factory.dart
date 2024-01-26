@@ -26,6 +26,7 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   /// Open a new SqliteConnection.
   ///
   /// This opens a single connection in a background execution isolate.
+  @override
   SqliteConnection open({String? debugName, bool readOnly = false}) {
     final updates = _IsolateUpdateListener(upstreamPort);
 

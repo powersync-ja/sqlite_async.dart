@@ -71,7 +71,6 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   }
 
   Future<void> _init() async {
-    await _connection.isInitialized;
     _connection.updates.forEach((update) {
       updatesController.add(update);
     });

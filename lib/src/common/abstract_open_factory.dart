@@ -44,6 +44,7 @@ class SqliteOpenOptions {
 abstract class AbstractDefaultSqliteOpenFactory<
         Database extends sqlite.CommonDatabase>
     implements SqliteOpenFactory<Database> {
+  @override
   final String path;
   final SqliteOptions sqliteOptions;
 

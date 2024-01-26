@@ -9,6 +9,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   bool get closed => throw UnimplementedError();
 
+  @override
   AbstractDefaultSqliteOpenFactory openFactory;
 
   @override

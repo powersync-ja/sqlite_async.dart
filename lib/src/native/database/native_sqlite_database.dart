@@ -141,6 +141,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   /// A connection factory that can be passed to different isolates.
   ///
   /// Use this to access the database in background isolates.
+  @override
   IsolateConnectionFactory isolateConnectionFactory() {
     return IsolateConnectionFactory(
         openFactory: openFactory,
