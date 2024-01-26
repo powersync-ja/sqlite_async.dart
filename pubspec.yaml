@@ -6,13 +6,12 @@ environment:
   sdk: ">=2.19.1 <4.0.0"
 
 dependencies:
-  drift:
-    path: "/Users/stevenontong/Documents/platform_code/powersync/drift/drift"
+  drift: ^2.15.0
   sqlite3: ">=2.3.0 <3.0.0"
   async: ^2.10.0
   collection: ^1.17.0
   mutex: ^3.1.0
-  meta: ^1.11.0
+  meta: ^1.10.0
 
 dev_dependencies:
   lints: ^2.0.0
