@@ -56,4 +56,10 @@ class SqliteDatabase extends AbstractSqliteDatabase {
     // TODO: implement isolateConnectionFactory
     throw UnimplementedError();
   }
+
+  @override
+  Future<bool> getAutoCommit() {
+    // TODO: implement getAutoCommit
+    throw UnimplementedError();
+  }
 }

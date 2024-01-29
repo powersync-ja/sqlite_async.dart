@@ -66,4 +66,9 @@ class WebSqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     await isInitialized;
     await executor!.close();
   }
+
+  @override
+  Future<bool> getAutoCommit() {
+    throw UnimplementedError();
+  }
 }

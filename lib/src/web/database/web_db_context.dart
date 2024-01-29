@@ -35,6 +35,14 @@ class WebReadContext implements SqliteReadContext {
       return null;
     }
   }
+
+  @override
+  bool get closed => throw UnimplementedError();
+
+  @override
+  Future<bool> getAutoCommit() {
+    throw UnimplementedError();
+  }
 }
 
 class WebWriteContext extends WebReadContext implements SqliteWriteContext {
