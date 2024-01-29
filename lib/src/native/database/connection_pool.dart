@@ -6,7 +6,7 @@ import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import '../../sqlite_connection.dart';
 import '../../sqlite_queries.dart';
 import '../../update_notification.dart';
-import 'port_channel.dart';
+import '../../common/port_channel.dart';
 import 'native_sqlite_connection_impl.dart';
 import '../native_sqlite_open_factory.dart';
 

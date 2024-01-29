@@ -10,7 +10,7 @@ import '../native_isolate_connection_factory.dart';
 import '../../sqlite_options.dart';
 import '../../update_notification.dart';
 import '../../common/abstract_sqlite_database.dart';
-import 'port_channel.dart';
+import '../../common/port_channel.dart';
 import 'connection_pool.dart';
 import 'native_sqlite_connection_impl.dart';
 

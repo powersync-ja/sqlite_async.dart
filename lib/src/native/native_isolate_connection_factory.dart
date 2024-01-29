@@ -6,7 +6,7 @@ import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 import '../sqlite_connection.dart';
 import '../update_notification.dart';
 import '../utils/native_database_utils.dart';
-import 'database/port_channel.dart';
+import '../common/port_channel.dart';
 import 'database/native_sqlite_connection_impl.dart';
 import '../common/abstract_isolate_connection_factory.dart';
 
@@ -15,7 +15,10 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   @override
   DefaultSqliteOpenFactory openFactory;
 
+  @override
   SerializedMutex mutex;
+
+  @override
   SerializedPortClient upstreamPort;
 
   IsolateConnectionFactory(

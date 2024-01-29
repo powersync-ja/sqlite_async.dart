@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/definitions.dart';
+import 'package:sqlite_async/src/common/abstract_mutex.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
 
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
@@ -32,4 +34,10 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   Future<CommonDatabase> openRawDatabase({bool readOnly = false}) async {
     throw UnimplementedError();
   }
+
+  @override
+  AbstractMutex get mutex => throw UnimplementedError();
+
+  @override
+  SerializedPortClient get upstreamPort => throw UnimplementedError();
 }

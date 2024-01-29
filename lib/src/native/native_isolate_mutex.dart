@@ -4,7 +4,7 @@
 import 'dart:async';
 
 import 'package:sqlite_async/src/common/abstract_mutex.dart';
-import 'package:sqlite_async/src/native/database/port_channel.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
 
 abstract class Mutex extends AbstractMutex {
   factory Mutex() {
@@ -88,6 +88,11 @@ class SimpleMutex implements Mutex {
   }
 
   @override
+  open() {
+    return this;
+  }
+
+  @override
   Future<void> close() async {
     _shared?.close();
     await lock(() async {});
@@ -104,13 +109,23 @@ class SimpleMutex implements Mutex {
 /// Use [open] to get a [SharedMutex] instance.
 ///
 /// Uses a [SendPort] to communicate with the source mutex.
-class SerializedMutex {
+class SerializedMutex extends AbstractMutex {
   final SerializedPortClient client;
 
-  const SerializedMutex(this.client);
+  SerializedMutex(this.client);
 
   SharedMutex open() {
     return SharedMutex._(client.open());
+  }
+
+  @override
+  Future<void> close() {
+    throw UnimplementedError();
+  }
+
+  @override
+  Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) {
+    throw UnimplementedError();
   }
 }
 
@@ -144,6 +159,11 @@ class SharedMutex implements Mutex {
 
   _unlock() {
     client.fire(const _UnlockMessage());
+  }
+
+  @override
+  open() {
+    return this;
   }
 
   Future<void> _acquire({Duration? timeout}) async {

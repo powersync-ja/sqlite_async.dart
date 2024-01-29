@@ -1,13 +1,19 @@
 import 'dart:async';
+import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite3_common.dart' as sqlite;
 import 'package:sqlite_async/src/sqlite_connection.dart';
 
 import 'abstract_open_factory.dart';
+import 'port_channel.dart';
 
 /// A connection factory that can be passed to different isolates.
 abstract class AbstractIsolateConnectionFactory<
     Database extends sqlite.CommonDatabase> {
   AbstractDefaultSqliteOpenFactory<Database> get openFactory;
+
+  AbstractMutex get mutex;
+
+  SerializedPortClient get upstreamPort;
 
   /// Open a new SqliteConnection.
   ///

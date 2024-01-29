@@ -2,6 +2,12 @@ abstract class AbstractMutex {
   /// timeout is a timeout for acquiring the lock, not for the callback
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout});
 
+  /// Use [open] to get a [AbstractMutex] instance.
+  /// This is mainly used for shared mutexes
+  AbstractMutex open() {
+    return this;
+  }
+
   /// Release resources used by the Mutex.
   ///
   /// Subsequent calls to [lock] may fail, or may never call the callback.

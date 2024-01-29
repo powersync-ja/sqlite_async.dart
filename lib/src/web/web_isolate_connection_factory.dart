@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/common/abstract_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 import 'web_mutex.dart';
 import 'database/web_sqlite_connection_impl.dart';
@@ -38,4 +39,7 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
     return openFactory
         .open(SqliteOpenOptions(primaryConnection: false, readOnly: readOnly));
   }
+
+  @override
+  SerializedPortClient get upstreamPort => throw UnimplementedError();
 }

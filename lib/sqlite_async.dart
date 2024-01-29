@@ -12,3 +12,4 @@ export 'src/sqlite_queries.dart';
 export 'src/update_notification.dart';
 export 'src/utils.dart';
 export 'definitions.dart';
+export 'src/common/connection/sync_sqlite_connection.dart';
