@@ -77,4 +77,23 @@ void main() async {
 ```
 
 # Web
-Web requires sqlite3.dart version 2.3.0 or greater with the matching WASM file provided.
+
+Web support is provided by the [Drift](https://drift.simonbinder.eu/web/) library.
+
+Web support requires Sqlite3 WASM and Drift worker Javascript files to be accessible via configurable URIs.
+
+Default URIs are shown in the example below. URIs only need to be specified if they differ from default values.
+
+Setup
+
+``` Dart 
+import 'package:sqlite_async/sqlite_async.dart';
+
+final db = SqliteDatabase(
+    path: 'test',
+    options: SqliteOptions(
+        webSqliteOptions: WebSqliteOptions(
+            wasmUri: 'sqlite3.wasm', workerUri: 'drift_worker.js')));
+
+```
+

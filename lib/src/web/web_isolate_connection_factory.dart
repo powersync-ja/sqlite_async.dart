@@ -25,6 +25,8 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   }
 
   /// Opens a synchronous sqlite.Database directly in the current isolate.
+  /// This should not be used in conjunction with async connections provided
+  /// by Drift.
   ///
   /// This gives direct access to the database, but:
   ///  1. No app-level locking is performed automatically. Transactions may fail
