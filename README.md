@@ -84,6 +84,8 @@ Web support requires Sqlite3 WASM and Drift worker Javascript files to be access
 
 Default URIs are shown in the example below. URIs only need to be specified if they differ from default values.
 
+Watched queries and table change notifications are only supported when using a custom Drift worker. [TBD release link]
+
 Setup
 
 ``` Dart 
