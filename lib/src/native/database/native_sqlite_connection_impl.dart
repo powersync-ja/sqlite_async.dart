@@ -51,6 +51,21 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     return _isolateClient.closed;
   }
 
+  @override
+  Future<bool> getAutoCommit() async {
+    if (closed) {
+      throw AssertionError('Closed');
+    }
+    // We use a _TransactionContext without a lock here.
+    // It is safe to call this in the middle of another transaction.
+    final ctx = _TransactionContext(_isolateClient);
+    try {
+      return await ctx.getAutoCommit();
+    } finally {
+      await ctx.close();
+    }
+  }
+
   Future<void> _open(DefaultSqliteOpenFactory openFactory,
       {required bool primary,
       required SerializedPortClient upstreamPort}) async {
@@ -148,6 +163,11 @@ class _TransactionContext implements SqliteWriteContext {
   _TransactionContext(this._sendPort);
 
   @override
+  bool get closed {
+    return _closed;
+  }
+
+  @override
   Future<sqlite.ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
     return getAll(sql, parameters);
@@ -176,6 +196,15 @@ class _TransactionContext implements SqliteWriteContext {
         rethrow;
       }
     }
+  }
+
+  @override
+  Future<bool> getAutoCommit() async {
+    return await computeWithDatabase(
+      (db) async {
+        return db.autocommit;
+      },
+    );
   }
 
   @override
@@ -271,10 +300,8 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
   server.open((data) async {
     if (data is _SqliteIsolateClose) {
       if (txId != null) {
-        try {
+        if (!db.autocommit) {
           db.execute('ROLLBACK');
-        } catch (e) {
-          // Ignore
         }
         txId = null;
         txError = null;
@@ -292,7 +319,8 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
         txId = data.ctxId;
       } else if (txId != null && txId != data.ctxId) {
         // Locks should prevent this from happening
-        throw AssertionError('Mixed transactions: $txId and ${data.ctxId}');
+        throw sqlite.SqliteException(
+            0, 'Mixed transactions: $txId and ${data.ctxId}');
       } else if (data.sql == 'ROLLBACK') {
         // This is the only valid way to clear an error
         txError = null;
@@ -309,7 +337,13 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
         return result;
       } catch (err) {
         if (txId != null) {
-          txError = err;
+          if (db.autocommit) {
+            // Transaction rolled back
+            txError = sqlite.SqliteException(0,
+                'Transaction rolled back by earlier statement: ${err.toString()}');
+          } else {
+            // Recoverable error
+          }
         }
         rethrow;
       }
