@@ -1,24 +1,27 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite3/common.dart' as sqlite;
 import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
-import 'util.dart';
+import 'utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
 
 void main() {
   group('Basic Tests', () {
     late String path;
 
     setUp(() async {
-      path = dbPath();
-      await cleanDb(path: path);
+      path = testUtils.dbPath();
+      await testUtils.init();
+      await testUtils.cleanDb(path: path);
     });
 
     tearDown(() async {
-      await cleanDb(path: path);
+      await testUtils.cleanDb(path: path);
     });
 
     createTables(SqliteDatabase db) async {
@@ -29,7 +32,7 @@ void main() {
     }
 
     test('Basic Setup', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       await db.execute(
@@ -50,8 +53,8 @@ void main() {
 
     // Manually verified
     test('Concurrency', () async {
-      final db =
-          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
+      final db = SqliteDatabase.withFactory(testUtils.testFactory(path: path),
+          maxReaders: 3);
       await db.initialize();
       await createTables(db);
 
@@ -65,7 +68,7 @@ void main() {
     });
 
     test('read-only transactions', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       // Can read
@@ -104,7 +107,7 @@ void main() {
 
     test('should not allow direct db calls within a transaction callback',
         () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       await db.writeTransaction((tx) async {
@@ -117,7 +120,7 @@ void main() {
 
     test('should not allow read-only db calls within transaction callback',
         () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       await db.writeTransaction((tx) async {
@@ -141,7 +144,7 @@ void main() {
     });
 
     test('should not allow read-only db calls within lock callback', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       // Locks - should behave the same as transactions above
 
@@ -165,7 +168,7 @@ void main() {
     test(
         'should allow read-only db calls within transaction callback in separate zone',
         () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       // Get a reference to the parent zone (outside the transaction).
@@ -202,7 +205,7 @@ void main() {
     });
 
     test('should allow PRAMGAs', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       // Not allowed in transactions, but does work as a direct statement.
       await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
@@ -210,7 +213,7 @@ void main() {
     });
 
     test('should allow ignoring errors', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       ignore(db.execute(
@@ -218,7 +221,7 @@ void main() {
     });
 
     test('should properly report errors in transactions', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       var tp = db.writeTransaction((tx) async {
@@ -262,7 +265,7 @@ void main() {
     });
 
     test('should error on dangling transactions', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       await expectLater(() async {
         await db.execute('BEGIN');
@@ -270,7 +273,7 @@ void main() {
     });
 
     test('should handle normal errors', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       Error? caughtError;
       final syntheticError = ArgumentError('foobar');
@@ -289,7 +292,7 @@ void main() {
     });
 
     test('should handle uncaught errors', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       Object? caughtError;
       await db.computeWithDatabase<void>((db) async {
@@ -312,7 +315,7 @@ void main() {
     });
 
     test('should handle uncaught errors in read connections', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       for (var i = 0; i < 10; i++) {
         Object? caughtError;
@@ -342,7 +345,7 @@ void main() {
     });
 
     test('should allow resuming transaction after errors', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       SqliteWriteContext? savedTx;
       await db.writeTransaction((tx) async {

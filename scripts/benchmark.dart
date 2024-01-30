@@ -6,7 +6,9 @@ import 'package:benchmarking/benchmarking.dart';
 import 'package:collection/collection.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
-import '../test/util.dart';
+import '../test/utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
 
 typedef BenchmarkFunction = Future<void> Function(
     SqliteDatabase, List<List<String>>);
@@ -176,7 +178,7 @@ void main() async {
     await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
   }
 
-  final db = await setupDatabase(path: 'test-db/benchmark.db');
+  final db = await testUtils.setupDatabase(path: 'test-db/benchmark.db');
   await db.execute('PRAGMA wal_autocheckpoint = 0');
   await createTables(db);
 

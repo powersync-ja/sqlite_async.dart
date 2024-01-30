@@ -1,7 +1,9 @@
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
-import 'util.dart';
+import 'utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
 
 class TestUser {
   int? id;
@@ -24,12 +26,12 @@ void main() {
     late String path;
 
     setUp(() async {
-      path = dbPath();
-      await cleanDb(path: path);
+      path = testUtils.dbPath();
+      await testUtils.cleanDb(path: path);
     });
 
     tearDown(() async {
-      await cleanDb(path: path);
+      await testUtils.cleanDb(path: path);
     });
 
     createTables(AbstractSqliteDatabase db) async {
@@ -40,7 +42,7 @@ void main() {
     }
 
     test('Inserts', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       var users1 = [

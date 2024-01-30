@@ -6,7 +6,10 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/database_utils.dart';
 import 'package:test/test.dart';
-import 'util.dart';
+
+import 'utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
 
 void main() {
   createTables(AbstractSqliteDatabase db) async {
@@ -26,14 +29,14 @@ void main() {
     late String path;
 
     setUp(() async {
-      path = dbPath();
-      await cleanDb(path: path);
+      path = testUtils.dbPath();
+      await testUtils.cleanDb(path: path);
     });
 
-    for (var sqlite in findSqliteLibraries()) {
+    for (var sqlite in testUtils.findSqliteLibraries()) {
       test('getSourceTables - $sqlite', () async {
         final db = SqliteDatabase.withFactory(
-            TestSqliteOpenFactory(path: path, sqlitePath: sqlite));
+            testUtils.testFactory(path: path, sqlitePath: sqlite));
         await db.initialize();
         await createTables(db);
 
@@ -62,7 +65,7 @@ void main() {
     }
 
     test('watch', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       const baseTime = 20;
@@ -127,7 +130,7 @@ void main() {
     });
 
     test('onChange', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       const baseTime = 20;
@@ -164,7 +167,7 @@ void main() {
     });
 
     test('single onChange', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       const baseTime = 20;
@@ -186,7 +189,7 @@ void main() {
     });
 
     test('watch in isolate', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       const baseTime = 20;
@@ -246,7 +249,7 @@ void main() {
     });
 
     test('watch with parameters', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       const baseTime = 20;
