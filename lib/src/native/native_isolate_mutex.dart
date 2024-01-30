@@ -114,6 +114,7 @@ class SerializedMutex extends AbstractMutex {
 
   SerializedMutex(this.client);
 
+  @override
   SharedMutex open() {
     return SharedMutex._(client.open());
   }

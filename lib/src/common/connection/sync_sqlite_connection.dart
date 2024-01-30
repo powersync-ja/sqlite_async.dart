@@ -17,7 +17,7 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   SyncSqliteConnection(this.db, this.mutex) {
     updates = db.updates.map(
       (event) {
-        return UpdateNotification(Set.from([event.tableName]));
+        return UpdateNotification({event.tableName});
       },
     );
   }
@@ -77,7 +77,7 @@ class SyncReadContext implements SqliteReadContext {
   Future<Row?> getOptional(String sql,
       [List<Object?> parameters = const []]) async {
     try {
-      return await db.select(sql, parameters).first;
+      return db.select(sql, parameters).first;
     } catch (ex) {
       return null;
     }

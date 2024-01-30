@@ -6,12 +6,13 @@ import 'abstract_test_utils.dart';
 
 class TestUtils extends AbstractTestUtils {
   late final Future<void> _isInitialized;
-  late SqliteOptions? webOptions = null;
+  late SqliteOptions? webOptions;
 
   TestUtils() {
     _isInitialized = init();
   }
 
+  @override
   Future<void> init() async {
     if (webOptions != null) {
       return;
@@ -22,8 +23,6 @@ class TestUtils extends AbstractTestUtils {
 
     final sqliteWasm = Uri.parse('http://localhost:$port/sqlite3.wasm');
     final sqliteDrift = Uri.parse('http://localhost:$port/drift_worker.js');
-
-    print('sqlite4' + sqliteWasm.toString());
 
     webOptions = SqliteOptions(
         webSqliteOptions: WebSqliteOptions(
@@ -42,7 +41,8 @@ class TestUtils extends AbstractTestUtils {
   }
 
   @override
-  Future<SqliteDatabase> setupDatabase({String? path}) {
+  Future<SqliteDatabase> setupDatabase({String? path}) async {
+    await _isInitialized;
     return super.setupDatabase(path: path);
   }
 

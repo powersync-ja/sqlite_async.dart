@@ -13,6 +13,7 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   @override
   DefaultSqliteOpenFactory openFactory;
 
+  @override
   Mutex mutex;
 
   IsolateConnectionFactory({required this.openFactory, required this.mutex});
