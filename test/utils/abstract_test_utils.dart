@@ -2,7 +2,7 @@ import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 class TestDefaultSqliteOpenFactory extends DefaultSqliteOpenFactory {
-  final String? sqlitePath;
+  final String sqlitePath;
 
   TestDefaultSqliteOpenFactory(
       {required super.path, super.sqliteOptions, this.sqlitePath = ''});
@@ -21,7 +21,7 @@ abstract class AbstractTestUtils {
   /// Generates a test open factory
   TestDefaultSqliteOpenFactory testFactory(
       {String? path,
-      String? sqlitePath,
+      String sqlitePath = '',
       SqliteOptions options = const SqliteOptions.defaults()}) {
     return TestDefaultSqliteOpenFactory(
         path: path ?? dbPath(), sqliteOptions: options);

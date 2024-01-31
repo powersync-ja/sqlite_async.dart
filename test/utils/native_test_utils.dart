@@ -22,7 +22,7 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
   @override
   FutureOr<CommonDatabase> open(SqliteOpenOptions options) async {
     sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
-      return DynamicLibrary.open(sqlitePath!);
+      return DynamicLibrary.open(sqlitePath);
     });
     final db = await super.open(options);
 
@@ -90,7 +90,7 @@ class TestUtils extends AbstractTestUtils {
   @override
   TestDefaultSqliteOpenFactory testFactory(
       {String? path,
-      String? sqlitePath,
+      String sqlitePath = defaultSqlitePath,
       SqliteOptions options = const SqliteOptions.defaults()}) {
     return TestSqliteOpenFactory(
         path: path ?? dbPath(), sqlitePath: sqlitePath, sqliteOptions: options);
