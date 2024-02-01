@@ -16,25 +16,23 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
 
   // Copy sqlite3.wasm file expected by the worker
   final sqliteOutputPath = p.join(directory, 'sqlite3.wasm');
-  if (!(await File(sqliteOutputPath).exists())) {
-    await File('assets/sqlite3.wasm').copy(sqliteOutputPath);
-  }
+  await File('assets/sqlite3.wasm').copy(sqliteOutputPath);
 
   final driftWorkerPath = p.join(directory, 'drift_worker.js');
-  if (!(await File(driftWorkerPath).exists())) {
-    // And compile worker code
-    final process = await Process.run(Platform.executable, [
-      'compile',
-      'js',
-      '-o',
-      driftWorkerPath,
-      '-O0',
-      'lib/src/web/worker/drift_worker.dart',
-    ]);
-    if (process.exitCode != 0) {
-      fail('Could not compile worker');
-    }
+  // And compile worker code
+  final process = await Process.run(Platform.executable, [
+    'compile',
+    'js',
+    '-o',
+    driftWorkerPath,
+    '-O0',
+    'lib/src/web/worker/drift_worker.dart',
+  ]);
+  if (process.exitCode != 0) {
+    fail('Could not compile worker');
   }
+
+  print('compiled worker');
 
   final server = await HttpServer.bind('localhost', 0);
 
@@ -45,6 +43,7 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
 
   channel.sink.add(server.port);
   await channel.stream.listen(null).asFuture<void>().then<void>((_) async {
+    print('closing server');
     await server.close();
     await Directory(directory).delete();
   });

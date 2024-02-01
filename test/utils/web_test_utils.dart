@@ -18,22 +18,20 @@ class TestUtils extends AbstractTestUtils {
   }
 
   Future<void> _init() async {
-    final channel = spawnHybridUri('/test/server/worker_server.dart');
+    final channel = spawnHybridUri('/test/server/asset_server.dart');
     final port = await channel.stream.first as int;
-    print('configure tests');
-    final sqliteWasmUri = Uri.parse('http://localhost:$port/sqlite3.wasm');
-
+    final sqliteWasmUri = 'http://localhost:$port/sqlite3.wasm';
     // Cross origin workers are not supported, but we can supply a Blob
-    var sqliteDriftUri =
-        Uri.parse('http://localhost:$port/drift_worker.js').toString();
+    var sqliteDriftUri = 'http://localhost:$port/drift_worker.js';
+
+    print('Using $sqliteDriftUri and $sqliteDriftUri');
     final blob = Blob(<String>['importScripts("$sqliteDriftUri");'],
         'application/javascript');
     sqliteDriftUri = _createObjectURL(blob);
 
     webOptions = SqliteOptions(
         webSqliteOptions: WebSqliteOptions(
-            wasmUri: sqliteWasmUri.toString(),
-            workerUri: sqliteDriftUri.toString()));
+            wasmUri: sqliteWasmUri.toString(), workerUri: sqliteDriftUri));
   }
 
   @override
