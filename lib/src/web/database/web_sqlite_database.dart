@@ -91,6 +91,22 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   }
 
   @override
+  Future<T> readTransaction<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Duration? lockTimeout,
+      String? debugContext}) async {
+    return _connection.readTransaction(callback, lockTimeout: lockTimeout);
+  }
+
+  @override
+  Future<T> writeTransaction<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout,
+      String? debugContext}) async {
+    return _connection.writeTransaction(callback, lockTimeout: lockTimeout);
+  }
+
+  @override
   Future<void> close() async {
     return _connection.close();
   }

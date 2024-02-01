@@ -10,7 +10,9 @@ import 'package:sqlite_async/sqlite3_common.dart';
 
 /// Use this function to register any custom DB functionality
 /// which requires direct access to the connection
-void setupDatabase(CommonDatabase database) {}
+void setupDatabase(CommonDatabase database) {
+  setupCommonWorkerDB(database);
+}
 
 void main() {
   WasmDatabase.workerMainForOpen(

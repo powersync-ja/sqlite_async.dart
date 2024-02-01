@@ -6,6 +6,7 @@ import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 
@@ -50,22 +51,68 @@ class WebSqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+      {Duration? lockTimeout,
+      String? debugContext,
+      bool isTransaction = false}) async {
     await isInitialized;
     return _runZoned(
-        () => mutex.lock(() => callback(WebReadContext(executor!)),
-            timeout: lockTimeout),
+        () => mutex.lock(() async {
+              final context =
+                  WebReadContext(executor!, isTransaction: isTransaction);
+              try {
+                final result = await callback(context);
+                return result;
+              } finally {
+                context.close();
+              }
+            }, timeout: lockTimeout),
         debugContext: debugContext ?? 'execute()');
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+      {Duration? lockTimeout,
+      String? debugContext,
+      bool isTransaction = false}) async {
     await isInitialized;
     return _runZoned(
-        () => mutex.lock(() => callback(WebWriteContext(executor!)),
-            timeout: lockTimeout),
+        () => mutex.lock(() async {
+              final context =
+                  WebWriteContext(executor!, isTransaction: isTransaction);
+              try {
+                final result = await callback(context);
+                return result;
+              } finally {
+                context.close();
+              }
+            }, timeout: lockTimeout),
         debugContext: debugContext ?? 'execute()');
+  }
+
+  @override
+  Future<T> readTransaction<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Duration? lockTimeout}) async {
+    return readLock((ctx) async {
+      return await internalReadTransaction(ctx, callback);
+    },
+        lockTimeout: lockTimeout,
+        debugContext: 'readTransaction()',
+        isTransaction: true);
+  }
+
+  @override
+  Future<T> writeTransaction<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout}) async {
+    return writeLock((
+      ctx,
+    ) async {
+      return await internalWriteTransaction(ctx, callback);
+    },
+        lockTimeout: lockTimeout,
+        debugContext: 'writeTransaction()',
+        isTransaction: true);
   }
 
   /// The [Mutex] on individual connections do already error in recursive locks.
@@ -90,7 +137,8 @@ class WebSqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   }
 
   @override
-  Future<bool> getAutoCommit() {
-    throw UnimplementedError();
+  Future<bool> getAutoCommit() async {
+    await isInitialized;
+    return WebWriteContext(executor!).getAutoCommit();
   }
 }

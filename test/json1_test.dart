@@ -55,7 +55,6 @@ void main() {
         TestUser(name: 'Dan', email: 'dan@example.org')
       ];
 
-      print(jsonEncode(users1));
       var ids1 = await db.execute(
           "INSERT INTO users(name, email) SELECT e.value ->> 'name', e.value ->> 'email' FROM json_each(?) e RETURNING id",
           [jsonEncode(users1)]);
