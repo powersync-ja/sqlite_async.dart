@@ -19,22 +19,20 @@ abstract class AbstractTestUtils {
   }
 
   /// Generates a test open factory
-  TestDefaultSqliteOpenFactory testFactory(
+  Future<TestDefaultSqliteOpenFactory> testFactory(
       {String? path,
       String sqlitePath = '',
-      SqliteOptions options = const SqliteOptions.defaults()}) {
+      SqliteOptions options = const SqliteOptions.defaults()}) async {
     return TestDefaultSqliteOpenFactory(
         path: path ?? dbPath(), sqliteOptions: options);
   }
 
   /// Creates a SqliteDatabaseConnection
   Future<SqliteDatabase> setupDatabase({String? path}) async {
-    final db = SqliteDatabase.withFactory(testFactory(path: path));
+    final db = SqliteDatabase.withFactory(await testFactory(path: path));
     await db.initialize();
     return db;
   }
-
-  Future<void> init();
 
   /// Deletes any DB data
   Future<void> cleanDb({required String path});

@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:meta/meta.dart';
+import 'package:sqlite_async/src/common/abstract_mutex.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 
 import 'package:sqlite_async/src/sqlite_connection.dart';
@@ -51,14 +52,35 @@ class WebSqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await isInitialized;
-    return mutex.lock(() => callback(WebReadContext(executor!)));
+    return _runZoned(
+        () => mutex.lock(() => callback(WebReadContext(executor!)),
+            timeout: lockTimeout),
+        debugContext: debugContext ?? 'execute()');
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await isInitialized;
-    return mutex.lock(() => callback(WebWriteContext(executor!)));
+    return _runZoned(
+        () => mutex.lock(() => callback(WebWriteContext(executor!)),
+            timeout: lockTimeout),
+        debugContext: debugContext ?? 'execute()');
+  }
+
+  /// The [Mutex] on individual connections do already error in recursive locks.
+  ///
+  /// We duplicate the same check here, to:
+  /// 1. Also error when the recursive transaction is handled by a different
+  ///    connection (with a different lock).
+  /// 2. Give a more specific error message when it happens.
+  T _runZoned<T>(T Function() callback, {required String debugContext}) {
+    if (Zone.current[this] != null) {
+      throw LockError(
+          'Recursive lock is not allowed. Use `tx.$debugContext` instead of `db.$debugContext`.');
+    }
+    var zone = Zone.current.fork(zoneValues: {this: true});
+    return zone.run(callback);
   }
 
   @override

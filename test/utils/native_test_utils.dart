@@ -50,9 +50,6 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
 
 class TestUtils extends AbstractTestUtils {
   @override
-  Future<void> init() async {}
-
-  @override
   String dbPath() {
     Directory("test-db").createSync(recursive: false);
     return super.dbPath();
@@ -88,10 +85,10 @@ class TestUtils extends AbstractTestUtils {
   }
 
   @override
-  TestDefaultSqliteOpenFactory testFactory(
+  Future<TestDefaultSqliteOpenFactory> testFactory(
       {String? path,
       String sqlitePath = defaultSqlitePath,
-      SqliteOptions options = const SqliteOptions.defaults()}) {
+      SqliteOptions options = const SqliteOptions.defaults()}) async {
     return TestSqliteOpenFactory(
         path: path ?? dbPath(), sqlitePath: sqlitePath, sqliteOptions: options);
   }

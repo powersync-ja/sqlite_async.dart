@@ -1,3 +1,4 @@
+@TestOn('!browser')
 import 'dart:async';
 import 'dart:math';
 
@@ -16,7 +17,6 @@ void main() {
 
     setUp(() async {
       path = testUtils.dbPath();
-      await testUtils.init();
       await testUtils.cleanDb(path: path);
     });
 
@@ -53,7 +53,8 @@ void main() {
 
     // Manually verified
     test('Concurrency', () async {
-      final db = SqliteDatabase.withFactory(testUtils.testFactory(path: path),
+      final db = SqliteDatabase.withFactory(
+          await testUtils.testFactory(path: path),
           maxReaders: 3);
       await db.initialize();
       await createTables(db);

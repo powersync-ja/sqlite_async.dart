@@ -1,43 +1,51 @@
 import 'dart:async';
+import 'dart:html';
 
+import 'package:js/js.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 import 'abstract_test_utils.dart';
 
+@JS('URL.createObjectURL')
+external String _createObjectURL(Blob blob);
+
 class TestUtils extends AbstractTestUtils {
-  late final Future<void> _isInitialized;
-  late SqliteOptions? webOptions;
+  late Future<void> _isInitialized;
+  late final SqliteOptions webOptions;
 
   TestUtils() {
-    _isInitialized = init();
+    _isInitialized = _init();
   }
 
-  @override
-  Future<void> init() async {
-    if (webOptions != null) {
-      return;
-    }
-
+  Future<void> _init() async {
     final channel = spawnHybridUri('/test/server/asset_server.dart');
     final port = await channel.stream.first as int;
 
-    final sqliteWasm = Uri.parse('http://localhost:$port/sqlite3.wasm');
-    final sqliteDrift = Uri.parse('http://localhost:$port/drift_worker.js');
+    final sqliteWasmUri = Uri.parse('http://localhost:$port/sqlite3.wasm');
+
+    // Cross origin workers are not supported, but we can supply a Blob
+    var sqliteDriftUri =
+        Uri.parse('http://localhost:$port/drift_worker.js').toString();
+    final blob = Blob(<String>['importScripts("$sqliteDriftUri");'],
+        'application/javascript');
+    sqliteDriftUri = _createObjectURL(blob);
 
     webOptions = SqliteOptions(
         webSqliteOptions: WebSqliteOptions(
-            wasmUri: sqliteWasm.toString(), workerUri: sqliteDrift.toString()));
+            wasmUri: sqliteWasmUri.toString(),
+            workerUri: sqliteDriftUri.toString()));
   }
 
   @override
   Future<void> cleanDb({required String path}) async {}
 
   @override
-  TestDefaultSqliteOpenFactory testFactory(
+  Future<TestDefaultSqliteOpenFactory> testFactory(
       {String? path,
       String? sqlitePath,
-      SqliteOptions options = const SqliteOptions.defaults()}) {
-    return super.testFactory(path: path, options: webOptions!);
+      SqliteOptions options = const SqliteOptions.defaults()}) async {
+    await _isInitialized;
+    return super.testFactory(path: path, options: webOptions);
   }
 
   @override
