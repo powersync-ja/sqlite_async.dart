@@ -3,3 +3,4 @@
 library;
 
 export 'package:drift/wasm.dart';
+export 'package:sqlite_async/src/web/worker/worker_utils.dart';

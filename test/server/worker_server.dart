@@ -15,17 +15,16 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
       .resolveSymbolicLinksSync();
 
   // Copy sqlite3.wasm file expected by the worker
-  await File('example/web/sqlite3.wasm')
-      .copy(p.join(directory, 'sqlite3.wasm'));
+  await File('assets/sqlite3.wasm').copy(p.join(directory, 'sqlite3.wasm'));
 
   // And compile worker code
   final process = await Process.run(Platform.executable, [
     'compile',
     'js',
     '-o',
-    p.join(directory, 'worker.dart.js'),
+    p.join(directory, 'drift_worker.js'),
     '-O0',
-    'test/wasm/worker.dart',
+    'lib/src/web/worker/drift_worker.dart',
   ]);
 
   if (process.exitCode != 0) {

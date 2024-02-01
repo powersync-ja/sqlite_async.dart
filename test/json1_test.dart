@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
@@ -44,7 +46,6 @@ void main() {
     test('Inserts', () async {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
-
       var users1 = [
         TestUser(name: 'Bob', email: 'bob@example.org'),
         TestUser(name: 'Alice', email: 'alice@example.org')
@@ -53,27 +54,30 @@ void main() {
         TestUser(name: 'Charlie', email: 'charlie@example.org'),
         TestUser(name: 'Dan', email: 'dan@example.org')
       ];
+
+      print(jsonEncode(users1));
       var ids1 = await db.execute(
           "INSERT INTO users(name, email) SELECT e.value ->> 'name', e.value ->> 'email' FROM json_each(?) e RETURNING id",
-          [users1]);
+          [jsonEncode(users1)]);
 
       var ids2 = await db.execute(
           "INSERT INTO users(name, email) ${selectJsonColumns([
                 'name',
                 'email'
               ])} RETURNING id",
-          [users2]);
+          [jsonEncode(users2)]);
 
       var ids = [
         for (var row in ids1) row,
         for (var row in ids2) row,
       ];
+
       var results = [
         for (var row in await db.getAll(
             "SELECT id, name, email FROM users WHERE id IN (${selectJsonColumns([
                   'id'
                 ])}) ORDER BY name",
-            [ids]))
+            [jsonEncode(ids)]))
           TestUser.fromMap(row)
       ];
 

@@ -10,9 +10,4 @@ class TestUtils extends AbstractTestUtils {
   List<String> findSqliteLibraries() {
     throw UnimplementedError();
   }
-
-  @override
-  Future<void> init() {
-    throw UnimplementedError();
-  }
 }

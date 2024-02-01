@@ -1,3 +1,5 @@
+@TestOn('!browser')
+// TODO watched queries require forked Drift lib worker
 import 'dart:async';
 import 'dart:math';
 import 'package:sqlite_async/sqlite_async.dart';

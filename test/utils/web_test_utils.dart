@@ -18,7 +18,7 @@ class TestUtils extends AbstractTestUtils {
   }
 
   Future<void> _init() async {
-    final channel = spawnHybridUri('/test/server/asset_server.dart');
+    final channel = spawnHybridUri('/test/server/worker_server.dart');
     final port = await channel.stream.first as int;
 
     final sqliteWasmUri = Uri.parse('http://localhost:$port/sqlite3.wasm');
