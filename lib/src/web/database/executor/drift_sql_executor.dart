@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/drift.dart';
+import 'package:drift/remote.dart';
 import 'package:drift/wasm.dart';
 import 'package:sqlite3/common.dart';
 import 'sqlite_executor.dart';
@@ -27,20 +28,41 @@ class DriftWebSQLExecutor extends SQLExecutor {
   }
 
   @override
-  Future<void> executeBatch(String sql, List<List<Object?>> parameterSets) {
-    return db.resolvedExecutor.runBatched(BatchedStatements([sql],
-        parameterSets.map((e) => ArgumentsForBatchedStatement(0, e)).toList()));
+  Future<void> executeBatch(
+      String sql, List<List<Object?>> parameterSets) async {
+    try {
+      final result = await db.resolvedExecutor.runBatched(BatchedStatements(
+          [sql],
+          parameterSets
+              .map((e) => ArgumentsForBatchedStatement(0, e))
+              .toList()));
+      return result;
+    } on DriftRemoteException catch (e) {
+      if (e.toString().contains('SqliteException')) {
+        // Drift wraps these in remote errors
+        throw SqliteException(e.remoteCause.hashCode, e.remoteCause.toString());
+      }
+      rethrow;
+    }
   }
 
   @override
-  FutureOr<ResultSet> select(String sql,
+  Future<ResultSet> select(String sql,
       [List<Object?> parameters = const []]) async {
-    final result = await db.resolvedExecutor.runSelect(sql, parameters);
-    if (result.isEmpty) {
-      return ResultSet([], [], []);
+    try {
+      final result = await db.resolvedExecutor.runSelect(sql, parameters);
+      if (result.isEmpty) {
+        return ResultSet([], [], []);
+      }
+      return ResultSet(result.first.keys.toList(), [],
+          result.map((e) => e.values.toList()).toList());
+    } on DriftRemoteException catch (e) {
+      if (e.toString().contains('SqliteException')) {
+        // Drift wraps these in remote errors
+        throw SqliteException(e.remoteCause.hashCode, e.remoteCause.toString());
+      }
+      rethrow;
     }
-    return ResultSet(result.first.keys.toList(), [],
-        result.map((e) => e.values.toList()).toList());
   }
 }
 
