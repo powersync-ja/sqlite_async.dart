@@ -118,6 +118,6 @@ class SqliteDatabase extends AbstractSqliteDatabase {
 
   @override
   Future<bool> getAutoCommit() {
-    throw UnimplementedError();
+    return _connection.getAutoCommit();
   }
 }
