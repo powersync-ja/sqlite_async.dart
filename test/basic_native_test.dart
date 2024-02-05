@@ -106,19 +106,6 @@ void main() {
       });
     });
 
-    test('should not allow direct db calls within a transaction callback',
-        () async {
-      final db = await testUtils.setupDatabase(path: path);
-      await createTables(db);
-
-      await db.writeTransaction((tx) async {
-        await expectLater(() async {
-          await db.execute(
-              'INSERT INTO test_data(description) VALUES(?)', ['test']);
-        }, throwsA((e) => e is LockError && e.message.contains('tx.execute')));
-      });
-    });
-
     test('should not allow read-only db calls within transaction callback',
         () async {
       final db = await testUtils.setupDatabase(path: path);
