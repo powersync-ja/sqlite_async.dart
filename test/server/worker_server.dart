@@ -20,7 +20,7 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
         'sqlite3.wasm file should be present in the ./assets folder');
   }
 
-  final driftWorkerPath = p.join(directory.path, 'drift_worker.js');
+  final driftWorkerPath = p.join(directory.path, 'db_worker.js');
   if (!(await File(driftWorkerPath).exists())) {
     // And compile worker code
     final process = await Process.run(Platform.executable, [

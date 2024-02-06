@@ -22,7 +22,7 @@ class TestUtils extends AbstractTestUtils {
     final port = await channel.stream.first as int;
     final sqliteWasmUri = 'http://localhost:$port/sqlite3.wasm';
     // Cross origin workers are not supported, but we can supply a Blob
-    var sqliteDriftUri = 'http://localhost:$port/drift_worker.js';
+    var sqliteDriftUri = 'http://localhost:$port/db_worker.js';
 
     final blob = Blob(<String>['importScripts("$sqliteDriftUri");'],
         'application/javascript');

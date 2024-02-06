@@ -95,7 +95,7 @@ final db = SqliteDatabase(
     path: 'test',
     options: SqliteOptions(
         webSqliteOptions: WebSqliteOptions(
-            wasmUri: 'sqlite3.wasm', workerUri: 'drift_worker.js')));
+            wasmUri: 'sqlite3.wasm', workerUri: 'db_worker.js')));
 
 ```
 

@@ -3,11 +3,11 @@ class WebSqliteOptions {
   final String wasmUri;
 
   const WebSqliteOptions.defaults()
-      : workerUri = 'drift_worker.js',
+      : workerUri = 'db_worker.js',
         wasmUri = 'sqlite3.wasm';
 
   const WebSqliteOptions(
-      {this.wasmUri = 'sqlite3.wasm', this.workerUri = 'drift_worker.js'});
+      {this.wasmUri = 'sqlite3.wasm', this.workerUri = 'db_worker.js'});
 }
 
 class SqliteOptions {

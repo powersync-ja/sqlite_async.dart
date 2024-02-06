@@ -3,7 +3,7 @@ name: Test
 on:
   push:
     branches:
-      - "**"
+      - '**'
 
 jobs:
   build:
@@ -30,20 +30,20 @@ jobs:
     strategy:
       matrix:
         include:
-          - sqlite_version: "3440200"
-            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3440200.tar.gz"
+          - sqlite_version: '3440200'
+            sqlite_url: 'https://www.sqlite.org/2023/sqlite-autoconf-3440200.tar.gz'
             dart_sdk: 3.2.4
-          - sqlite_version: "3430200"
-            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3430200.tar.gz"
+          - sqlite_version: '3430200'
+            sqlite_url: 'https://www.sqlite.org/2023/sqlite-autoconf-3430200.tar.gz'
             dart_sdk: 3.2.4
-          - sqlite_version: "3420000"
-            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3420000.tar.gz"
+          - sqlite_version: '3420000'
+            sqlite_url: 'https://www.sqlite.org/2023/sqlite-autoconf-3420000.tar.gz'
             dart_sdk: 3.2.4
-          - sqlite_version: "3410100"
-            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3410100.tar.gz"
+          - sqlite_version: '3410100'
+            sqlite_url: 'https://www.sqlite.org/2023/sqlite-autoconf-3410100.tar.gz'
             dart_sdk: 3.2.4
-          - sqlite_version: "3380000"
-            sqlite_url: "https://www.sqlite.org/2022/sqlite-autoconf-3380000.tar.gz"
+          - sqlite_version: '3380000'
+            sqlite_url: 'https://www.sqlite.org/2022/sqlite-autoconf-3380000.tar.gz'
             dart_sdk: 3.2.0
     steps:
       - uses: actions/checkout@v3
@@ -60,7 +60,7 @@ jobs:
           mkdir -p assets && curl -LJ https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-2.3.0/sqlite3.wasm -o assets/sqlite3.wasm
 
       - name: Compile WebWorker
-        run:  dart compile js -o assets/drift_worker.js -O0 lib/src/web/worker/drift_worker.dart
+        run: dart compile js -o assets/db_worker.js -O0 lib/src/web/worker/drift_worker.dart
 
       - name: Run Tests
         run: |
