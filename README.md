@@ -78,13 +78,14 @@ void main() async {
 
 # Web
 
-Web support is provided by the [Drift](https://drift.simonbinder.eu/web/) library.
+Web support is provided by the [Drift](https://github.com/powersync-ja/drift/pull/1) library. Detailed instructions for compatibility and setup are listed in the link.
 
 Web support requires Sqlite3 WASM and Drift worker Javascript files to be accessible via configurable URIs.
 
 Default URIs are shown in the example below. URIs only need to be specified if they differ from default values.
 
-Watched queries and table change notifications are only supported when using a custom Drift worker. [TBD release link]
+Watched queries and table change notifications are only supported when using a custom Drift worker which is compiled by linking
+https://github.com/powersync-ja/drift/pull/1. 
 
 Setup
 
@@ -92,7 +93,7 @@ Setup
 import 'package:sqlite_async/sqlite_async.dart';
 
 final db = SqliteDatabase(
-    path: 'test',
+    path: 'test.db',
     options: SqliteOptions(
         webSqliteOptions: WebSqliteOptions(
             wasmUri: 'sqlite3.wasm', workerUri: 'db_worker.js')));

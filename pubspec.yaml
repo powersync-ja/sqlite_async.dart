@@ -6,7 +6,8 @@ environment:
   sdk: '>=3.2.0 <4.0.0'
 
 dependencies:
-  drift: 2.15.0
+  drift: ^2.15.0
+  # In order to compile custom web worker
   # drift:
   #   git:
   #     url: https://github.com/powersync-ja/drift.git
