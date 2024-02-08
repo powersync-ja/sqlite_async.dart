@@ -1,18 +1,18 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:sqlite_async/src/common/abstract_sqlite_database.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/src/native/database/connection_pool.dart';
+import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
+import 'package:sqlite_async/src/native/native_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
-
-import '../../utils/database_utils.dart';
-import '../../sqlite_connection.dart';
-import '../native_isolate_connection_factory.dart';
-import '../../sqlite_options.dart';
-import '../../update_notification.dart';
-import '../../common/abstract_sqlite_database.dart';
-import '../../common/port_channel.dart';
-import 'connection_pool.dart';
-import 'native_sqlite_connection_impl.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_options.dart';
+import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/native_database_utils.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 
 /// A SQLite database instance.
 ///

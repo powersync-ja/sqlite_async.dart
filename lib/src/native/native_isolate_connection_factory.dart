@@ -1,14 +1,14 @@
 import 'dart:async';
 import 'dart:isolate';
 
+import 'package:sqlite_async/src/common/abstract_isolate_connection_factory.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
-import '../sqlite_connection.dart';
-import '../update_notification.dart';
-import '../utils/native_database_utils.dart';
-import '../common/port_channel.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/database_utils.dart';
 import 'database/native_sqlite_connection_impl.dart';
-import '../common/abstract_isolate_connection_factory.dart';
 
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {

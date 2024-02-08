@@ -4,14 +4,13 @@ import 'dart:isolate';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
-
-import '../../utils/database_utils.dart';
-import '../../common/port_channel.dart';
-import '../../sqlite_connection.dart';
-import '../../sqlite_queries.dart';
-import '../../update_notification.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_queries.dart';
+import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 
 typedef TxCallback<T> = Future<T> Function(CommonDatabase db);
 

@@ -4,8 +4,8 @@ import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 
-/// A simple "synchronous" connection which provides the SqliteConnection
-/// implementation using a synchronous connection
+/// A simple "synchronous" connection which provides the async SqliteConnection
+/// implementation using a synchronous SQLite connection
 class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   final CommonDatabase db;
   late AbstractMutex mutex;
