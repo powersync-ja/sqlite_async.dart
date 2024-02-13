@@ -40,11 +40,8 @@ class WebReadContext implements SqliteReadContext {
   @override
   Future<Row?> getOptional(String sql,
       [List<Object?> parameters = const []]) async {
-    try {
-      return (await getAll(sql, parameters)).first;
-    } catch (ex) {
-      return null;
-    }
+    final rows = await getAll(sql, parameters);
+    return rows.isEmpty ? null : rows.first;
   }
 
   @override

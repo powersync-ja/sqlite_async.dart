@@ -77,11 +77,8 @@ class SyncReadContext implements SqliteReadContext {
   @override
   Future<Row?> getOptional(String sql,
       [List<Object?> parameters = const []]) async {
-    try {
-      return db.select(sql, parameters).first;
-    } catch (ex) {
-      return null;
-    }
+    final rows = await getAll(sql, parameters);
+    return rows.isEmpty ? null : rows.first;
   }
 
   @override

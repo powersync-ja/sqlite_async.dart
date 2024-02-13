@@ -3,10 +3,10 @@
 /// See [SqliteDatabase] as a starting point.
 library;
 
+export 'src/common/abstract_open_factory.dart';
 export 'src/common/connection/sync_sqlite_connection.dart';
 export 'src/common/isolate_connection_factory.dart';
 export 'src/common/mutex.dart';
-export 'src/common/abstract_open_factory.dart';
 export 'src/common/port_channel.dart';
 export 'src/common/sqlite_database.dart';
 export 'src/impl/isolate_connection_factory_impl.dart';
