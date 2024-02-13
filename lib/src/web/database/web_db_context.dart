@@ -80,10 +80,11 @@ class WebWriteContext extends WebReadContext implements SqliteWriteContext {
     if (_closed) {
       throw SqliteException(0, 'Transaction closed', null, sql);
     }
-    final isAutoCommit = await getAutoCommit();
 
     /// Statements in read/writeTransactions should not execute after ROLLBACK
-    if (isTransaction && !sql.toLowerCase().contains('begin') && isAutoCommit) {
+    if (isTransaction &&
+        !sql.toLowerCase().contains('begin') &&
+        await getAutoCommit()) {
       throw SqliteException(0,
           'Transaction rolled back by earlier statement. Cannot execute: $sql');
     }
