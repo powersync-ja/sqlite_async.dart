@@ -1,11 +1,14 @@
-import 'package:sqlite_async/src/common/abstract_isolate_connection_factory.dart';
+import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
-import 'package:sqlite_async/src/common/abstract_sqlite_database.dart';
+import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
+import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 
-class SqliteDatabase extends AbstractSqliteDatabase {
+class SqliteDatabaseImpl
+    with SqliteQueries, SqliteDatabaseMixin
+    implements SqliteDatabase {
   @override
   bool get closed => throw UnimplementedError();
 
@@ -15,15 +18,15 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   @override
   int maxReaders;
 
-  factory SqliteDatabase(
+  factory SqliteDatabaseImpl(
       {required path,
-      int maxReaders = AbstractSqliteDatabase.defaultMaxReaders,
+      int maxReaders = SqliteDatabase.defaultMaxReaders,
       SqliteOptions options = const SqliteOptions.defaults()}) {
     throw UnimplementedError();
   }
 
-  SqliteDatabase.withFactory(this.openFactory,
-      {this.maxReaders = AbstractSqliteDatabase.defaultMaxReaders}) {
+  SqliteDatabaseImpl.withFactory(this.openFactory,
+      {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
     throw UnimplementedError();
   }
 
@@ -51,7 +54,7 @@ class SqliteDatabase extends AbstractSqliteDatabase {
   }
 
   @override
-  AbstractIsolateConnectionFactory isolateConnectionFactory() {
+  IsolateConnectionFactory isolateConnectionFactory() {
     throw UnimplementedError();
   }
 

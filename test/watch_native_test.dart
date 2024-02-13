@@ -13,7 +13,7 @@ import 'utils/test_utils_impl.dart';
 final testUtils = TestUtils();
 
 void main() {
-  createTables(AbstractSqliteDatabase db) async {
+  createTables(SqliteDatabase db) async {
     await db.writeTransaction((tx) async {
       await tx.execute(
           'CREATE TABLE assets(id INTEGER PRIMARY KEY AUTOINCREMENT, make TEXT, customer_id INTEGER)');
@@ -127,7 +127,7 @@ void main() {
   });
 }
 
-Future<List<Object>> inIsolateWatch(AbstractIsolateConnectionFactory factory,
+Future<List<Object>> inIsolateWatch(IsolateConnectionFactory factory,
     int numberOfQueries, Duration throttleDuration) async {
   return await Isolate.run(() async {
     final db = factory.open();

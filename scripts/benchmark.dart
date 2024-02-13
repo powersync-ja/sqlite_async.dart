@@ -25,7 +25,7 @@ class SqliteBenchmark {
 
 List<SqliteBenchmark> benchmarks = [
   SqliteBenchmark('Insert: JSON1',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     await db.writeTransaction((tx) async {
       for (var i = 0; i < parameters.length; i += 5000) {
         var sublist = parameters.sublist(i, min(parameters.length, i + 5000));
@@ -37,7 +37,7 @@ List<SqliteBenchmark> benchmarks = [
     });
   }, maxBatchSize: 20000),
   SqliteBenchmark('Read: JSON1',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     await db.readTransaction((tx) async {
       for (var i = 0; i < parameters.length; i += 10000) {
         var sublist = List.generate(10000, (index) => index);
@@ -60,26 +60,26 @@ List<SqliteBenchmark> benchmarks = [
     });
   }, maxBatchSize: 10000, enabled: true),
   SqliteBenchmark('Write lock',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     for (var _ in parameters) {
       await db.writeLock((tx) async {});
     }
   }, maxBatchSize: 5000, enabled: false),
   SqliteBenchmark('Read lock',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     for (var _ in parameters) {
       await db.readLock((tx) async {});
     }
   }, maxBatchSize: 5000, enabled: false),
   SqliteBenchmark('Insert: Direct',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     for (var params in parameters) {
       await db.execute(
           'INSERT INTO customers(name, email) VALUES(?, ?)', params);
     }
   }, maxBatchSize: 500),
   SqliteBenchmark('Insert: writeTransaction',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     await db.writeTransaction((tx) async {
       for (var params in parameters) {
         await tx.execute(
@@ -110,7 +110,7 @@ List<SqliteBenchmark> benchmarks = [
     });
   }, maxBatchSize: 2000),
   SqliteBenchmark('Insert: writeTransaction no await',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     await db.writeTransaction((tx) async {
       for (var params in parameters) {
         tx.execute('INSERT INTO customers(name, email) VALUES(?, ?)', params);
@@ -118,7 +118,7 @@ List<SqliteBenchmark> benchmarks = [
     });
   }, maxBatchSize: 1000),
   SqliteBenchmark('Insert: computeWithDatabase',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     await db.computeWithDatabase((db) async {
       for (var params in parameters) {
         db.execute('INSERT INTO customers(name, email) VALUES(?, ?)', params);
@@ -126,7 +126,7 @@ List<SqliteBenchmark> benchmarks = [
     });
   }),
   SqliteBenchmark('Insert: computeWithDatabase, prepared',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     await db.computeWithDatabase((db) async {
       var stmt = db.prepare('INSERT INTO customers(name, email) VALUES(?, ?)');
       try {
@@ -139,14 +139,14 @@ List<SqliteBenchmark> benchmarks = [
     });
   }),
   SqliteBenchmark('Insert: executeBatch',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     await db.writeTransaction((tx) async {
       await tx.executeBatch(
           'INSERT INTO customers(name, email) VALUES(?, ?)', parameters);
     });
   }),
   SqliteBenchmark('Insert: computeWithDatabase, prepared x10',
-      (AbstractSqliteDatabase db, List<List<String>> parameters) async {
+      (SqliteDatabase db, List<List<String>> parameters) async {
     await db.computeWithDatabase((db) async {
       var stmt = db.prepare(
           'INSERT INTO customers(name, email) VALUES (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?), (?, ?)');
@@ -167,7 +167,7 @@ void main() async {
   var parameters = List.generate(
       20000, (index) => ['Test user $index', 'user$index@example.org']);
 
-  createTables(AbstractSqliteDatabase db) async {
+  createTables(SqliteDatabase db) async {
     await db.writeTransaction((tx) async {
       await tx.execute('DROP TABLE IF EXISTS customers');
       await tx.execute(

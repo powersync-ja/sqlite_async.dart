@@ -4,9 +4,9 @@ import 'dart:isolate';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
-import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
@@ -65,7 +65,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     }
   }
 
-  Future<void> _open(DefaultSqliteOpenFactory openFactory,
+  Future<void> _open(AbstractDefaultSqliteOpenFactory openFactory,
       {required bool primary,
       required SerializedPortClient upstreamPort}) async {
     await _connectionMutex.lock(() async {
@@ -369,7 +369,7 @@ class _SqliteConnectionParams {
 
   final SerializedPortClient port;
   final bool primary;
-  final DefaultSqliteOpenFactory openFactory;
+  final AbstractDefaultSqliteOpenFactory openFactory;
 
   _SqliteConnectionParams(
       {required this.openFactory,

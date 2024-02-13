@@ -1,18 +1,22 @@
 import 'dart:async';
 
 import 'package:sqlite3/common.dart';
-import 'package:sqlite_async/definitions.dart';
-import 'package:sqlite_async/src/common/abstract_mutex.dart';
+import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
 
 /// A connection factory that can be passed to different isolates.
-class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
+class IsolateConnectionFactoryImpl<Database extends CommonDatabase>
+    implements IsolateConnectionFactory<Database> {
   @override
-  AbstractDefaultSqliteOpenFactory openFactory;
+  AbstractDefaultSqliteOpenFactory<Database> openFactory;
 
-  IsolateConnectionFactory({
-    required this.openFactory,
-  });
+  IsolateConnectionFactoryImpl(
+      {required this.openFactory,
+      required Mutex mutex,
+      SerializedPortClient? upstreamPort});
 
   @override
 
@@ -31,12 +35,12 @@ class IsolateConnectionFactory extends AbstractIsolateConnectionFactory {
   ///  2. Other connections are not notified of any updates to tables made within
   ///     this connection.
   @override
-  Future<CommonDatabase> openRawDatabase({bool readOnly = false}) async {
+  Future<Database> openRawDatabase({bool readOnly = false}) async {
     throw UnimplementedError();
   }
 
   @override
-  AbstractMutex get mutex => throw UnimplementedError();
+  Mutex get mutex => throw UnimplementedError();
 
   @override
   SerializedPortClient get upstreamPort => throw UnimplementedError();

@@ -2,7 +2,7 @@
 import 'dart:io';
 
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite_async/src/common/abstract_sqlite_database.dart';
+import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:test/test.dart';
 
 import 'utils/test_utils_impl.dart';
@@ -22,7 +22,7 @@ void main() {
       await testUtils.cleanDb(path: path);
     });
 
-    createTables(AbstractSqliteDatabase db) async {
+    createTables(SqliteDatabase db) async {
       await db.writeTransaction((tx) async {
         await tx.execute(
             'CREATE TABLE test_data(id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT)');

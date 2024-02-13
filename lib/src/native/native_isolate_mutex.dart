@@ -3,11 +3,11 @@
 //  (MIT)
 import 'dart:async';
 
-import 'package:sqlite_async/src/common/abstract_mutex.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
 
-abstract class Mutex extends AbstractMutex {
-  factory Mutex() {
+abstract class MutexImpl implements Mutex {
+  factory MutexImpl() {
     return SimpleMutex();
   }
 }
@@ -15,7 +15,7 @@ abstract class Mutex extends AbstractMutex {
 /// Mutex maintains a queue of Future-returning functions that
 /// are executed sequentially.
 /// The internal lock is not shared across Isolates by default.
-class SimpleMutex implements Mutex {
+class SimpleMutex implements MutexImpl {
   // Adapted from https://github.com/tekartik/synchronized.dart/blob/master/synchronized/lib/src/basic_lock.dart
 
   Future<dynamic>? last;
@@ -109,7 +109,7 @@ class SimpleMutex implements Mutex {
 /// Use [open] to get a [SharedMutex] instance.
 ///
 /// Uses a [SendPort] to communicate with the source mutex.
-class SerializedMutex extends AbstractMutex {
+class SerializedMutex extends Mutex {
   final SerializedPortClient client;
 
   SerializedMutex(this.client);

@@ -1,10 +1,10 @@
 import 'dart:async';
 
-import 'package:sqlite_async/src/common/abstract_mutex.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
-import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
@@ -15,7 +15,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
-  final DefaultSqliteOpenFactory _factory;
+  final AbstractDefaultSqliteOpenFactory _factory;
   final SerializedPortClient _upstreamPort;
 
   @override
@@ -25,7 +25,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final String? debugName;
 
-  final Mutex mutex;
+  final MutexImpl mutex;
 
   @override
   bool closed = false;

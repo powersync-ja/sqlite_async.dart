@@ -12,7 +12,7 @@ import 'utils/test_utils_impl.dart';
 
 final testUtils = TestUtils();
 
-createTables(AbstractSqliteDatabase db) async {
+createTables(SqliteDatabase db) async {
   await db.writeTransaction((tx) async {
     await tx.execute(
         'CREATE TABLE assets(id INTEGER PRIMARY KEY AUTOINCREMENT, make TEXT, customer_id INTEGER)');

@@ -1,5 +1,5 @@
 import 'package:sqlite3/common.dart';
-import 'package:sqlite_async/src/mutex.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
@@ -8,13 +8,13 @@ import 'package:sqlite_async/src/update_notification.dart';
 /// implementation using a synchronous SQLite connection
 class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   final CommonDatabase db;
-  late AbstractMutex mutex;
+  late Mutex mutex;
   @override
   late final Stream<UpdateNotification> updates;
 
   bool _closed = false;
 
-  SyncSqliteConnection(this.db, AbstractMutex m) {
+  SyncSqliteConnection(this.db, Mutex m) {
     mutex = m.open();
     updates = db.updates.map(
       (event) {

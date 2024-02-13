@@ -3,7 +3,6 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:sqlite3/common.dart' as sqlite;
-import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 

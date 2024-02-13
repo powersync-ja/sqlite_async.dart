@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';

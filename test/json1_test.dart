@@ -36,7 +36,7 @@ void main() {
       await testUtils.cleanDb(path: path);
     });
 
-    createTables(AbstractSqliteDatabase db) async {
+    createTables(SqliteDatabase db) async {
       await db.writeTransaction((tx) async {
         await tx.execute(
             'CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT)');

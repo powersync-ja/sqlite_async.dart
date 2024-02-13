@@ -1,10 +1,10 @@
 import 'package:mutex/mutex.dart' as mutex;
-import 'package:sqlite_async/src/mutex.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
 
-class Mutex extends AbstractMutex {
+class MutexImpl extends Mutex {
   late final mutex.Mutex m;
 
-  Mutex() {
+  MutexImpl() {
     m = mutex.Mutex();
   }
 

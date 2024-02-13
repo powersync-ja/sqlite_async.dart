@@ -1,13 +1,12 @@
 import 'dart:async';
 import 'package:meta/meta.dart';
-import 'package:sqlite_async/src/common/abstract_mutex.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
 
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
-import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 
 import 'executor/sqlite_executor.dart';
@@ -115,7 +114,7 @@ class WebSqliteConnectionImpl with SqliteQueries implements SqliteConnection {
         isTransaction: true);
   }
 
-  /// The [Mutex] on individual connections do already error in recursive locks.
+  /// The mutex on individual connections do already error in recursive locks.
   ///
   /// We duplicate the same check here, to:
   /// 1. Also error when the recursive transaction is handled by a different

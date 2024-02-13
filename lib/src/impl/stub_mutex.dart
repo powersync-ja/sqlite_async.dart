@@ -1,6 +1,6 @@
-import 'package:sqlite_async/src/common/abstract_mutex.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
 
-class Mutex extends AbstractMutex {
+class MutexImpl extends Mutex {
   @override
   Future<void> close() {
     throw UnimplementedError();
