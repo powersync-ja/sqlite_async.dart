@@ -12,7 +12,6 @@ import 'asset_server.dart';
 Future<void> hybridMain(StreamChannel<Object?> channel) async {
   final directory = Directory('./assets');
 
-  // Copy sqlite3.wasm file expected by the worker
   final sqliteOutputPath = p.join(directory.path, 'sqlite3.wasm');
 
   if (!(await File(sqliteOutputPath).exists())) {
@@ -22,7 +21,6 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
 
   final driftWorkerPath = p.join(directory.path, 'db_worker.js');
   if (!(await File(driftWorkerPath).exists())) {
-    // And compile worker code
     final process = await Process.run(Platform.executable, [
       'compile',
       'js',

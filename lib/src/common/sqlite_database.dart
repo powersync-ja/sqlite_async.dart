@@ -51,6 +51,16 @@ abstract class SqliteDatabase
   /// The maximum number of concurrent read transactions if not explicitly specified.
   static const int defaultMaxReaders = 5;
 
+  /// Open a SqliteDatabase.
+  ///
+  /// Only a single SqliteDatabase per [path] should be opened at a time.
+  ///
+  /// A connection pool is used by default, allowing multiple concurrent read
+  /// transactions, and a single concurrent write transaction. Write transactions
+  /// do not block read transactions, and read transactions will see the state
+  /// from the last committed write transaction.
+  ///
+  /// A maximum of [maxReaders] concurrent read transactions are allowed.
   factory SqliteDatabase(
       {required path,
       int maxReaders = SqliteDatabase.defaultMaxReaders,
@@ -59,6 +69,15 @@ abstract class SqliteDatabase
         path: path, maxReaders: maxReaders, options: options);
   }
 
+  /// Advanced: Open a database with a specified factory.
+  ///
+  /// The factory is used to open each database connection in background isolates.
+  ///
+  /// Use when control is required over the opening process. Examples include:
+  ///  1. Specifying the path to `libsqlite.so` on Linux.
+  ///  2. Running additional per-connection PRAGMA statements on each connection.
+  ///  3. Creating custom SQLite functions.
+  ///  4. Creating temporary views or triggers.
   factory SqliteDatabase.withFactory(
       AbstractDefaultSqliteOpenFactory openFactory,
       {int maxReaders = SqliteDatabase.defaultMaxReaders}) {

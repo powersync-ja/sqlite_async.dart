@@ -9,6 +9,7 @@ import 'package:sqlite_async/src/sqlite_options.dart';
 import 'database/executor/drift_sql_executor.dart';
 import 'database/executor/sqlite_executor.dart';
 
+/// Web implementation of [AbstractDefaultSqliteOpenFactory]
 class DefaultSqliteOpenFactory
     extends AbstractDefaultSqliteOpenFactory<CommonDatabase> {
   DefaultSqliteOpenFactory(

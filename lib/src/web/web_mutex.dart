@@ -1,6 +1,8 @@
 import 'package:mutex/mutex.dart' as mutex;
 import 'package:sqlite_async/src/common/mutex.dart';
 
+/// Web implementation of [Mutex]
+/// This will use `navigator.locks` in future
 class MutexImpl implements Mutex {
   late final mutex.Mutex m;
 

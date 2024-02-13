@@ -12,6 +12,8 @@ import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 
 import 'web_sqlite_connection_impl.dart';
 
+/// Web implementation of [SqliteDatabase]
+/// Uses a web worker for SQLite connection
 class SqliteDatabaseImpl
     with SqliteQueries, SqliteDatabaseMixin
     implements SqliteDatabase {

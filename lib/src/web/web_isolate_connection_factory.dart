@@ -8,7 +8,8 @@ import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 import 'database/web_sqlite_connection_impl.dart';
 
-/// A connection factory that can be passed to different isolates.
+/// An implementation of [IsolateConnectionFactory] for Web
+/// This uses a web worker instead of an isolate
 class IsolateConnectionFactoryImpl
     with IsolateOpenFactoryMixin
     implements IsolateConnectionFactory {

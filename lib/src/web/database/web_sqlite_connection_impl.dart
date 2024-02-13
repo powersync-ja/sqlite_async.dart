@@ -12,6 +12,7 @@ import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 import 'executor/sqlite_executor.dart';
 import 'web_db_context.dart';
 
+/// Web implementation of [SqliteConnection]
 class WebSqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   @override
   bool get closed {
