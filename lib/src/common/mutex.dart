@@ -1,4 +1,10 @@
+import 'package:sqlite_async/src/impl/mutex_impl.dart';
+
 abstract class Mutex {
+  factory Mutex() {
+    return MutexImpl();
+  }
+
   /// timeout is a timeout for acquiring the lock, not for the callback
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout});
 

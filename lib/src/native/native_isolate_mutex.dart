@@ -109,7 +109,7 @@ class SimpleMutex implements MutexImpl {
 /// Use [open] to get a [SharedMutex] instance.
 ///
 /// Uses a [SendPort] to communicate with the source mutex.
-class SerializedMutex extends Mutex {
+class SerializedMutex implements Mutex {
   final SerializedPortClient client;
 
   SerializedMutex(this.client);

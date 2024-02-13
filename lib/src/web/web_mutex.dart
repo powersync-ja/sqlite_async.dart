@@ -1,7 +1,7 @@
 import 'package:mutex/mutex.dart' as mutex;
 import 'package:sqlite_async/src/common/mutex.dart';
 
-class MutexImpl extends Mutex {
+class MutexImpl implements Mutex {
   late final mutex.Mutex m;
 
   MutexImpl() {
@@ -17,5 +17,10 @@ class MutexImpl extends Mutex {
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) {
     // TODO: use web navigator locks here
     return m.protect(callback);
+  }
+
+  @override
+  Mutex open() {
+    return this;
   }
 }
