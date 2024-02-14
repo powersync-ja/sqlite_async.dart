@@ -1,3 +1,7 @@
+## 0.7.0-alpha.1
+
+- Added initial support for web platform.
+
 ## 0.6.0
 
 - Allow catching errors and continuing the transaction. This is technically a breaking change, although it should not be an issue in most cases.
