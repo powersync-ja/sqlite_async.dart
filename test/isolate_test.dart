@@ -1,24 +1,27 @@
+@TestOn('!browser')
 import 'dart:isolate';
 
 import 'package:test/test.dart';
 
-import 'util.dart';
+import 'utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
 
 void main() {
   group('Isolate Tests', () {
     late String path;
 
     setUp(() async {
-      path = dbPath();
-      await cleanDb(path: path);
+      path = testUtils.dbPath();
+      await testUtils.cleanDb(path: path);
     });
 
     tearDown(() async {
-      await cleanDb(path: path);
+      await testUtils.cleanDb(path: path);
     });
 
     test('Basic Isolate usage', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       final factory = db.isolateConnectionFactory();
 
       final result = await Isolate.run(() async {

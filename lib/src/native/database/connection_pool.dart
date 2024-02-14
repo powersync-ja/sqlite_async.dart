@@ -1,12 +1,13 @@
 import 'dart:async';
 
-import 'mutex.dart';
-import 'port_channel.dart';
-import 'sqlite_connection.dart';
-import 'sqlite_connection_impl.dart';
-import 'sqlite_open_factory.dart';
-import 'sqlite_queries.dart';
-import 'update_notification.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
+import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_queries.dart';
+import 'package:sqlite_async/src/update_notification.dart';
 
 /// A connection pool with a single write connection and multiple read connections.
 class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
@@ -14,7 +15,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
-  final SqliteOpenFactory _factory;
+  final AbstractDefaultSqliteOpenFactory _factory;
   final SerializedPortClient _upstreamPort;
 
   @override
@@ -24,7 +25,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final String? debugName;
 
-  final Mutex mutex;
+  final MutexImpl mutex;
 
   @override
   bool closed = false;

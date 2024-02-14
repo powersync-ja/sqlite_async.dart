@@ -1,4 +1,6 @@
-import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'dart:async';
+
+import 'package:sqlite3/common.dart' as sqlite;
 
 /// Abstract class representing calls available in a read-only or read-write context.
 abstract class SqliteReadContext {
@@ -55,7 +57,7 @@ abstract class SqliteReadContext {
   /// }
   /// ```
   Future<T> computeWithDatabase<T>(
-      Future<T> Function(sqlite.Database db) compute);
+      Future<T> Function(sqlite.CommonDatabase db) compute);
 }
 
 /// Abstract class representing calls available in a read-write context.

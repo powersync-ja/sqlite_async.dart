@@ -2,16 +2,17 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite_async/sqlite3_common.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_queries.dart';
+import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 
-import 'database_utils.dart';
-import 'mutex.dart';
-import 'port_channel.dart';
-import 'sqlite_connection.dart';
-import 'sqlite_open_factory.dart';
-import 'sqlite_queries.dart';
-import 'update_notification.dart';
-
-typedef TxCallback<T> = Future<T> Function(sqlite.Database db);
+typedef TxCallback<T> = Future<T> Function(CommonDatabase db);
 
 /// Implements a SqliteConnection using a separate isolate for the database
 /// operations.
@@ -29,7 +30,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   final bool readOnly;
 
   SqliteConnectionImpl(
-      {required SqliteOpenFactory openFactory,
+      {required openFactory,
       required Mutex mutex,
       required SerializedPortClient upstreamPort,
       this.updates,
@@ -64,7 +65,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
     }
   }
 
-  Future<void> _open(SqliteOpenFactory openFactory,
+  Future<void> _open(AbstractDefaultSqliteOpenFactory openFactory,
       {required bool primary,
       required SerializedPortClient upstreamPort}) async {
     await _connectionMutex.lock(() async {
@@ -207,7 +208,7 @@ class _TransactionContext implements SqliteWriteContext {
 
   @override
   Future<T> computeWithDatabase<T>(
-      Future<T> Function(sqlite.Database db) compute) async {
+      Future<T> Function(CommonDatabase db) compute) async {
     return _sendPort.post<T>(_SqliteIsolateClosure(compute));
   }
 
@@ -267,7 +268,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
 }
 
 Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
-    ChildPortClient client, sqlite.Database db) async {
+    ChildPortClient client, CommonDatabase db) async {
   final server = params.portServer;
   final commandPort = ReceivePort();
 
@@ -368,7 +369,7 @@ class _SqliteConnectionParams {
 
   final SerializedPortClient port;
   final bool primary;
-  final SqliteOpenFactory openFactory;
+  final AbstractDefaultSqliteOpenFactory openFactory;
 
   _SqliteConnectionParams(
       {required this.openFactory,
