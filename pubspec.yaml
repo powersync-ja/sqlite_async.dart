@@ -3,18 +3,11 @@ description: High-performance asynchronous interface for SQLite on Dart and Flut
 version: 0.7.0-alpha.1
 repository: https://github.com/powersync-ja/sqlite_async.dart
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
-  drift: ^2.15.0
-  # In order to compile custom web worker
-  # drift:
-  #   git:
-  #     url: https://github.com/powersync-ja/drift.git
-  #     ref: test # branch name
-  #     path: drift
   sqlite3: '^2.3.0'
-  js: ^0.6.3
+  sqlite3_web: any # todo publish
   async: ^2.10.0
   collection: ^1.17.0
   mutex: ^3.1.0
@@ -30,3 +23,16 @@ dev_dependencies:
   shelf_static: ^1.1.2
   stream_channel: ^2.1.2
   path: ^1.9.0
+
+dependency_overrides:
+  sqlite3:
+    git:
+      url: https://github.com/simolus3/sqlite3.dart.git
+      ref: web
+      path: sqlite3
+  sqlite3_web:
+    git:
+      url: https://github.com/simolus3/sqlite3.dart.git
+      ref: web
+      path: sqlite3_web
+
