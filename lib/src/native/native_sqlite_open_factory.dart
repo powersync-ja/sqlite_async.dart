@@ -2,6 +2,8 @@ import 'package:sqlite3/sqlite3.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 
 /// Native implementation of [AbstractDefaultSqliteOpenFactory]
@@ -36,5 +38,18 @@ class DefaultSqliteOpenFactory extends AbstractDefaultSqliteOpenFactory {
       statements.add('PRAGMA synchronous = ${sqliteOptions.synchronous!.name}');
     }
     return statements;
+  }
+
+  @override
+  SqliteConnection openConnection(SqliteOpenOptions options) {
+    return SqliteConnectionImpl(
+      primary: options.primaryConnection,
+      readOnly: options.readOnly,
+      mutex: options.mutex!,
+      upstreamPort: options.upstreamPort!,
+      debugName: options.debugName,
+      updates: options.updates,
+      openFactory: this,
+    );
   }
 }

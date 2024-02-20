@@ -5,7 +5,6 @@ import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/native/database/connection_pool.dart';
-import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
 import 'package:sqlite_async/src/native/native_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
@@ -33,11 +32,11 @@ class SqliteDatabaseImpl
   int maxReaders;
 
   @override
-  late Future<void> isInitialized;
+  // Native doesn't require any asynchronous initialization
+  late Future<void> isInitialized = Future.value();
 
   late final PortServer _eventsPort;
 
-  late final SqliteConnectionImpl _internalConnection;
   late final SqliteConnectionPool _pool;
 
   /// Global lock to serialize write transactions.
@@ -77,20 +76,12 @@ class SqliteDatabaseImpl
 
     _listenForEvents();
 
-    _internalConnection = _openPrimaryConnection(debugName: 'sqlite-writer');
     _pool = SqliteConnectionPool(openFactory,
         upstreamPort: _eventsPort.client(),
         updates: updates,
-        writeConnection: _internalConnection,
         debugName: 'sqlite',
         maxReaders: maxReaders,
         mutex: mutex);
-
-    isInitialized = _init();
-  }
-
-  Future<void> _init() async {
-    await _internalConnection.ready;
   }
 
   @override
@@ -158,17 +149,6 @@ class SqliteDatabaseImpl
         openFactory: openFactory,
         mutex: mutex.shared,
         upstreamPort: _eventsPort.client());
-  }
-
-  SqliteConnectionImpl _openPrimaryConnection({String? debugName}) {
-    return SqliteConnectionImpl(
-        upstreamPort: _eventsPort.client(),
-        primary: true,
-        updates: updates,
-        debugName: debugName,
-        mutex: mutex,
-        readOnly: false,
-        openFactory: openFactory);
   }
 
   @override

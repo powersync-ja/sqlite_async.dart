@@ -117,21 +117,15 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
+      {Duration? lockTimeout, String? debugContext}) async {
     if (closed) {
       throw AssertionError('Closed');
     }
     if (_writeConnection?.closed == true) {
       _writeConnection = null;
     }
-    _writeConnection ??= SqliteConnectionImpl(
-        upstreamPort: _upstreamPort,
-        primary: false,
-        updates: updates,
-        debugName: debugName != null ? '$debugName-writer' : null,
-        mutex: mutex,
-        readOnly: false,
-        openFactory: _factory);
+    _writeConnection ??= await _openPrimaryConnection(
+        debugName: debugName != null ? '$debugName-writer' : null);
     return _runZoned(() {
       return _writeConnection!.writeLock(callback,
           lockTimeout: lockTimeout, debugContext: debugContext);
@@ -191,5 +185,15 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     // It can only do that if there are no other open connections, so we close the
     // read-only connections first.
     await _writeConnection?.close();
+  }
+
+  FutureOr<SqliteConnection> _openPrimaryConnection({String? debugName}) {
+    return _factory.openConnection(SqliteOpenOptions(
+        upstreamPort: _upstreamPort,
+        primaryConnection: true,
+        updates: updates,
+        debugName: debugName,
+        mutex: mutex,
+        readOnly: false));
   }
 }

@@ -2,7 +2,11 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 
 import 'package:sqlite_async/sqlite3_common.dart' as sqlite;
+import 'package:sqlite_async/src/common/mutex.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
+import 'package:sqlite_async/src/update_notification.dart';
 
 /// Factory to create new SQLite database connections.
 ///
@@ -11,7 +15,11 @@ import 'package:sqlite_async/src/sqlite_options.dart';
 abstract class SqliteOpenFactory<Database extends sqlite.CommonDatabase> {
   String get path;
 
+  /// Opens a direct connection to the SQLite database
   FutureOr<Database> open(SqliteOpenOptions options);
+
+  /// Opens an asynchronous [SqliteConnection]
+  FutureOr<SqliteConnection> openConnection(SqliteOpenOptions options);
 }
 
 class SqliteOpenOptions {
@@ -21,8 +29,24 @@ class SqliteOpenOptions {
   /// Whether this connection is read-only.
   final bool readOnly;
 
+  /// Mutex to use in [SqliteConnection]s
+  final Mutex? mutex;
+
+  /// Name used in debug logs
+  final String? debugName;
+
+  final SerializedPortClient? upstreamPort;
+
+  /// Stream of external update notifications
+  final Stream<UpdateNotification>? updates;
+
   const SqliteOpenOptions(
-      {required this.primaryConnection, required this.readOnly});
+      {required this.primaryConnection,
+      required this.readOnly,
+      this.mutex,
+      this.debugName,
+      this.updates,
+      this.upstreamPort});
 
   sqlite.OpenMode get openMode {
     if (primaryConnection) {
@@ -55,9 +79,14 @@ abstract class AbstractDefaultSqliteOpenFactory<
   List<String> pragmaStatements(SqliteOpenOptions options);
 
   @protected
+
+  /// Opens a direct connection to a SQLite database connection
   FutureOr<Database> openDB(SqliteOpenOptions options);
 
   @override
+
+  /// Opens a direct connection to a SQLite database connection
+  /// and executes setup pragma statements to initialize the DB
   FutureOr<Database> open(SqliteOpenOptions options) async {
     var db = await openDB(options);
 
@@ -66,4 +95,10 @@ abstract class AbstractDefaultSqliteOpenFactory<
     }
     return db;
   }
+
+  @override
+
+  /// Opens an asynchronous [SqliteConnection] to a SQLite database
+  /// and executes setup pragma statements to initialize the DB
+  FutureOr<SqliteConnection> openConnection(SqliteOpenOptions options);
 }

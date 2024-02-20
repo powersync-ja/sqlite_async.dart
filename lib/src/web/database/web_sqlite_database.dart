@@ -10,8 +10,6 @@ import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 
-import 'web_sqlite_connection_impl.dart';
-
 /// Web implementation of [SqliteDatabase]
 /// Uses a web worker for SQLite connection
 class SqliteDatabaseImpl
@@ -35,8 +33,7 @@ class SqliteDatabaseImpl
   AbstractDefaultSqliteOpenFactory openFactory;
 
   late final Mutex mutex;
-  late final IsolateConnectionFactoryImpl _isolateConnectionFactory;
-  late final WebSqliteConnectionImpl _connection;
+  late final SqliteConnection _connection;
 
   /// Open a SqliteDatabase.
   ///
@@ -70,14 +67,13 @@ class SqliteDatabaseImpl
       {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
     updates = updatesController.stream;
     mutex = MutexImpl();
-    _isolateConnectionFactory = IsolateConnectionFactoryImpl(
-        openFactory: openFactory as DefaultSqliteOpenFactory, mutex: mutex);
-    _connection = _isolateConnectionFactory.open();
     isInitialized = _init();
   }
 
   Future<void> _init() async {
-    _connection.updates.forEach((update) {
+    _connection = await openFactory.openConnection(SqliteOpenOptions(
+        primaryConnection: true, readOnly: false, mutex: mutex));
+    _connection.updates?.forEach((update) {
       updatesController.add(update);
     });
   }
@@ -119,7 +115,7 @@ class SqliteDatabaseImpl
 
   @override
   IsolateConnectionFactoryImpl isolateConnectionFactory() {
-    return _isolateConnectionFactory;
+    throw UnimplementedError();
   }
 
   @override

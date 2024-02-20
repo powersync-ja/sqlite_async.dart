@@ -2,12 +2,9 @@ import 'dart:async';
 
 import 'package:drift/wasm.dart';
 import 'package:sqlite3/wasm.dart';
-
-import 'package:sqlite_async/src/common/abstract_open_factory.dart';
-import 'package:sqlite_async/src/sqlite_options.dart';
-
-import 'database/executor/drift_sql_executor.dart';
-import 'database/executor/sqlite_executor.dart';
+import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/web/database/connection/drift_sqlite_connection.dart';
+import 'package:sqlite_async/src/web/web_mutex.dart';
 
 /// Web implementation of [AbstractDefaultSqliteOpenFactory]
 class DefaultSqliteOpenFactory
@@ -33,23 +30,27 @@ class DefaultSqliteOpenFactory
     return wasmSqlite.open(path);
   }
 
-  /// Returns a simple asynchronous SQLExecutor which can be used to implement
-  /// higher order functionality.
+  @override
+
   /// Currently this only uses the Drift WASM implementation.
   /// The Drift SQLite package provides built in async Web worker functionality
   /// and automatic persistence storage selection.
   /// Due to being asynchronous, the under laying CommonDatabase is not accessible
-  Future<SQLExecutor> openExecutor(SqliteOpenOptions options) async {
+  Future<SqliteConnection> openConnection(SqliteOpenOptions options) async {
     final db = await WasmDatabase.open(
       databaseName: path,
       sqlite3Uri: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
       driftWorkerUri: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
     );
 
-    final executor = DriftWebSQLExecutor(db);
     await db.resolvedExecutor.ensureOpen(DriftSqliteUser());
 
-    return executor;
+    final connection = DriftSqliteConnection(db, options.mutex ?? MutexImpl());
+    // funnel table updates through the upstreamPort
+    connection.updates.forEach((element) {
+      options.upstreamPort?.sendPort.send(element);
+    });
+    return connection;
   }
 
   @override

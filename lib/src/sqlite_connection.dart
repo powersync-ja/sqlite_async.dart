@@ -1,6 +1,7 @@
 import 'dart:async';
 
 import 'package:sqlite3/common.dart' as sqlite;
+import 'package:sqlite_async/src/update_notification.dart';
 
 /// Abstract class representing calls available in a read-only or read-write context.
 abstract class SqliteReadContext {
@@ -74,6 +75,9 @@ abstract class SqliteWriteContext extends SqliteReadContext {
 
 /// Abstract class representing a connection to the SQLite database.
 abstract class SqliteConnection extends SqliteWriteContext {
+  /// Reports table change update notification
+  Stream<UpdateNotification>? get updates;
+
   /// Open a read-only transaction.
   ///
   /// Statements within the transaction must be done on the provided
