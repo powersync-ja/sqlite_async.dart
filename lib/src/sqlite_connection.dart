@@ -75,7 +75,7 @@ abstract class SqliteWriteContext extends SqliteReadContext {
 
 /// Abstract class representing a connection to the SQLite database.
 abstract class SqliteConnection extends SqliteWriteContext {
-  /// Reports table change update notification
+  /// Reports table change update notifications
   Stream<UpdateNotification>? get updates;
 
   /// Open a read-only transaction.

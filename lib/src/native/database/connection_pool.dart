@@ -124,8 +124,24 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     if (_writeConnection?.closed == true) {
       _writeConnection = null;
     }
-    _writeConnection ??= await _openPrimaryConnection(
-        debugName: debugName != null ? '$debugName-writer' : null);
+
+    /// Prevent possible race condition where multiple writeLock requests
+    /// could potentially open multiple writeConnections
+    if (_writeConnection == null) {
+      await mutex.lock(() async {
+        if (_writeConnection != null) {
+          return;
+        }
+        _writeConnection ??= await _factory.openConnection(SqliteOpenOptions(
+            upstreamPort: _upstreamPort,
+            primaryConnection: false,
+            updates: updates,
+            debugName: debugName != null ? '$debugName-writer' : null,
+            mutex: mutex,
+            readOnly: false));
+      });
+    }
+
     return _runZoned(() {
       return _writeConnection!.writeLock(callback,
           lockTimeout: lockTimeout, debugContext: debugContext);
