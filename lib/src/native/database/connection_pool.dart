@@ -133,7 +133,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
           return;
         }
         _writeConnection ??= await _factory.openConnection(SqliteOpenOptions(
-            upstreamPort: _upstreamPort,
             primaryConnection: false,
             updates: updates,
             debugName: debugName != null ? '$debugName-writer' : null,
@@ -205,7 +204,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   FutureOr<SqliteConnection> _openPrimaryConnection({String? debugName}) {
     return _factory.openConnection(SqliteOpenOptions(
-        upstreamPort: _upstreamPort,
         primaryConnection: true,
         updates: updates,
         debugName: debugName,

@@ -45,12 +45,7 @@ class DefaultSqliteOpenFactory
 
     await db.resolvedExecutor.ensureOpen(DriftSqliteUser());
 
-    final connection = DriftSqliteConnection(db, options.mutex ?? MutexImpl());
-    // funnel table updates through the upstreamPort
-    connection.updates.forEach((element) {
-      options.upstreamPort?.sendPort.send(element);
-    });
-    return connection;
+    return DriftSqliteConnection(db, options.mutex ?? MutexImpl());
   }
 
   @override

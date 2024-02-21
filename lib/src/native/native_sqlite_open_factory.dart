@@ -46,7 +46,6 @@ class DefaultSqliteOpenFactory extends AbstractDefaultSqliteOpenFactory {
       primary: options.primaryConnection,
       readOnly: options.readOnly,
       mutex: options.mutex!,
-      upstreamPort: options.upstreamPort!,
       debugName: options.debugName,
       updates: options.updates,
       openFactory: this,

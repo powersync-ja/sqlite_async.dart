@@ -3,7 +3,6 @@ import 'package:meta/meta.dart';
 
 import 'package:sqlite_async/sqlite3_common.dart' as sqlite;
 import 'package:sqlite_async/src/common/mutex.dart';
-import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/update_notification.dart';
@@ -35,8 +34,6 @@ class SqliteOpenOptions {
   /// Name used in debug logs
   final String? debugName;
 
-  final SerializedPortClient? upstreamPort;
-
   /// Stream of external update notifications
   final Stream<UpdateNotification>? updates;
 
@@ -45,8 +42,7 @@ class SqliteOpenOptions {
       required this.readOnly,
       this.mutex,
       this.debugName,
-      this.updates,
-      this.upstreamPort});
+      this.updates});
 
   sqlite.OpenMode get openMode {
     if (primaryConnection) {
