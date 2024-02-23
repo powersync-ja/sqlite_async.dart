@@ -21,7 +21,7 @@ class IsolateConnectionFactoryImpl
   IsolateConnectionFactoryImpl(
       {required this.openFactory,
       required this.mutex,
-      SerializedPortClient? upstreamPort});
+      SerializedPortClient? port});
 
   /// Open a new SqliteConnection.
   ///
