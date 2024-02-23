@@ -6,6 +6,7 @@ import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/src/native/native_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
@@ -16,14 +17,16 @@ typedef TxCallback<T> = Future<T> Function(CommonDatabase db);
 
 /// Implements a SqliteConnection using a separate isolate for the database
 /// operations.
-class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
+class SqliteConnectionImpl
+    with SqliteQueries, UpStreamTableUpdates
+    implements SqliteConnection {
   /// Private to this connection
   final SimpleMutex _connectionMutex = SimpleMutex();
   final Mutex _writeMutex;
 
   /// Must be a broadcast stream
   @override
-  final Stream<UpdateNotification>? updates;
+  Stream<UpdateNotification>? updates;
   final ParentPortClient _isolateClient = ParentPortClient();
   late final Isolate _isolate;
   final String? debugName;
@@ -32,12 +35,14 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   SqliteConnectionImpl(
       {required openFactory,
       required Mutex mutex,
-      required SerializedPortClient upstreamPort,
+      SerializedPortClient? port,
       this.updates,
       this.debugName,
       this.readOnly = false,
       bool primary = false})
       : _writeMutex = mutex {
+    upstreamPort = port ?? listenForEvents();
+    updates = updates ?? updatesController.stream;
     _open(openFactory, primary: primary, upstreamPort: upstreamPort);
   }
 
@@ -88,6 +93,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   @override
   Future<void> close() async {
+    eventsPort?.close();
     await _connectionMutex.lock(() async {
       if (readOnly) {
         await _isolateClient.post(const _SqliteIsolateConnectionClose());

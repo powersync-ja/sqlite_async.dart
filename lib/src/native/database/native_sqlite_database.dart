@@ -1,9 +1,7 @@
 import 'dart:async';
-import 'dart:isolate';
 
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
-import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/native/database/connection_pool.dart';
 import 'package:sqlite_async/src/native/native_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
@@ -12,8 +10,6 @@ import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
-import 'package:sqlite_async/src/utils/native_database_utils.dart';
-import 'package:sqlite_async/src/utils/shared_utils.dart';
 
 /// A SQLite database instance.
 ///
@@ -23,7 +19,7 @@ class SqliteDatabaseImpl
     with SqliteQueries, SqliteDatabaseMixin
     implements SqliteDatabase {
   @override
-  final AbstractDefaultSqliteOpenFactory openFactory;
+  final DefaultSqliteOpenFactory openFactory;
 
   @override
   late Stream<UpdateNotification> updates;
@@ -34,8 +30,6 @@ class SqliteDatabaseImpl
   @override
   // Native doesn't require any asynchronous initialization
   late Future<void> isInitialized = Future.value();
-
-  late final PortServer _eventsPort;
 
   late final SqliteConnectionPool _pool;
 
@@ -70,18 +64,11 @@ class SqliteDatabaseImpl
   ///  2. Running additional per-connection PRAGMA statements on each connection.
   ///  3. Creating custom SQLite functions.
   ///  4. Creating temporary views or triggers.
-  SqliteDatabaseImpl.withFactory(this.openFactory,
-      {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
-    updates = updatesController.stream;
-
-    _listenForEvents();
-
+  SqliteDatabaseImpl.withFactory(AbstractDefaultSqliteOpenFactory factory,
+      {this.maxReaders = SqliteDatabase.defaultMaxReaders})
+      : openFactory = factory as DefaultSqliteOpenFactory {
     _pool = SqliteConnectionPool(openFactory,
-        upstreamPort: _eventsPort.client(),
-        updates: updates,
-        debugName: 'sqlite',
-        maxReaders: maxReaders,
-        mutex: mutex);
+        debugName: 'sqlite', maxReaders: maxReaders, mutex: mutex);
   }
 
   @override
@@ -96,50 +83,6 @@ class SqliteDatabaseImpl
     return _pool.getAutoCommit();
   }
 
-  void _listenForEvents() {
-    UpdateNotification? updates;
-
-    Map<SendPort, StreamSubscription> subscriptions = {};
-
-    _eventsPort = PortServer((message) async {
-      if (message is UpdateNotification) {
-        if (updates == null) {
-          updates = message;
-          // Use the mutex to only send updates after the current transaction.
-          // Do take care to avoid getting a lock for each individual update -
-          // that could add massive performance overhead.
-          mutex.lock(() async {
-            if (updates != null) {
-              updatesController.add(updates!);
-              updates = null;
-            }
-          });
-        } else {
-          updates!.tables.addAll(message.tables);
-        }
-        return null;
-      } else if (message is InitDb) {
-        await isInitialized;
-        return null;
-      } else if (message is SubscribeToUpdates) {
-        if (subscriptions.containsKey(message.port)) {
-          return;
-        }
-        final subscription = updatesController.stream.listen((event) {
-          message.port.send(event);
-        });
-        subscriptions[message.port] = subscription;
-        return null;
-      } else if (message is UnsubscribeToUpdates) {
-        final subscription = subscriptions.remove(message.port);
-        subscription?.cancel();
-        return null;
-      } else {
-        throw ArgumentError('Unknown message type: $message');
-      }
-    });
-  }
-
   /// A connection factory that can be passed to different isolates.
   ///
   /// Use this to access the database in background isolates.
@@ -148,14 +91,13 @@ class SqliteDatabaseImpl
     return IsolateConnectionFactoryImpl(
         openFactory: openFactory,
         mutex: mutex.shared,
-        upstreamPort: _eventsPort.client());
+        port: _pool.upstreamPort);
   }
 
   @override
   Future<void> close() async {
     await _pool.close();
     updatesController.close();
-    _eventsPort.close();
     await mutex.close();
   }
 

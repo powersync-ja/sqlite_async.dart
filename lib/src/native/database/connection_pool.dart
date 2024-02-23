@@ -1,25 +1,22 @@
 import 'dart:async';
 
-import 'package:sqlite_async/src/common/abstract_open_factory.dart';
-import 'package:sqlite_async/src/common/mutex.dart';
-import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
-import 'package:sqlite_async/src/sqlite_connection.dart';
-import 'package:sqlite_async/src/sqlite_queries.dart';
-import 'package:sqlite_async/src/update_notification.dart';
 
 /// A connection pool with a single write connection and multiple read connections.
 class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
-  SqliteConnection? _writeConnection;
+  final StreamController<UpdateNotification> updatesController =
+      StreamController.broadcast();
+
+  SqliteConnectionImpl? _writeConnection;
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
   final AbstractDefaultSqliteOpenFactory _factory;
-  final SerializedPortClient _upstreamPort;
 
   @override
-  final Stream<UpdateNotification>? updates;
+  Stream<UpdateNotification>? updates;
 
   final int maxReaders;
 
@@ -41,14 +38,14 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   /// Read connections are opened in read-only mode, and will reject any statements
   /// that modify the database.
   SqliteConnectionPool(this._factory,
-      {this.updates,
+      {Stream<UpdateNotification>? updatesStream,
       this.maxReaders = 5,
-      SqliteConnection? writeConnection,
+      SqliteConnectionImpl? writeConnection,
       this.debugName,
-      required this.mutex,
-      required SerializedPortClient upstreamPort})
-      : _writeConnection = writeConnection,
-        _upstreamPort = upstreamPort;
+      required this.mutex})
+      : _writeConnection = writeConnection {
+    updates = updatesStream ?? updatesController.stream;
+  }
 
   /// Returns true if the _write_ connection is currently in autocommit mode.
   @override
@@ -132,12 +129,15 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
         if (_writeConnection != null) {
           return;
         }
-        _writeConnection ??= await _factory.openConnection(SqliteOpenOptions(
+        _writeConnection ??= (await _factory.openConnection(SqliteOpenOptions(
             primaryConnection: false,
-            updates: updates,
             debugName: debugName != null ? '$debugName-writer' : null,
             mutex: mutex,
-            readOnly: false));
+            readOnly: false))) as SqliteConnectionImpl;
+
+        _writeConnection!.updates?.forEach((update) {
+          updatesController.add(update);
+        });
       });
     }
 
@@ -171,15 +171,13 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       var name = debugName == null
           ? null
           : '$debugName-${_readConnections.length + 1}';
-      var connection = SqliteConnectionImpl(
-          upstreamPort: _upstreamPort,
-          primary: false,
+      var connection = await _factory.openConnection(SqliteOpenOptions(
+          primaryConnection: false,
           updates: updates,
           debugName: name,
           mutex: mutex,
-          readOnly: true,
-          openFactory: _factory);
-      _readConnections.add(connection);
+          readOnly: true));
+      _readConnections.add(connection as SqliteConnectionImpl);
 
       // Edge case:
       // If we don't await here, there is a chance that a different connection
@@ -188,6 +186,10 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       // To avoid that, we wait for the connection to be ready.
       await connection.ready;
     }
+  }
+
+  SerializedPortClient? get upstreamPort {
+    return _writeConnection?.upstreamPort;
   }
 
   @override
@@ -200,14 +202,5 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     // It can only do that if there are no other open connections, so we close the
     // read-only connections first.
     await _writeConnection?.close();
-  }
-
-  FutureOr<SqliteConnection> _openPrimaryConnection({String? debugName}) {
-    return _factory.openConnection(SqliteOpenOptions(
-        primaryConnection: true,
-        updates: updates,
-        debugName: debugName,
-        mutex: mutex,
-        readOnly: false));
   }
 }
