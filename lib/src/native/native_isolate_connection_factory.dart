@@ -83,8 +83,8 @@ class IsolateConnectionFactoryImpl
   IsolateConnectionFactoryImpl(
       {required this.openFactory,
       required this.mutex,
-      SerializedPortClient? port}) {
-    upstreamPort = port ?? listenForEvents();
+      SerializedPortClient? upstreamPort}) {
+    this.upstreamPort = upstreamPort ?? listenForEvents();
   }
 
   /// Open a new SqliteConnection.
@@ -99,7 +99,7 @@ class IsolateConnectionFactoryImpl
     return _IsolateSqliteConnection(
         openFactory: openFactory,
         mutex: openMutex,
-        port: upstreamPort,
+        upstreamPort: upstreamPort,
         readOnly: readOnly,
         debugName: debugName,
         updates: updates.stream,
@@ -147,7 +147,7 @@ class _IsolateSqliteConnection extends SqliteConnectionImpl {
   _IsolateSqliteConnection(
       {required super.openFactory,
       required super.mutex,
-      super.port,
+      super.upstreamPort,
       super.updates,
       super.debugName,
       super.readOnly = false,

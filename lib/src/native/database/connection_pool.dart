@@ -14,7 +14,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   /// The write connection might be recreated if it's closed
   /// This will allow the update stream remain constant even
   /// after using a new write connection.
-  late Stream<UpdateNotification> updates = updatesController.stream;
+  late final Stream<UpdateNotification> updates = updatesController.stream;
 
   SqliteConnectionImpl? _writeConnection;
 
@@ -127,11 +127,12 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     }
 
     if (_writeConnection == null) {
-      _writeConnection ??= (await _factory.openConnection(SqliteOpenOptions(
+      _writeConnection = (await _factory.openConnection(SqliteOpenOptions(
           primaryConnection: false,
           debugName: debugName != null ? '$debugName-writer' : null,
           mutex: mutex,
           readOnly: false))) as SqliteConnectionImpl;
+      // Expose the new updates on the connection pool
       _writeConnection!.updates?.forEach(updatesController.add);
     }
 
@@ -169,13 +170,14 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
           : '$debugName-${_readConnections.length + 1}';
       var connection = SqliteConnectionImpl(
           // The port is used to confirm the write connection has been initialized
-          port: _writeConnection?.upstreamPort,
+          upstreamPort: _writeConnection?.upstreamPort,
           primary: false,
           updates: updates,
           debugName: name,
           mutex: mutex,
           readOnly: true,
           openFactory: _factory);
+      _readConnections.add(connection);
 
       // Edge case:
       // If we don't await here, there is a chance that a different connection

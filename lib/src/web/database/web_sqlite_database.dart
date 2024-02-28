@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
@@ -27,6 +28,7 @@ class SqliteDatabaseImpl
   int maxReaders;
 
   @override
+  @protected
   late Future<void> isInitialized;
 
   @override
@@ -73,7 +75,7 @@ class SqliteDatabaseImpl
   Future<void> _init() async {
     _connection = await openFactory.openConnection(SqliteOpenOptions(
         primaryConnection: true, readOnly: false, mutex: mutex));
-    _connection.updates?.forEach((update) {
+    _connection.updates!.forEach((update) {
       updatesController.add(update);
     });
   }
@@ -81,6 +83,7 @@ class SqliteDatabaseImpl
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
+    await isInitialized;
     return _connection.readLock(callback,
         lockTimeout: lockTimeout, debugContext: debugContext);
   }
@@ -88,6 +91,7 @@ class SqliteDatabaseImpl
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
+    await isInitialized;
     return _connection.writeLock(callback,
         lockTimeout: lockTimeout, debugContext: debugContext);
   }
@@ -97,6 +101,7 @@ class SqliteDatabaseImpl
       Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout,
       String? debugContext}) async {
+    await isInitialized;
     return _connection.readTransaction(callback, lockTimeout: lockTimeout);
   }
 
@@ -105,11 +110,13 @@ class SqliteDatabaseImpl
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout,
       String? debugContext}) async {
+    await isInitialized;
     return _connection.writeTransaction(callback, lockTimeout: lockTimeout);
   }
 
   @override
   Future<void> close() async {
+    await isInitialized;
     return _connection.close();
   }
 
@@ -119,7 +126,8 @@ class SqliteDatabaseImpl
   }
 
   @override
-  Future<bool> getAutoCommit() {
+  Future<bool> getAutoCommit() async {
+    await isInitialized;
     return _connection.getAutoCommit();
   }
 }

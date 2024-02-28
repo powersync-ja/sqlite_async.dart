@@ -16,7 +16,7 @@ class IsolateConnectionFactoryImpl<Database extends CommonDatabase>
   IsolateConnectionFactoryImpl(
       {required this.openFactory,
       required Mutex mutex,
-      SerializedPortClient? port});
+      SerializedPortClient? upstreamPort});
 
   @override
 

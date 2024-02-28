@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/native/database/connection_pool.dart';
@@ -31,6 +32,7 @@ class SqliteDatabaseImpl
   int maxReaders;
 
   @override
+  @protected
   // Native doesn't require any asynchronous initialization
   late Future<void> isInitialized = Future.value();
 
@@ -100,7 +102,7 @@ class SqliteDatabaseImpl
     return IsolateConnectionFactoryImpl(
         openFactory: openFactory,
         mutex: mutex.shared,
-        port: _pool.upstreamPort);
+        upstreamPort: _pool.upstreamPort);
   }
 
   @override

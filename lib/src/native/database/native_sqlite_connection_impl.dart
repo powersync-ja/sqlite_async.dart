@@ -26,8 +26,8 @@ class SqliteConnectionImpl
 
   /// Must be a broadcast stream
   @override
-  Stream<UpdateNotification>? updates;
-  final ParentPortClient _isolateClient = ParentPortClient();
+  late final Stream<UpdateNotification>? updates;
+  late final ParentPortClient _isolateClient = ParentPortClient();
   late final Isolate _isolate;
   final String? debugName;
   final bool readOnly;
@@ -35,15 +35,15 @@ class SqliteConnectionImpl
   SqliteConnectionImpl(
       {required openFactory,
       required Mutex mutex,
-      SerializedPortClient? port,
-      this.updates,
+      SerializedPortClient? upstreamPort,
+      Stream<UpdateNotification>? updates,
       this.debugName,
       this.readOnly = false,
       bool primary = false})
       : _writeMutex = mutex {
-    upstreamPort = port ?? listenForEvents();
-    updates = updates ?? updatesController.stream;
-    _open(openFactory, primary: primary, upstreamPort: upstreamPort);
+    this.upstreamPort = upstreamPort ?? listenForEvents();
+    this.updates = updates ?? updatesController.stream;
+    _open(openFactory, primary: primary, upstreamPort: this.upstreamPort);
   }
 
   Future<void> get ready async {
