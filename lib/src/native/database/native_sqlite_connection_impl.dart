@@ -6,12 +6,13 @@ import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
-import 'package:sqlite_async/src/native/native_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
+
+import 'upstream_updates.dart';
 
 typedef TxCallback<T> = Future<T> Function(CommonDatabase db);
 
@@ -27,7 +28,7 @@ class SqliteConnectionImpl
   /// Must be a broadcast stream
   @override
   late final Stream<UpdateNotification>? updates;
-  late final ParentPortClient _isolateClient = ParentPortClient();
+  final ParentPortClient _isolateClient = ParentPortClient();
   late final Isolate _isolate;
   final String? debugName;
   final bool readOnly;
@@ -42,6 +43,7 @@ class SqliteConnectionImpl
       bool primary = false})
       : _writeMutex = mutex {
     this.upstreamPort = upstreamPort ?? listenForEvents();
+    // Accept an incoming stream of updates, or expose one if not given.
     this.updates = updates ?? updatesController.stream;
     _open(openFactory, primary: primary, upstreamPort: this.upstreamPort);
   }

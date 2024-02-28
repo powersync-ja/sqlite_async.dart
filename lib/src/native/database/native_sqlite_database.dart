@@ -23,23 +23,22 @@ class SqliteDatabaseImpl
   @override
   final DefaultSqliteOpenFactory openFactory;
 
-  late final SqliteConnectionImpl _internalConnection;
-
   @override
   late Stream<UpdateNotification> updates;
 
   @override
   int maxReaders;
 
+  /// Global lock to serialize write transactions.
+  final SimpleMutex mutex = SimpleMutex();
+
   @override
   @protected
   // Native doesn't require any asynchronous initialization
   late Future<void> isInitialized = Future.value();
 
+  late final SqliteConnectionImpl _internalConnection;
   late final SqliteConnectionPool _pool;
-
-  /// Global lock to serialize write transactions.
-  final SimpleMutex mutex = SimpleMutex();
 
   /// Open a SqliteDatabase.
   ///
@@ -102,7 +101,7 @@ class SqliteDatabaseImpl
     return IsolateConnectionFactoryImpl(
         openFactory: openFactory,
         mutex: mutex.shared,
-        upstreamPort: _pool.upstreamPort);
+        upstreamPort: _pool.upstreamPort!);
   }
 
   @override

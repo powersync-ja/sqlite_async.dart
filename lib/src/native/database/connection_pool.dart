@@ -158,8 +158,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   }
 
   Future<void> _expandPool() async {
-    await _writeConnection?.ready;
-
     if (closed || _readConnections.length >= maxReaders) {
       return;
     }
@@ -169,7 +167,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
           ? null
           : '$debugName-${_readConnections.length + 1}';
       var connection = SqliteConnectionImpl(
-          // The port is used to confirm the write connection has been initialized
           upstreamPort: _writeConnection?.upstreamPort,
           primary: false,
           updates: updates,
