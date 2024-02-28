@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/native/database/connection_pool.dart';
+import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
 import 'package:sqlite_async/src/native/native_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
@@ -20,6 +21,8 @@ class SqliteDatabaseImpl
     implements SqliteDatabase {
   @override
   final DefaultSqliteOpenFactory openFactory;
+
+  late final SqliteConnectionImpl _internalConnection;
 
   @override
   late Stream<UpdateNotification> updates;
@@ -67,8 +70,14 @@ class SqliteDatabaseImpl
   SqliteDatabaseImpl.withFactory(AbstractDefaultSqliteOpenFactory factory,
       {this.maxReaders = SqliteDatabase.defaultMaxReaders})
       : openFactory = factory as DefaultSqliteOpenFactory {
+    _internalConnection = _openPrimaryConnection(debugName: 'sqlite-writer');
     _pool = SqliteConnectionPool(openFactory,
-        debugName: 'sqlite', maxReaders: maxReaders, mutex: mutex);
+        writeConnection: _internalConnection,
+        debugName: 'sqlite',
+        maxReaders: maxReaders,
+        mutex: mutex);
+    // Updates get updates from the pool
+    updates = _pool.updates;
   }
 
   @override
@@ -143,5 +152,14 @@ class SqliteDatabaseImpl
       {Duration? lockTimeout, String? debugContext}) {
     return _pool.writeLock(callback,
         lockTimeout: lockTimeout, debugContext: debugContext);
+  }
+
+  SqliteConnectionImpl _openPrimaryConnection({String? debugName}) {
+    return SqliteConnectionImpl(
+        primary: true,
+        debugName: debugName,
+        mutex: mutex,
+        readOnly: false,
+        openFactory: openFactory);
   }
 }

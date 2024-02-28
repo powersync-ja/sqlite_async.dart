@@ -86,7 +86,7 @@ class SqliteConnectionImpl
           paused: true);
       _isolateClient.tieToIsolate(_isolate);
       _isolate.resume(_isolate.pauseCapability!);
-
+      isInitialized = _isolateClient.ready;
       await _isolateClient.ready;
     });
   }

@@ -9,14 +9,18 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   final StreamController<UpdateNotification> updatesController =
       StreamController.broadcast();
 
+  @override
+
+  /// The write connection might be recreated if it's closed
+  /// This will allow the update stream remain constant even
+  /// after using a new write connection.
+  late Stream<UpdateNotification> updates = updatesController.stream;
+
   SqliteConnectionImpl? _writeConnection;
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
   final AbstractDefaultSqliteOpenFactory _factory;
-
-  @override
-  Stream<UpdateNotification>? updates;
 
   final int maxReaders;
 
@@ -38,13 +42,13 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   /// Read connections are opened in read-only mode, and will reject any statements
   /// that modify the database.
   SqliteConnectionPool(this._factory,
-      {Stream<UpdateNotification>? updatesStream,
-      this.maxReaders = 5,
+      {this.maxReaders = 5,
       SqliteConnectionImpl? writeConnection,
       this.debugName,
       required this.mutex})
       : _writeConnection = writeConnection {
-    updates = updatesStream ?? updatesController.stream;
+    // Use the write connection's updates
+    _writeConnection?.updates?.forEach(updatesController.add);
   }
 
   /// Returns true if the _write_ connection is currently in autocommit mode.
@@ -122,23 +126,13 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       _writeConnection = null;
     }
 
-    /// Prevent possible race condition where multiple writeLock requests
-    /// could potentially open multiple writeConnections
     if (_writeConnection == null) {
-      await mutex.lock(() async {
-        if (_writeConnection != null) {
-          return;
-        }
-        _writeConnection ??= (await _factory.openConnection(SqliteOpenOptions(
-            primaryConnection: false,
-            debugName: debugName != null ? '$debugName-writer' : null,
-            mutex: mutex,
-            readOnly: false))) as SqliteConnectionImpl;
-
-        _writeConnection!.updates?.forEach((update) {
-          updatesController.add(update);
-        });
-      });
+      _writeConnection ??= (await _factory.openConnection(SqliteOpenOptions(
+          primaryConnection: false,
+          debugName: debugName != null ? '$debugName-writer' : null,
+          mutex: mutex,
+          readOnly: false))) as SqliteConnectionImpl;
+      _writeConnection!.updates?.forEach(updatesController.add);
     }
 
     return _runZoned(() {
@@ -163,6 +157,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   }
 
   Future<void> _expandPool() async {
+    await _writeConnection?.ready;
+
     if (closed || _readConnections.length >= maxReaders) {
       return;
     }
@@ -171,13 +167,15 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       var name = debugName == null
           ? null
           : '$debugName-${_readConnections.length + 1}';
-      var connection = await _factory.openConnection(SqliteOpenOptions(
-          primaryConnection: false,
+      var connection = SqliteConnectionImpl(
+          // The port is used to confirm the write connection has been initialized
+          port: _writeConnection?.upstreamPort,
+          primary: false,
           updates: updates,
           debugName: name,
           mutex: mutex,
-          readOnly: true));
-      _readConnections.add(connection as SqliteConnectionImpl);
+          readOnly: true,
+          openFactory: _factory);
 
       // Edge case:
       // If we don't await here, there is a chance that a different connection

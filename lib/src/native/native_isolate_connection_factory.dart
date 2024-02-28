@@ -18,6 +18,11 @@ mixin UpStreamTableUpdates {
   late SerializedPortClient upstreamPort;
 
   @protected
+
+  /// Resolves once the primary connection is initialized
+  late Future<void> isInitialized;
+
+  @protected
   PortServer? eventsPort;
 
   @protected
@@ -42,6 +47,7 @@ mixin UpStreamTableUpdates {
         }
         return null;
       } else if (message is InitDb) {
+        await isInitialized;
         return null;
       } else if (message is SubscribeToUpdates) {
         if (subscriptions.containsKey(message.port)) {
