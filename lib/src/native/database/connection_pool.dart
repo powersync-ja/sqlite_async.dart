@@ -128,7 +128,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
     if (_writeConnection == null) {
       _writeConnection = (await _factory.openConnection(SqliteOpenOptions(
-          primaryConnection: false,
+          primaryConnection: true,
           debugName: debugName != null ? '$debugName-writer' : null,
           mutex: mutex,
           readOnly: false))) as SqliteConnectionImpl;
