@@ -37,8 +37,8 @@ class IsolateConnectionFactory {
         readOnly: readOnly,
         debugName: debugName,
         updates: updates.stream,
-        closeFunction: () {
-          openMutex.close();
+        closeFunction: () async {
+          await openMutex.close();
           updates.close();
         });
   }
@@ -89,7 +89,7 @@ class _IsolateUpdateListener {
 }
 
 class _IsolateSqliteConnection extends SqliteConnectionImpl {
-  final void Function() closeFunction;
+  final Future<void> Function() closeFunction;
 
   _IsolateSqliteConnection(
       {required super.openFactory,
@@ -103,6 +103,6 @@ class _IsolateSqliteConnection extends SqliteConnectionImpl {
   @override
   Future<void> close() async {
     await super.close();
-    closeFunction();
+    await closeFunction();
   }
 }

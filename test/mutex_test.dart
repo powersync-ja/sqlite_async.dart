@@ -22,6 +22,25 @@ void main() {
         expect(result, equals(5));
       }
     });
+
+    test('Re-use after closing', () async {
+      // Test that shared locks can be opened and closed multiple times.
+      final mutex = SimpleMutex();
+      final serialized = mutex.shared;
+
+      final result = await Isolate.run(() async {
+        return _lockInIsolate(serialized);
+      });
+
+      final result2 = await Isolate.run(() async {
+        return _lockInIsolate(serialized);
+      });
+
+      await mutex.lock(() async {});
+
+      expect(result, equals(5));
+      expect(result2, equals(5));
+    });
   }, timeout: const Timeout(Duration(milliseconds: 5000)));
 }
 
