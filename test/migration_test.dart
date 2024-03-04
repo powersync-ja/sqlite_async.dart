@@ -1,23 +1,25 @@
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
-import 'util.dart';
+import 'utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
 
 void main() {
   group('Basic Tests', () {
     late String path;
 
     setUp(() async {
-      path = dbPath();
-      await cleanDb(path: path);
+      path = testUtils.dbPath();
+      await testUtils.cleanDb(path: path);
     });
 
     tearDown(() async {
-      await cleanDb(path: path);
+      await testUtils.cleanDb(path: path);
     });
 
     test('Basic Migrations', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       final migrations = SqliteMigrations();
       migrations.add(SqliteMigration(1, (tx) async {
         await tx.execute(
@@ -51,7 +53,7 @@ void main() {
     });
 
     test('Migration with createDatabase', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       final migrations = SqliteMigrations();
       migrations.add(SqliteMigration(1, (tx) async {
         await tx.execute(
@@ -83,7 +85,7 @@ void main() {
     });
 
     test('Migration with down migrations', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       final migrations = SqliteMigrations();
       migrations.add(SqliteMigration(1, (tx) async {
         await tx.execute(
@@ -135,7 +137,7 @@ void main() {
     });
 
     test('Migration with double down migrations', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       final migrations = SqliteMigrations();
       migrations.add(SqliteMigration(1, (tx) async {
         await tx.execute(

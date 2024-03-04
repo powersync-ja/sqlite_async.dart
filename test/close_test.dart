@@ -1,21 +1,25 @@
+@TestOn('!browser')
 import 'dart:io';
 
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:test/test.dart';
 
-import 'util.dart';
+import 'utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
 
 void main() {
   group('Close Tests', () {
     late String path;
 
     setUp(() async {
-      path = dbPath();
-      await cleanDb(path: path);
+      path = testUtils.dbPath();
+      await testUtils.cleanDb(path: path);
     });
 
     tearDown(() async {
-      await cleanDb(path: path);
+      await testUtils.cleanDb(path: path);
     });
 
     createTables(SqliteDatabase db) async {
@@ -30,7 +34,7 @@ void main() {
       // If the write connection is closed before the read connections, that is
       // not the case.
 
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       await db.execute(

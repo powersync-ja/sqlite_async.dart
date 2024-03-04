@@ -1,3 +1,15 @@
+class WebSqliteOptions {
+  final String workerUri;
+  final String wasmUri;
+
+  const WebSqliteOptions.defaults()
+      : workerUri = 'db_worker.js',
+        wasmUri = 'sqlite3.wasm';
+
+  const WebSqliteOptions(
+      {this.wasmUri = 'sqlite3.wasm', this.workerUri = 'db_worker.js'});
+}
+
 class SqliteOptions {
   /// SQLite journal mode. Defaults to [SqliteJournalMode.wal].
   final SqliteJournalMode? journalMode;
@@ -11,15 +23,19 @@ class SqliteOptions {
   /// attempt to truncate the file afterwards.
   final int? journalSizeLimit;
 
+  final WebSqliteOptions webSqliteOptions;
+
   const SqliteOptions.defaults()
       : journalMode = SqliteJournalMode.wal,
         journalSizeLimit = 6 * 1024 * 1024, // 1.5x the default checkpoint size
-        synchronous = SqliteSynchronous.normal;
+        synchronous = SqliteSynchronous.normal,
+        webSqliteOptions = const WebSqliteOptions.defaults();
 
   const SqliteOptions(
       {this.journalMode = SqliteJournalMode.wal,
       this.journalSizeLimit = 6 * 1024 * 1024,
-      this.synchronous = SqliteSynchronous.normal});
+      this.synchronous = SqliteSynchronous.normal,
+      this.webSqliteOptions = const WebSqliteOptions.defaults()});
 }
 
 /// SQLite journal mode. Set on the primary connection.

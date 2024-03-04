@@ -1,6 +1,6 @@
-import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite3/common.dart' as sqlite;
 
-import 'database_utils.dart';
+import 'utils/shared_utils.dart';
 import 'sqlite_connection.dart';
 import 'update_notification.dart';
 
@@ -9,9 +9,6 @@ import 'update_notification.dart';
 /// Classes using this need to implement [SqliteConnection.readLock]
 /// and [SqliteConnection.writeLock].
 mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
-  /// Broadcast stream that is notified of any table updates
-  Stream<UpdateNotification>? get updates;
-
   @override
   Future<sqlite.ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
@@ -122,7 +119,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   /// write transaction.
   @override
   Future<T> computeWithDatabase<T>(
-      Future<T> Function(sqlite.Database db) compute) {
+      Future<T> Function(sqlite.CommonDatabase db) compute) {
     return writeTransaction((tx) async {
       return tx.computeWithDatabase(compute);
     });
