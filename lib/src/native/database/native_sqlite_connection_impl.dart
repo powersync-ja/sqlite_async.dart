@@ -12,18 +12,22 @@ import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 
+import 'upstream_updates.dart';
+
 typedef TxCallback<T> = Future<T> Function(CommonDatabase db);
 
 /// Implements a SqliteConnection using a separate isolate for the database
 /// operations.
-class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
+class SqliteConnectionImpl
+    with SqliteQueries, UpStreamTableUpdates
+    implements SqliteConnection {
   /// Private to this connection
   final SimpleMutex _connectionMutex = SimpleMutex();
   final Mutex _writeMutex;
 
   /// Must be a broadcast stream
   @override
-  final Stream<UpdateNotification>? updates;
+  late final Stream<UpdateNotification>? updates;
   final ParentPortClient _isolateClient = ParentPortClient();
   late final Isolate _isolate;
   final String? debugName;
@@ -32,13 +36,16 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   SqliteConnectionImpl(
       {required openFactory,
       required Mutex mutex,
-      required SerializedPortClient upstreamPort,
-      this.updates,
+      SerializedPortClient? upstreamPort,
+      Stream<UpdateNotification>? updates,
       this.debugName,
       this.readOnly = false,
       bool primary = false})
       : _writeMutex = mutex {
-    _open(openFactory, primary: primary, upstreamPort: upstreamPort);
+    this.upstreamPort = upstreamPort ?? listenForEvents();
+    // Accept an incoming stream of updates, or expose one if not given.
+    this.updates = updates ?? updatesController.stream;
+    _open(openFactory, primary: primary, upstreamPort: this.upstreamPort);
   }
 
   Future<void> get ready async {
@@ -81,13 +88,14 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
           paused: true);
       _isolateClient.tieToIsolate(_isolate);
       _isolate.resume(_isolate.pauseCapability!);
-
+      isInitialized = _isolateClient.ready;
       await _isolateClient.ready;
     });
   }
 
   @override
   Future<void> close() async {
+    eventsPort?.close();
     await _connectionMutex.lock(() async {
       if (readOnly) {
         await _isolateClient.post(const _SqliteIsolateConnectionClose());

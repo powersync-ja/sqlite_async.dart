@@ -1,3 +1,4 @@
+import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
@@ -31,6 +32,7 @@ class SqliteDatabaseImpl
   }
 
   @override
+  @protected
   Future<void> get isInitialized => throw UnimplementedError();
 
   @override

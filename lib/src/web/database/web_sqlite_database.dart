@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
@@ -9,8 +10,6 @@ import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
-
-import 'web_sqlite_connection_impl.dart';
 
 /// Web implementation of [SqliteDatabase]
 /// Uses a web worker for SQLite connection
@@ -29,14 +28,14 @@ class SqliteDatabaseImpl
   int maxReaders;
 
   @override
+  @protected
   late Future<void> isInitialized;
 
   @override
   AbstractDefaultSqliteOpenFactory openFactory;
 
   late final Mutex mutex;
-  late final IsolateConnectionFactoryImpl _isolateConnectionFactory;
-  late final WebSqliteConnectionImpl _connection;
+  late final SqliteConnection _connection;
 
   /// Open a SqliteDatabase.
   ///
@@ -70,14 +69,13 @@ class SqliteDatabaseImpl
       {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
     updates = updatesController.stream;
     mutex = MutexImpl();
-    _isolateConnectionFactory = IsolateConnectionFactoryImpl(
-        openFactory: openFactory as DefaultSqliteOpenFactory, mutex: mutex);
-    _connection = _isolateConnectionFactory.open();
     isInitialized = _init();
   }
 
   Future<void> _init() async {
-    _connection.updates.forEach((update) {
+    _connection = await openFactory.openConnection(SqliteOpenOptions(
+        primaryConnection: true, readOnly: false, mutex: mutex));
+    _connection.updates!.forEach((update) {
       updatesController.add(update);
     });
   }
@@ -85,6 +83,7 @@ class SqliteDatabaseImpl
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
+    await isInitialized;
     return _connection.readLock(callback,
         lockTimeout: lockTimeout, debugContext: debugContext);
   }
@@ -92,6 +91,7 @@ class SqliteDatabaseImpl
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
+    await isInitialized;
     return _connection.writeLock(callback,
         lockTimeout: lockTimeout, debugContext: debugContext);
   }
@@ -101,6 +101,7 @@ class SqliteDatabaseImpl
       Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout,
       String? debugContext}) async {
+    await isInitialized;
     return _connection.readTransaction(callback, lockTimeout: lockTimeout);
   }
 
@@ -109,21 +110,24 @@ class SqliteDatabaseImpl
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout,
       String? debugContext}) async {
+    await isInitialized;
     return _connection.writeTransaction(callback, lockTimeout: lockTimeout);
   }
 
   @override
   Future<void> close() async {
+    await isInitialized;
     return _connection.close();
   }
 
   @override
   IsolateConnectionFactoryImpl isolateConnectionFactory() {
-    return _isolateConnectionFactory;
+    throw UnimplementedError();
   }
 
   @override
-  Future<bool> getAutoCommit() {
+  Future<bool> getAutoCommit() async {
+    await isInitialized;
     return _connection.getAutoCommit();
   }
 }

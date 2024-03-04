@@ -32,12 +32,11 @@ abstract class IsolateConnectionFactory<Database extends sqlite.CommonDatabase>
   factory IsolateConnectionFactory(
       {required openFactory,
       required mutex,
-      SerializedPortClient? upstreamPort}) {
+      required SerializedPortClient upstreamPort}) {
     return IsolateConnectionFactoryImpl(
-            openFactory: openFactory,
-            mutex: mutex,
-            upstreamPort: upstreamPort as SerializedPortClient)
-        as IsolateConnectionFactory<Database>;
+        openFactory: openFactory,
+        mutex: mutex,
+        upstreamPort: upstreamPort) as IsolateConnectionFactory<Database>;
   }
 
   /// Open a new SqliteConnection.

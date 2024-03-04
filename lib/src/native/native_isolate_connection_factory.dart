@@ -2,9 +2,9 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
-import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
+import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/database_utils.dart';
@@ -15,13 +15,13 @@ class IsolateConnectionFactoryImpl
     with IsolateOpenFactoryMixin
     implements IsolateConnectionFactory {
   @override
-  AbstractDefaultSqliteOpenFactory openFactory;
+  DefaultSqliteOpenFactory openFactory;
 
   @override
   SerializedMutex mutex;
 
   @override
-  SerializedPortClient upstreamPort;
+  final SerializedPortClient upstreamPort;
 
   IsolateConnectionFactoryImpl(
       {required this.openFactory,
@@ -88,7 +88,7 @@ class _IsolateSqliteConnection extends SqliteConnectionImpl {
   _IsolateSqliteConnection(
       {required super.openFactory,
       required super.mutex,
-      required super.upstreamPort,
+      super.upstreamPort,
       super.updates,
       super.debugName,
       super.readOnly = false,
