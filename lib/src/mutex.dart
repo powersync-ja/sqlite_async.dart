@@ -188,7 +188,8 @@ class SharedMutex implements Mutex {
     closed = true;
     // Wait for any existing locks to complete, then prevent any further locks from being taken out.
     await _acquire();
-    client.fire(const _CloseMessage());
+    // Release the lock
+    _unlock();
     // Close client immediately after _unlock(),
     // so that we're sure no further locks are acquired.
     // This also cancels any lock request in process.
@@ -201,7 +202,6 @@ class _SharedMutexServer {
   Completer? unlock;
   late final SerializedMutex serialized;
   final Mutex mutex;
-  bool closed = false;
 
   late final PortServer server;
 
@@ -216,11 +216,6 @@ class _SharedMutexServer {
     if (arg is _AcquireMessage) {
       var lock = Completer.sync();
       mutex.lock(() async {
-        if (closed) {
-          // The client will error already - we just need to ensure
-          // we don't take out another lock.
-          return;
-        }
         assert(unlock == null);
         unlock = Completer.sync();
         lock.complete();
@@ -231,10 +226,6 @@ class _SharedMutexServer {
     } else if (arg is _UnlockMessage) {
       assert(unlock != null);
       unlock!.complete();
-    } else if (arg is _CloseMessage) {
-      // Unlock and close (from client side)
-      closed = true;
-      unlock?.complete();
     }
   }
 
@@ -249,11 +240,6 @@ class _AcquireMessage {
 
 class _UnlockMessage {
   const _UnlockMessage();
-}
-
-/// Unlock and close
-class _CloseMessage {
-  const _CloseMessage();
 }
 
 class LockError extends Error {
