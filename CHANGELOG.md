@@ -1,3 +1,7 @@
+## 0.7.0-alpha.2
+
+- Fix re-using a shared Mutex from https://github.com/powersync-ja/sqlite_async.dart/pull/31
+
 ## 0.7.0-alpha.1
 
 - Added initial support for web platform.
