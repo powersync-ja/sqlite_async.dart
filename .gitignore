@@ -11,6 +11,7 @@ assets
 
 .idea
 .vscode
+.devcontainer
 *.db
 *.db-*
 test-db

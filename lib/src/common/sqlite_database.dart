@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
 import 'package:sqlite_async/src/impl/sqlite_database_impl.dart';
@@ -26,6 +27,7 @@ mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
   final StreamController<UpdateNotification> updatesController =
       StreamController.broadcast();
 
+  @protected
   Future<void> get isInitialized;
 
   /// Wait for initialization to complete.
