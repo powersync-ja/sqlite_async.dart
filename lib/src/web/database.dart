@@ -1,38 +1,25 @@
 import 'dart:async';
+import 'dart:js_interop';
 
 import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
-
+import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
+import 'protocol.dart';
 
 class WebDatabase
     with SqliteQueries, SqliteDatabaseMixin
     implements SqliteDatabase {
-  late Future<void> _initialize;
-  late Database _database;
+  final Database _database;
+  final Mutex? _mutex;
 
   @override
   bool closed = false;
 
-  WebDatabase() {
-    _initialize = Future.sync(() async {
-      final sqlite3 = await WebSqlite.open(
-        wasmModule: Uri.parse('todo: how to specify wasm uri'),
-        worker: Uri.parse('todo: how to specify worker uri'),
-      );
-
-      // todo: API in sqlite3_web to pick best possible option, similar to what
-      // drift is doing.
-      _database = await sqlite3.connect(
-        'test',
-        StorageMode.inMemory,
-        AccessMode.throughSharedWorker,
-      );
-    });
-  }
+  WebDatabase(this._database, this._mutex);
 
   @override
   Future<void> close() async {
@@ -48,11 +35,11 @@ class WebDatabase
 
   @override
   Future<void> initialize() {
-    return _initialize;
+    return Future.value();
   }
 
   @override
-  Future<void> get isInitialized => _initialize;
+  Future<void> get isInitialized => initialize();
 
   @override
   Never isolateConnectionFactory() {
@@ -68,8 +55,22 @@ class WebDatabase
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
-    // todo: use customRequest API on database for lock management
-    return callback(_ExlusiveContext(this));
+    if (_mutex case var mutex?) {
+      return await mutex.lock(() async {
+        return await callback(_ExlusiveContext(this));
+      });
+    } else {
+      // No custom mutex, coordinate locks through shared worker.
+      await _database.customRequest(CustomDatabaseMessage(
+          rawKind: CustomDatabaseMessageKind.requestSharedLock.name.toJS));
+
+      try {
+        return await callback(_SharedContext(this));
+      } finally {
+        await _database.customRequest(CustomDatabaseMessage(
+            rawKind: CustomDatabaseMessageKind.releaseLock.name.toJS));
+      }
+    }
   }
 
   @override
@@ -83,9 +84,23 @@ class WebDatabase
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
-    // todo: use customRequest API on database for lock management
-    return callback(_ExlusiveContext(this));
+      {Duration? lockTimeout, String? debugContext}) async {
+    if (_mutex case var mutex?) {
+      return await mutex.lock(() async {
+        return await callback(_ExlusiveContext(this));
+      });
+    } else {
+      // No custom mutex, coordinate locks through shared worker.
+      await _database.customRequest(CustomDatabaseMessage(
+          rawKind: CustomDatabaseMessageKind.requestExclusiveLock.name.toJS));
+
+      try {
+        return await callback(_ExlusiveContext(this));
+      } finally {
+        await _database.customRequest(CustomDatabaseMessage(
+            rawKind: CustomDatabaseMessageKind.releaseLock.name.toJS));
+      }
+    }
   }
 }
 
