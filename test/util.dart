@@ -9,8 +9,8 @@ import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
-// const defaultSqlitePath = 'libsqlite3.so.0';
-const defaultSqlitePath = './sqlite-autoconf-3410100/.libs/libsqlite3.so.0';
+const defaultSqlitePath = 'libsqlite3.so.0';
+// const defaultSqlitePath = './sqlite-autoconf-3410100/.libs/libsqlite3.so.0';
 
 class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
   String sqlitePath;
