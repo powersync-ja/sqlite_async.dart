@@ -164,6 +164,9 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       return readTransaction((ctx) => callback(ctx as SqliteWriteContext),
           lockTimeout: lockTimeout);
     } else {
+      // FIXME:
+      // This should avoid using global locks, but then we need to fix
+      // update notifications to only fire after commit.
       // ignore: deprecated_member_use_from_same_package
       return writeTransaction(callback, lockTimeout: lockTimeout);
     }
