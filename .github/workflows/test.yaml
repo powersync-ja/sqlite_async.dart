@@ -17,7 +17,9 @@ jobs:
       - name: Check formatting
         run: dart format --output=none --set-exit-if-changed .
       - name: Lint
-        run: dart analyze
+        run: dart analyze lib test example
+      - name: Test Fixes
+        run: dart fix --compare-to-golden test_fixes
       - name: Publish dry-run
         run: dart pub publish --dry-run
       - name: Check publish score

@@ -28,7 +28,7 @@ void main() async {
   // Combine multiple statements into a single write transaction for:
   // 1. Atomic persistence (all updates are either applied or rolled back).
   // 2. Improved throughput.
-  await db.writeTransaction((tx) async {
+  await db.transaction((tx) async {
     await tx.execute('INSERT INTO test_data(data) values(?)', ['Test3']);
     await tx.execute('INSERT INTO test_data(data) values(?)', ['Test4']);
   });

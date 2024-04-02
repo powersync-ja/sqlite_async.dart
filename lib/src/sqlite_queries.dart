@@ -144,26 +144,28 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
 
   @override
   Future<T> lock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {bool? readOnly, String? debugContext}) {
+      {bool? readOnly, Duration? lockTimeout, String? debugContext}) {
     if (readOnly == true) {
       // ignore: deprecated_member_use_from_same_package
       return readLock((ctx) => callback(ctx as SqliteWriteContext),
-          debugContext: debugContext);
+          lockTimeout: lockTimeout, debugContext: debugContext);
     } else {
       // ignore: deprecated_member_use_from_same_package
-      return writeLock(callback, debugContext: debugContext);
+      return writeLock(callback,
+          lockTimeout: lockTimeout, debugContext: debugContext);
     }
   }
 
   @override
   Future<T> transaction<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {bool? readOnly}) {
+      {bool? readOnly, Duration? lockTimeout}) {
     if (readOnly == true) {
       // ignore: deprecated_member_use_from_same_package
-      return readTransaction((ctx) => callback(ctx as SqliteWriteContext));
+      return readTransaction((ctx) => callback(ctx as SqliteWriteContext),
+          lockTimeout: lockTimeout);
     } else {
       // ignore: deprecated_member_use_from_same_package
-      return writeTransaction(callback);
+      return writeTransaction(callback, lockTimeout: lockTimeout);
     }
   }
 }

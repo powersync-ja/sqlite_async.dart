@@ -106,8 +106,8 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   }
 
   @override
-  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+  Future<T> lock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {bool? readOnly, Duration? lockTimeout, String? debugContext}) async {
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.
     return _connectionMutex.lock(() async {
@@ -118,6 +118,12 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
         await ctx.close();
       }
     }, timeout: lockTimeout);
+  }
+
+  @override
+  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
+      {Duration? lockTimeout, String? debugContext}) async {
+    return lock(callback, lockTimeout: lockTimeout, debugContext: debugContext);
   }
 
   @override

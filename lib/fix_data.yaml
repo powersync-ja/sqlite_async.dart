@@ -1,0 +1,55 @@
+# This provides automatic fixes of deprecations using `dart fix`.
+# See: https://github.com/flutter/flutter/wiki/Data-driven-Fixes
+version: 1
+transforms:
+  - title: 'Rename writeLock to lock'
+    date: 2024-04-02
+    element:
+      uris: ['src/sqlite_connection.dart']
+      method: 'writeLock'
+      inClass: 'SqliteConnection'
+    changes:
+      - kind: 'rename'
+        newName: 'lock'
+  - title: 'Rename writeTransaction to transaction'
+    date: 2024-04-02
+    element:
+      uris: ['src/sqlite_connection.dart']
+      method: 'writeTransaction'
+      inClass: 'SqliteConnection'
+    changes:
+      - kind: 'rename'
+        newName: 'transaction'
+  - title: 'Rename writeLock to lock'
+    date: 2024-04-02
+    element:
+      uris: ['src/sqlite_database.dart']
+      method: 'writeLock'
+      inClass: 'SqliteDatabase'
+    changes:
+      - kind: 'rename'
+        newName: 'lock'
+  - title: 'Rename writeTransaction to transaction'
+    date: 2024-04-02
+    element:
+      uris: ['src/sqlite_database.dart']
+      method: 'writeTransaction'
+      inClass: 'SqliteDatabase'
+    changes:
+      - kind: 'rename'
+        newName: 'transaction'
+  - title: 'Rename readTransaction to transaction'
+    date: 2024-04-02
+    element:
+      uris: ['src/sqlite_database.dart']
+      method: 'readTransaction'
+      inClass: 'SqliteDatabase'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'readOnly'
+        style: required_named
+        argumentValue:
+          expression: 'true'
+      - kind: 'rename'
+        newName: 'transaction'

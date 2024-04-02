@@ -11,7 +11,7 @@ import 'util.dart';
 
 void main() {
   createTables(SqliteDatabase db) async {
-    await db.writeTransaction((tx) async {
+    await db.transaction((tx) async {
       await tx.execute(
           'CREATE TABLE assets(id INTEGER PRIMARY KEY AUTOINCREMENT, make TEXT, customer_id INTEGER)');
       await tx.execute('CREATE INDEX assets_customer ON assets(customer_id)');

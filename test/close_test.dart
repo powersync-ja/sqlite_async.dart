@@ -19,7 +19,7 @@ void main() {
     });
 
     createTables(SqliteDatabase db) async {
-      await db.writeTransaction((tx) async {
+      await db.transaction((tx) async {
         await tx.execute(
             'CREATE TABLE test_data(id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT)');
       });

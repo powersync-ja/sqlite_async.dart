@@ -199,10 +199,12 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// Changes from any write transaction are not visible to read transactions
   /// started before it.
   @override
+  @Deprecated('Use [transaction] instead.')
   Future<T> readTransaction<T>(
       Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout}) {
-    return _pool.readTransaction(callback, lockTimeout: lockTimeout);
+    return _pool.transaction(callback,
+        readOnly: true, lockTimeout: lockTimeout);
   }
 
   /// Open a read-write transaction.
@@ -213,20 +215,23 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// The write transaction is automatically committed when the callback finishes,
   /// or rolled back on any error.
   @override
+  @Deprecated('Use [transaction] instead.')
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout}) {
-    return _pool.writeTransaction(callback, lockTimeout: lockTimeout);
+    return _pool.transaction(callback, lockTimeout: lockTimeout);
   }
 
   @override
+  @Deprecated('Use [lock] instead.')
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) {
-    return _pool.readLock(callback,
-        lockTimeout: lockTimeout, debugContext: debugContext);
+    return _pool.lock(callback,
+        readOnly: true, lockTimeout: lockTimeout, debugContext: debugContext);
   }
 
   @override
+  @Deprecated('Use [lock] instead.')
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) {
     return _pool.writeLock(callback,
