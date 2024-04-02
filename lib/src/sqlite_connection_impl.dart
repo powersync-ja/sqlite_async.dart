@@ -123,15 +123,30 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
+    final stopWatch = lockTimeout == null ? null : (Stopwatch()..start());
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.
     return await _connectionMutex.lock(() async {
-      final ctx = _TransactionContext(_isolateClient);
-      try {
-        return await callback(ctx);
-      } finally {
-        await ctx.close();
+      Duration? innerTimeout;
+      if (lockTimeout != null && stopWatch != null) {
+        innerTimeout = lockTimeout - stopWatch.elapsed;
+        stopWatch.stop();
       }
+      // DB lock so that only one write happens at a time
+      return await _writeMutex.lock(() async {
+        final ctx = _TransactionContext(_isolateClient);
+        try {
+          return await callback(ctx);
+        } finally {
+          await ctx.close();
+        }
+      }, timeout: innerTimeout).catchError((error, stackTrace) {
+        if (error is TimeoutException) {
+          return Future<T>.error(TimeoutException(
+              'Failed to acquire global write lock', lockTimeout));
+        }
+        return Future<T>.error(error, stackTrace);
+      });
     }, timeout: lockTimeout);
   }
 }
