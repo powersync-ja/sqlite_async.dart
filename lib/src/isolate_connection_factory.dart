@@ -4,7 +4,6 @@ import 'dart:isolate';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import 'database_utils.dart';
-import 'mutex.dart';
 import 'port_channel.dart';
 import 'sqlite_connection.dart';
 import 'sqlite_connection_impl.dart';
@@ -14,13 +13,10 @@ import 'update_notification.dart';
 /// A connection factory that can be passed to different isolates.
 class IsolateConnectionFactory {
   SqliteOpenFactory openFactory;
-  SerializedMutex mutex;
   SerializedPortClient upstreamPort;
 
   IsolateConnectionFactory(
-      {required this.openFactory,
-      required this.mutex,
-      required this.upstreamPort});
+      {required this.openFactory, required this.upstreamPort});
 
   /// Open a new SqliteConnection.
   ///
@@ -28,17 +24,13 @@ class IsolateConnectionFactory {
   SqliteConnection open({String? debugName, bool readOnly = false}) {
     final updates = _IsolateUpdateListener(upstreamPort);
 
-    var openMutex = mutex.open();
-
     return _IsolateSqliteConnection(
         openFactory: openFactory,
-        mutex: openMutex,
         upstreamPort: upstreamPort,
         readOnly: readOnly,
         debugName: debugName,
         updates: updates.stream,
         closeFunction: () async {
-          await openMutex.close();
           updates.close();
         });
   }
@@ -93,7 +85,6 @@ class _IsolateSqliteConnection extends SqliteConnectionImpl {
 
   _IsolateSqliteConnection(
       {required super.openFactory,
-      required super.mutex,
       required super.upstreamPort,
       super.updates,
       super.debugName,

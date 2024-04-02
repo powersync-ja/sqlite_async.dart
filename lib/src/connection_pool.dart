@@ -24,8 +24,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final String? debugName;
 
-  final Mutex mutex;
-
   @override
   bool closed = false;
 
@@ -44,7 +42,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       this.maxReaders = 5,
       SqliteConnection? writeConnection,
       this.debugName,
-      required this.mutex,
       required SerializedPortClient upstreamPort})
       : _writeConnection = writeConnection,
         _upstreamPort = upstreamPort;
@@ -128,7 +125,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
         primary: false,
         updates: updates,
         debugName: debugName != null ? '$debugName-writer' : null,
-        mutex: mutex,
         readOnly: false,
         openFactory: _factory);
     return _runZoned(() {
@@ -166,7 +162,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
           primary: false,
           updates: updates,
           debugName: name,
-          mutex: mutex,
           readOnly: true,
           openFactory: _factory);
       _readConnections.add(connection);

@@ -4,7 +4,6 @@ import 'dart:isolate';
 import 'connection_pool.dart';
 import 'database_utils.dart';
 import 'isolate_connection_factory.dart';
-import 'mutex.dart';
 import 'port_channel.dart';
 import 'sqlite_connection.dart';
 import 'sqlite_connection_impl.dart';
@@ -23,9 +22,6 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
 
   /// Maximum number of concurrent read transactions.
   final int maxReaders;
-
-  /// Global lock to serialize write transactions.
-  final SimpleMutex mutex = SimpleMutex();
 
   /// Factory that opens a raw database connection in each isolate.
   ///
@@ -87,8 +83,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
         updates: updates,
         writeConnection: _internalConnection,
         debugName: 'sqlite',
-        maxReaders: maxReaders,
-        mutex: mutex);
+        maxReaders: maxReaders);
 
     _initialized = _init();
   }
@@ -128,7 +123,8 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
           // Use the mutex to only send updates after the current transaction.
           // Do take care to avoid getting a lock for each individual update -
           // that could add massive performance overhead.
-          mutex.lock(() async {
+          // FIXME: This lock is not shared across isolates anymore.
+          _pool.writeLock((ctx) async {
             if (updates != null) {
               _updatesController.add(updates!);
               updates = null;
@@ -165,9 +161,7 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// Use this to access the database in background isolates.
   IsolateConnectionFactory isolateConnectionFactory() {
     return IsolateConnectionFactory(
-        openFactory: openFactory,
-        mutex: mutex.shared,
-        upstreamPort: _eventsPort.client());
+        openFactory: openFactory, upstreamPort: _eventsPort.client());
   }
 
   SqliteConnectionImpl _openPrimaryConnection({String? debugName}) {
@@ -176,7 +170,6 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
         primary: true,
         updates: updates,
         debugName: debugName,
-        mutex: mutex,
         readOnly: false,
         openFactory: openFactory);
   }
@@ -186,7 +179,6 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
     await _pool.close();
     _updatesController.close();
     _eventsPort.close();
-    await mutex.close();
   }
 
   /// Open a read-only transaction.

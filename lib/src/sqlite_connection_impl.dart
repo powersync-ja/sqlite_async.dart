@@ -18,7 +18,6 @@ typedef TxCallback<T> = Future<T> Function(sqlite.Database db);
 class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   /// Private to this connection
   final SimpleMutex _connectionMutex = SimpleMutex();
-  final Mutex _writeMutex;
 
   /// Must be a broadcast stream
   @override
@@ -30,13 +29,11 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
 
   SqliteConnectionImpl(
       {required SqliteOpenFactory openFactory,
-      required Mutex mutex,
       required SerializedPortClient upstreamPort,
       this.updates,
       this.debugName,
       this.readOnly = false,
-      bool primary = false})
-      : _writeMutex = mutex {
+      bool primary = false}) {
     _open(openFactory, primary: primary, upstreamPort: upstreamPort);
   }
 
@@ -88,15 +85,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   @override
   Future<void> close() async {
     await _connectionMutex.lock(() async {
-      if (readOnly) {
-        await _isolateClient.post(const _SqliteIsolateConnectionClose());
-      } else {
-        // In some cases, disposing a write connection lock the database.
-        // We use the lock here to avoid "database is locked" errors.
-        await _writeMutex.lock(() async {
-          await _isolateClient.post(const _SqliteIsolateConnectionClose());
-        });
-      }
+      await _isolateClient.post(const _SqliteIsolateConnectionClose());
       _isolate.kill();
     });
   }
