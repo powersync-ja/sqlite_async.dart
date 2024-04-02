@@ -160,11 +160,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       return readLock((ctx) => callback(ctx as SqliteWriteContext),
           lockTimeout: lockTimeout, debugContext: debugContext);
     } else {
-      // FIXME:
-      // This should avoid using global locks, but then we need to fix
-      // update notifications to only fire after commit.
       return _writeLock(callback,
-          lockTimeout: lockTimeout, debugContext: debugContext, global: true);
+          lockTimeout: lockTimeout, debugContext: debugContext, global: false);
     }
   }
 

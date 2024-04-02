@@ -117,26 +117,11 @@ class SqliteDatabase with SqliteQueries implements SqliteConnection {
   }
 
   void _listenForEvents() {
-    UpdateNotification? updates;
-
     Map<SendPort, StreamSubscription> subscriptions = {};
 
     _eventsPort = PortServer((message) async {
       if (message is UpdateNotification) {
-        if (updates == null) {
-          updates = message;
-          // Use the mutex to only send updates after the current transaction.
-          // Do take care to avoid getting a lock for each individual update -
-          // that could add massive performance overhead.
-          mutex.lock(() async {
-            if (updates != null) {
-              _updatesController.add(updates!);
-              updates = null;
-            }
-          });
-        } else {
-          updates!.tables.addAll(message.tables);
-        }
+        _updatesController.add(message);
         return null;
       } else if (message is InitDb) {
         await _initialized;
