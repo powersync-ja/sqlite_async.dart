@@ -5,7 +5,7 @@ transforms:
   - title: 'Rename writeLock to lock'
     date: 2024-04-02
     element:
-      uris: ['src/sqlite_connection.dart']
+      uris: ['src/sqlite_connection.dart', 'sqlite_async.dart']
       method: 'writeLock'
       inClass: 'SqliteConnection'
     changes:
@@ -14,7 +14,7 @@ transforms:
   - title: 'Rename writeTransaction to transaction'
     date: 2024-04-02
     element:
-      uris: ['src/sqlite_connection.dart']
+      uris: ['src/sqlite_connection.dart', 'sqlite_async.dart']
       method: 'writeTransaction'
       inClass: 'SqliteConnection'
     changes:
@@ -23,7 +23,7 @@ transforms:
   - title: 'Rename writeLock to lock'
     date: 2024-04-02
     element:
-      uris: ['src/sqlite_database.dart']
+      uris: ['src/sqlite_database.dart', 'sqlite_async.dart']
       method: 'writeLock'
       inClass: 'SqliteDatabase'
     changes:
@@ -32,7 +32,7 @@ transforms:
   - title: 'Rename writeTransaction to transaction'
     date: 2024-04-02
     element:
-      uris: ['src/sqlite_database.dart']
+      uris: ['src/sqlite_database.dart', 'sqlite_async.dart']
       method: 'writeTransaction'
       inClass: 'SqliteDatabase'
     changes:
@@ -41,7 +41,7 @@ transforms:
   - title: 'Rename readTransaction to transaction'
     date: 2024-04-02
     element:
-      uris: ['src/sqlite_database.dart']
+      uris: ['src/sqlite_database.dart', 'sqlite_async.dart']
       method: 'readTransaction'
       inClass: 'SqliteDatabase'
     changes:
@@ -53,3 +53,18 @@ transforms:
           expression: 'true'
       - kind: 'rename'
         newName: 'transaction'
+  - title: 'Rename readLock to lock'
+    date: 2024-04-02
+    element:
+      uris: ['src/sqlite_database.dart', 'sqlite_async.dart']
+      method: 'readLock'
+      inClass: 'SqliteDatabase'
+    changes:
+      - kind: 'addParameter'
+        index: 1
+        name: 'readOnly'
+        style: required_named
+        argumentValue:
+          expression: 'true'
+      - kind: 'rename'
+        newName: 'lock'
