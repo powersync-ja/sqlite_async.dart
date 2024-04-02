@@ -6,8 +6,7 @@ import 'update_notification.dart';
 
 /// Mixin to provide default query functionality.
 ///
-/// Classes using this need to implement [SqliteConnection.readLock]
-/// and [SqliteConnection.writeLock].
+/// Classes using this need to implement [SqliteConnection.lock].
 mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   /// Broadcast stream that is notified of any table updates
   Stream<UpdateNotification>? get updates;
@@ -15,7 +14,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   @override
   Future<sqlite.ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    return writeLock((ctx) async {
+    return lock((ctx) async {
       return ctx.execute(sql, parameters);
     }, debugContext: 'execute()');
   }
@@ -23,24 +22,24 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   @override
   Future<sqlite.ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]) {
-    return readLock((ctx) async {
+    return lock((ctx) async {
       return ctx.getAll(sql, parameters);
-    }, debugContext: 'getAll()');
+    }, readOnly: true, debugContext: 'getAll()');
   }
 
   @override
   Future<sqlite.Row> get(String sql, [List<Object?> parameters = const []]) {
-    return readLock((ctx) async {
+    return lock((ctx) async {
       return ctx.get(sql, parameters);
-    }, debugContext: 'get()');
+    }, readOnly: true, debugContext: 'get()');
   }
 
   @override
   Future<sqlite.Row?> getOptional(String sql,
       [List<Object?> parameters = const []]) {
-    return readLock((ctx) async {
+    return lock((ctx) async {
       return ctx.getOptional(sql, parameters);
-    }, debugContext: 'getOptional()');
+    }, readOnly: true, debugContext: 'getOptional()');
   }
 
   @override
@@ -102,6 +101,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   Future<T> readTransaction<T>(
       Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout}) async {
+    // ignore: deprecated_member_use_from_same_package
     return readLock((ctx) async {
       return await internalReadTransaction(ctx, callback);
     }, lockTimeout: lockTimeout, debugContext: 'readTransaction()');
@@ -111,6 +111,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout}) async {
+    // ignore: deprecated_member_use_from_same_package
     return writeLock((ctx) async {
       return await internalWriteTransaction(ctx, callback);
     }, lockTimeout: lockTimeout, debugContext: 'writeTransaction()');
@@ -139,5 +140,30 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
     return writeTransaction((tx) async {
       return tx.executeBatch(sql, parameterSets);
     });
+  }
+
+  @override
+  Future<T> lock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {bool? readOnly, String? debugContext}) {
+    if (readOnly == true) {
+      // ignore: deprecated_member_use_from_same_package
+      return readLock((ctx) => callback(ctx as SqliteWriteContext),
+          debugContext: debugContext);
+    } else {
+      // ignore: deprecated_member_use_from_same_package
+      return writeLock(callback, debugContext: debugContext);
+    }
+  }
+
+  @override
+  Future<T> transaction<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {bool? readOnly}) {
+    if (readOnly == true) {
+      // ignore: deprecated_member_use_from_same_package
+      return readTransaction((ctx) => callback(ctx as SqliteWriteContext));
+    } else {
+      // ignore: deprecated_member_use_from_same_package
+      return writeTransaction(callback);
+    }
   }
 }

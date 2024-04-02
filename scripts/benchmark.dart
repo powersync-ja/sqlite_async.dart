@@ -46,14 +46,14 @@ List<SqliteBenchmark> benchmarks = [
       }
     });
   }, maxBatchSize: 200000, enabled: false),
-  SqliteBenchmark('writeLock in isolate',
+  SqliteBenchmark('lock in isolate',
       (SqliteDatabase db, List<List<String>> parameters) async {
     var factory = db.isolateConnectionFactory();
     var len = parameters.length;
     await Isolate.run(() async {
       final db = factory.open();
       for (var i = 0; i < len; i++) {
-        await db.writeLock((tx) async {});
+        await db.lock((tx) async {});
       }
       await db.close();
     });

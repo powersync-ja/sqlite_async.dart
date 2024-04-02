@@ -132,6 +132,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
         readOnly: false,
         openFactory: _factory);
     return _runZoned(() {
+      // ignore: deprecated_member_use_from_same_package
       return _writeConnection!.writeLock(callback,
           lockTimeout: lockTimeout, debugContext: debugContext);
     }, debugContext: debugContext ?? 'execute()');
