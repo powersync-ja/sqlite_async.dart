@@ -29,9 +29,10 @@ class DefaultSqliteOpenFactory implements SqliteOpenFactory {
   List<String> pragmaStatements(SqliteOpenOptions options) {
     List<String> statements = [];
 
-    if (sqliteOptions.busyTimeout != null) {
+    if (sqliteOptions.lockTimeout != null) {
+      // May be replaced by a Dart-level retry mechanism in the future
       statements.add(
-          'PRAGMA busy_timeout = ${sqliteOptions.busyTimeout!.inMilliseconds}');
+          'PRAGMA busy_timeout = ${sqliteOptions.lockTimeout!.inMilliseconds}');
     }
 
     if (options.primaryConnection && sqliteOptions.journalMode != null) {
