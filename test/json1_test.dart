@@ -33,7 +33,7 @@ void main() {
     });
 
     createTables(SqliteDatabase db) async {
-      await db.writeTransaction((tx) async {
+      await db.transaction((tx) async {
         await tx.execute(
             'CREATE TABLE users(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT, email TEXT)');
       });

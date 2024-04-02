@@ -1,0 +1,13 @@
+import 'package:sqlite_async/src/sqlite_database.dart';
+
+var db = SqliteDatabase(path: 'test.db');
+
+void main() async {
+  db.transaction((tx) async {
+    await tx.execute('select 1');
+  });
+
+  db.transaction((tx) async {
+    await tx.getAll('select 1');
+  }, readOnly: true);
+}

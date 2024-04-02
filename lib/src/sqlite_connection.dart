@@ -72,11 +72,28 @@ abstract class SqliteWriteContext extends SqliteReadContext {
 
 /// Abstract class representing a connection to the SQLite database.
 abstract class SqliteConnection extends SqliteWriteContext {
+  /// Open a transaction.
+  ///
+  /// Opens a read-write transaction by default. Set [readOnly] to open a
+  /// read-only transaction.
+  ///
+  /// Only one read-write transaction can execute against the database at a time.
+  ///
+  /// Statements within the transaction must be done on the provided
+  /// [SqliteWriteContext] - attempting statements on the [SqliteConnection]
+  /// instance will error.
+  ///
+  /// [lockTimeout] only controls the timeout for locking the connection.
+  /// Timeout for database-level locks can be configured on [SqliteOpenOptions].
+  Future<T> transaction<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {bool? readOnly, Duration? lockTimeout});
+
   /// Open a read-only transaction.
   ///
   /// Statements within the transaction must be done on the provided
   /// [SqliteReadContext] - attempting statements on the [SqliteConnection]
   /// instance will error.
+  @Deprecated('Use [transaction(callback)] instead.')
   Future<T> readTransaction<T>(
       Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout});
@@ -89,6 +106,7 @@ abstract class SqliteConnection extends SqliteWriteContext {
   /// Statements within the transaction must be done on the provided
   /// [SqliteWriteContext] - attempting statements on the [SqliteConnection]
   /// instance will error.
+  @Deprecated('Use [transaction(callback)] instead.')
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout});
@@ -102,17 +120,30 @@ abstract class SqliteConnection extends SqliteWriteContext {
       {List<Object?> parameters = const [],
       Duration throttle = const Duration(milliseconds: 30)});
 
-  /// Takes a read lock, without starting a transaction.
+  /// Takes a read lock on this connection, without starting a transaction.
   ///
-  /// In most cases, [readTransaction] should be used instead.
+  /// This is a low-level API. In most cases, [transaction] should be used instead.
+  @Deprecated('Use [lock] instead.')
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext});
 
-  /// Takes a global lock, without starting a transaction.
+  /// Takes a global write lock, without starting a transaction.
   ///
-  /// In most cases, [writeTransaction] should be used instead.
+  /// This is a low-level API. In most cases, [transaction] should be used instead.
+  @Deprecated('Use [lock] instead.')
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext});
+
+  /// Lock a connection for exclusive usage.
+  ///
+  /// When using a connection pool, use [readOnly] to select a read connection.
+  /// In other contexts, [readOnly] has no effect.
+  ///
+  /// This is a low-level API. In most cases, [transaction] should be used instead.
+  ///
+  /// Any direct query methods such as [getAll] or [execute] uses [lock] internally.
+  Future<T> lock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {bool? readOnly, Duration? lockTimeout, String? debugContext});
 
   Future<void> close();
 

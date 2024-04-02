@@ -10,7 +10,7 @@ import 'update_notification.dart';
 
 /// A connection pool with a single write connection and multiple read connections.
 class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
-  SqliteConnection? _writeConnection;
+  SqliteConnectionImpl? _writeConnection;
 
   final List<SqliteConnectionImpl> _readConnections = [];
 
@@ -42,7 +42,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   SqliteConnectionPool(this._factory,
       {this.updates,
       this.maxReaders = 5,
-      SqliteConnection? writeConnection,
+      SqliteConnectionImpl? writeConnection,
       this.debugName,
       required this.mutex,
       required SerializedPortClient upstreamPort})
@@ -72,7 +72,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
           _readConnections.remove(connection);
         }
         try {
-          return await connection.readLock((ctx) async {
+          return await connection.lock((ctx) async {
             if (haveLock) {
               // Already have a different lock - release this one.
               return false;
@@ -91,7 +91,10 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
             }
 
             return true;
-          }, lockTimeout: lockTimeout, debugContext: debugContext);
+          },
+              lockTimeout: lockTimeout,
+              readOnly: true,
+              debugContext: debugContext);
         } on TimeoutException {
           return false;
         }
@@ -117,6 +120,12 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) {
+    return _writeLock(callback,
+        lockTimeout: lockTimeout, debugContext: debugContext, global: true);
+  }
+
+  Future<T> _writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout, String? debugContext, required bool global}) {
     if (closed) {
       throw AssertionError('Closed');
     }
@@ -132,9 +141,28 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
         readOnly: false,
         openFactory: _factory);
     return _runZoned(() {
-      return _writeConnection!.writeLock(callback,
-          lockTimeout: lockTimeout, debugContext: debugContext);
+      if (global) {
+        // ignore: deprecated_member_use_from_same_package
+        return _writeConnection!.writeLock(callback,
+            lockTimeout: lockTimeout, debugContext: debugContext);
+      } else {
+        return _writeConnection!.lock(callback,
+            lockTimeout: lockTimeout, debugContext: debugContext);
+      }
     }, debugContext: debugContext ?? 'execute()');
+  }
+
+  @override
+  Future<T> lock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {bool? readOnly, Duration? lockTimeout, String? debugContext}) {
+    if (readOnly == true) {
+      // ignore: deprecated_member_use_from_same_package
+      return readLock((ctx) => callback(ctx as SqliteWriteContext),
+          lockTimeout: lockTimeout, debugContext: debugContext);
+    } else {
+      return _writeLock(callback,
+          lockTimeout: lockTimeout, debugContext: debugContext, global: false);
+    }
   }
 
   /// The [Mutex] on individual connections do already error in recursive locks.

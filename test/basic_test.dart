@@ -22,7 +22,7 @@ void main() {
     });
 
     createTables(SqliteDatabase db) async {
-      await db.writeTransaction((tx) async {
+      await db.transaction((tx) async {
         await tx.execute(
             'CREATE TABLE test_data(id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT)');
       });
@@ -64,6 +64,39 @@ void main() {
       }
     });
 
+    test('Concurrency 2', () async {
+      final db1 =
+          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
+
+      final db2 =
+          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
+      await db1.initialize();
+      await createTables(db1);
+      await db2.initialize();
+      print("${DateTime.now()} start");
+
+      var futures1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) {
+        return db1.execute(
+            "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 1 ' || datetime() as connection RETURNING *",
+            [
+              i,
+              5 + Random().nextInt(20)
+            ]).then((value) => print("${DateTime.now()} $value"));
+      }).toList();
+
+      var futures2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) {
+        return db2.execute(
+            "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 2 ' || datetime() as connection RETURNING *",
+            [
+              i,
+              5 + Random().nextInt(20)
+            ]).then((value) => print("${DateTime.now()} $value"));
+      }).toList();
+      await Future.wait(futures1);
+      await Future.wait(futures2);
+      print("${DateTime.now()} done");
+    });
+
     test('read-only transactions', () async {
       final db = await setupDatabase(path: path);
       await createTables(db);
@@ -94,7 +127,7 @@ void main() {
               e.message
                   .contains('attempt to write in a read-only transaction')));
 
-      await db.writeTransaction((tx) async {
+      await db.transaction((tx) async {
         // Within a write transaction, this is fine
         await tx.getAll(
             'INSERT INTO test_data(description) VALUES(?) RETURNING *',
@@ -107,7 +140,7 @@ void main() {
       final db = await setupDatabase(path: path);
       await createTables(db);
 
-      await db.writeTransaction((tx) async {
+      await db.transaction((tx) async {
         await expectLater(() async {
           await db.execute(
               'INSERT INTO test_data(description) VALUES(?)', ['test']);
@@ -120,7 +153,7 @@ void main() {
       final db = await setupDatabase(path: path);
       await createTables(db);
 
-      await db.writeTransaction((tx) async {
+      await db.transaction((tx) async {
         // This uses a different connection, so it _could_ work.
         // But it's likely unintentional and could cause weird bugs, so we don't
         // allow it by default.
@@ -129,7 +162,7 @@ void main() {
         }, throwsA((e) => e is LockError && e.message.contains('tx.getAll')));
       });
 
-      await db.readTransaction((tx) async {
+      await db.transaction((tx) async {
         // This does actually attempt a lock on the same connection, so it
         // errors.
         // This also exposes an interesting test case where the read transaction
@@ -137,7 +170,7 @@ void main() {
         await expectLater(() async {
           await db.getAll('SELECT * FROM test_data');
         }, throwsA((e) => e is LockError && e.message.contains('tx.getAll')));
-      });
+      }, readOnly: true);
     });
 
     test('should not allow read-only db calls within lock callback', () async {
@@ -145,7 +178,7 @@ void main() {
       await createTables(db);
       // Locks - should behave the same as transactions above
 
-      await db.writeLock((tx) async {
+      await db.lock((tx) async {
         await expectLater(() async {
           await db.getOptional('SELECT * FROM test_data');
         },
@@ -153,13 +186,13 @@ void main() {
                 (e) => e is LockError && e.message.contains('tx.getOptional')));
       });
 
-      await db.readLock((tx) async {
+      await db.lock((tx) async {
         await expectLater(() async {
           await db.getOptional('SELECT * FROM test_data');
         },
             throwsA(
                 (e) => e is LockError && e.message.contains('tx.getOptional')));
-      });
+      }, readOnly: true);
     });
 
     test(
@@ -174,27 +207,27 @@ void main() {
       // Each of these are fine, since it could use a separate connection.
       // Note: In highly concurrent cases, it could exhaust the connection pool and cause a deadlock.
 
-      await db.writeTransaction((tx) async {
+      await db.transaction((tx) async {
         // Use the parent zone to avoid the "recursive lock" error.
         await zone.fork().run(() async {
           await db.getAll('SELECT * FROM test_data');
         });
       });
 
-      await db.readTransaction((tx) async {
+      await db.transaction((tx) async {
         await zone.fork().run(() async {
           await db.getAll('SELECT * FROM test_data');
         });
-      });
+      }, readOnly: true);
 
-      await db.readTransaction((tx) async {
+      await db.transaction((tx) async {
         await zone.fork().run(() async {
           await db.execute('SELECT * FROM test_data');
         });
-      });
+      }, readOnly: true);
 
       // Note: This would deadlock, since it shares a global write lock.
-      // await db.writeTransaction((tx) async {
+      // await db.transaction((tx) async {
       //   await zone.fork().run(() async {
       //     await db.execute('SELECT * FROM test_data');
       //   });
@@ -221,7 +254,7 @@ void main() {
       final db = await setupDatabase(path: path);
       await createTables(db);
 
-      var tp = db.writeTransaction((tx) async {
+      var tp = db.transaction((tx) async {
         await tx.execute(
             'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
             [1, 'test1']);
@@ -258,7 +291,7 @@ void main() {
           equals({'count': 0}));
 
       // Check that we can open another transaction afterwards
-      await db.writeTransaction((tx) async {});
+      await db.transaction((tx) async {});
     });
 
     test('should error on dangling transactions', () async {
@@ -317,7 +350,7 @@ void main() {
       for (var i = 0; i < 10; i++) {
         Object? caughtError;
 
-        await db.readTransaction((ctx) async {
+        await db.transaction((ctx) async {
           await ctx.computeWithDatabase((db) async {
             Future<void> asyncCompute() async {
               throw ArgumentError('uncaught async error');
@@ -325,7 +358,7 @@ void main() {
 
             asyncCompute();
           });
-        }).catchError((error) {
+        }, readOnly: true).catchError((error) {
           caughtError = error;
         });
         // This may change into a better error in the future
@@ -333,11 +366,11 @@ void main() {
       }
 
       // Check that we can still continue afterwards
-      final computed = await db.readTransaction((ctx) async {
+      final computed = await db.transaction((ctx) async {
         return await ctx.computeWithDatabase((db) async {
           return 5;
         });
-      });
+      }, readOnly: true);
       expect(computed, equals(5));
     });
 
@@ -345,7 +378,7 @@ void main() {
       final db = await setupDatabase(path: path);
       await createTables(db);
       SqliteWriteContext? savedTx;
-      await db.writeTransaction((tx) async {
+      await db.transaction((tx) async {
         savedTx = tx;
         var caught = false;
         try {

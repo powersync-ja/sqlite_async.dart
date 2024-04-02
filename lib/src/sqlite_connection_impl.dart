@@ -106,8 +106,8 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   }
 
   @override
-  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+  Future<T> lock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {bool? readOnly, Duration? lockTimeout, String? debugContext}) async {
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.
     return _connectionMutex.lock(() async {
@@ -118,6 +118,12 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
         await ctx.close();
       }
     }, timeout: lockTimeout);
+  }
+
+  @override
+  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
+      {Duration? lockTimeout, String? debugContext}) async {
+    return lock(callback, lockTimeout: lockTimeout, debugContext: debugContext);
   }
 
   @override
@@ -271,7 +277,6 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
   final server = params.portServer;
   final commandPort = ReceivePort();
 
-  Timer? updateDebouncer;
   Set<String> updatedTables = {};
   int? txId;
   Object? txError;
@@ -280,25 +285,18 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
     if (updatedTables.isNotEmpty) {
       client.fire(UpdateNotification(updatedTables));
       updatedTables.clear();
-      updateDebouncer?.cancel();
-      updateDebouncer = null;
     }
   }
 
   db.updates.listen((event) {
     updatedTables.add(event.tableName);
-
-    // This handles two cases:
-    // 1. Update arrived after _SqliteIsolateClose (not sure if this could happen).
-    // 2. Long-running _SqliteIsolateClosure that should fire updates while running.
-    updateDebouncer ??=
-        Timer(const Duration(milliseconds: 10), maybeFireUpdates);
   });
 
   server.open((data) async {
     if (data is _SqliteIsolateClose) {
       if (txId != null) {
         if (!db.autocommit) {
+          updatedTables.clear();
           db.execute('ROLLBACK');
         }
         txId = null;

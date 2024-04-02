@@ -90,7 +90,7 @@ class SqliteMigrations {
   Future<void> migrate(SqliteConnection db) async {
     _validateCreateDatabase();
 
-    await db.writeTransaction((tx) async {
+    await db.transaction((tx) async {
       await tx.execute(
           'CREATE TABLE IF NOT EXISTS $migrationTable(id INTEGER PRIMARY KEY, down_migrations TEXT)');
 
