@@ -11,15 +11,22 @@ class SqliteOptions {
   /// attempt to truncate the file afterwards.
   final int? journalSizeLimit;
 
+  /// Timeout waiting for locks to be released by other write connections.
+  /// Defaults to 30 seconds.
+  /// Set to 0 to fail immediately when the database is locked.
+  final Duration? busyTimeout;
+
   const SqliteOptions.defaults()
       : journalMode = SqliteJournalMode.wal,
         journalSizeLimit = 6 * 1024 * 1024, // 1.5x the default checkpoint size
-        synchronous = SqliteSynchronous.normal;
+        synchronous = SqliteSynchronous.normal,
+        busyTimeout = const Duration(seconds: 30);
 
   const SqliteOptions(
       {this.journalMode = SqliteJournalMode.wal,
       this.journalSizeLimit = 6 * 1024 * 1024,
-      this.synchronous = SqliteSynchronous.normal});
+      this.synchronous = SqliteSynchronous.normal,
+      this.busyTimeout = const Duration(seconds: 30)});
 }
 
 /// SQLite journal mode. Set on the primary connection.

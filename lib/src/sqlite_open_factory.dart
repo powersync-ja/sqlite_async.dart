@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite_async/sqlite3.dart' as sqlite;
 
 import 'sqlite_options.dart';
 
@@ -29,6 +29,11 @@ class DefaultSqliteOpenFactory implements SqliteOpenFactory {
   List<String> pragmaStatements(SqliteOpenOptions options) {
     List<String> statements = [];
 
+    if (sqliteOptions.busyTimeout != null) {
+      statements.add(
+          'PRAGMA busy_timeout = ${sqliteOptions.busyTimeout!.inMilliseconds}');
+    }
+
     if (options.primaryConnection && sqliteOptions.journalMode != null) {
       // Persisted - only needed on the primary connection
       statements
@@ -51,8 +56,21 @@ class DefaultSqliteOpenFactory implements SqliteOpenFactory {
     final mode = options.openMode;
     var db = sqlite.sqlite3.open(path, mode: mode, mutex: false);
 
+    // Pragma statements don't have the same BUSY_TIMEOUT behavior as normal statements.
+    // We add a manual retry loop for those.
     for (var statement in pragmaStatements(options)) {
-      db.execute(statement);
+      for (var tries = 0; tries < 30; tries++) {
+        try {
+          db.execute(statement);
+          break;
+        } on sqlite.SqliteException catch (e) {
+          if (e.resultCode == sqlite.SqlError.SQLITE_BUSY && tries < 29) {
+            continue;
+          } else {
+            rethrow;
+          }
+        }
+      }
     }
     return db;
   }
