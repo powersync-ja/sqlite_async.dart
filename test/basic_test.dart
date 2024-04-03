@@ -377,7 +377,6 @@ void main() {
       // 4. Now second connection is ready. Second query has two connections to choose from.
       // 5. However, first connection is closed, so it's removed from the pool.
       // 6. Triggers `Concurrent modification during iteration: Instance(length:1) of '_GrowableList'`
-
       final db =
           SqliteDatabase.withFactory(testFactory(path: path, initStatements: [
         // Second connection to sleep more than first connection
@@ -387,8 +386,9 @@ void main() {
 
       final future1 = db.get('SELECT test_sleep(10) as sleep');
       final future2 = db.get('SELECT test_sleep(10) as sleep');
-      final closeFuture = db.close();
-      await closeFuture;
+
+      await db.close();
+
       await future1;
       await future2;
     });

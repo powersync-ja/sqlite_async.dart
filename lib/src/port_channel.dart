@@ -18,7 +18,8 @@ abstract class PortClient {
 class ParentPortClient implements PortClient {
   late Future<SendPort> sendPortFuture;
   SendPort? sendPort;
-  ReceivePort receivePort = ReceivePort();
+  final ReceivePort _receivePort = ReceivePort();
+  final ReceivePort _errorPort = ReceivePort();
   bool closed = false;
   int _nextId = 1;
 
@@ -30,7 +31,7 @@ class ParentPortClient implements PortClient {
     sendPortFuture.then((value) {
       sendPort = value;
     });
-    receivePort.listen((message) {
+    _receivePort.listen((message) {
       if (message is _InitMessage) {
         assert(!initCompleter.isCompleted);
         initCompleter.complete(message.port);
@@ -56,6 +57,17 @@ class ParentPortClient implements PortClient {
         initCompleter.completeError(ClosedException());
       }
       close();
+    });
+    _errorPort.listen((message) {
+      var [error, stackTrace] = message;
+      print('got an error ${initCompleter.isCompleted} $error');
+      if (!initCompleter.isCompleted) {
+        if (stackTrace == null) {
+          initCompleter.completeError(error);
+        } else {
+          initCompleter.completeError(error, StackTrace.fromString(stackTrace));
+        }
+      }
     });
   }
 
@@ -94,20 +106,22 @@ class ParentPortClient implements PortClient {
   }
 
   RequestPortServer server() {
-    return RequestPortServer(receivePort.sendPort);
+    return RequestPortServer(_receivePort.sendPort);
   }
 
   void close() async {
     if (!closed) {
       closed = true;
 
-      receivePort.close();
+      _receivePort.close();
+      _errorPort.close();
       _cancelAll(const ClosedException());
     }
   }
 
   tieToIsolate(Isolate isolate) {
-    isolate.addOnExitListener(receivePort.sendPort, response: _closeMessage);
+    isolate.addErrorListener(_errorPort.sendPort);
+    isolate.addOnExitListener(_receivePort.sendPort, response: _closeMessage);
   }
 }
 
