@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:math';
+import 'dart:typed_data';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/mutex.dart';
@@ -398,6 +399,29 @@ void main() {
 
       await future1;
       await future2;
+    });
+
+    test('lockTimeout', () async {
+      final db =
+          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 2);
+      await db.initialize();
+
+      final f1 = db.readTransaction((tx) async {
+        await tx.get('select test_sleep(100)');
+      }, lockTimeout: const Duration(milliseconds: 200));
+
+      final f2 = db.readTransaction((tx) async {
+        await tx.get('select test_sleep(100)');
+      }, lockTimeout: const Duration(milliseconds: 200));
+
+      // At this point, both read connections are in use
+      await expectLater(() async {
+        await db.readLock((tx) async {
+          await tx.get('select test_sleep(10)');
+        }, lockTimeout: const Duration(milliseconds: 2));
+      }, throwsA((e) => e is TimeoutException));
+
+      await Future.wait([f1, f2]);
     });
   });
 }

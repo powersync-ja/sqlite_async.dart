@@ -86,17 +86,29 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       return;
     }
 
-    final nextItem = _queue.removeFirst();
+    var nextItem = _queue.removeFirst();
+    while (nextItem.completer.isCompleted) {
+      // This item already timed out - try the next one if available
+      if (_queue.isEmpty) {
+        return;
+      }
+      nextItem = _queue.removeFirst();
+    }
+
+    nextItem.lockTimer?.cancel();
+
     nextItem.completer.complete(Future.sync(() async {
       final nextConnection = _availableReadConnections.isEmpty
           ? await _expandPool()
           : _availableReadConnections.removeLast();
       try {
+        // At this point the connection is expected to be available immediately.
+        // No need to calculate a new lockTimeout here.
         final result = await nextConnection.readLock(nextItem.callback);
         return result;
       } finally {
         _availableReadConnections.add(nextConnection);
-        _nextRead();
+        Timer.run(_nextRead);
       }
     }));
   }
@@ -110,11 +122,11 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     final zone = _getZone(debugContext: debugContext ?? 'get*()');
     final item = _PendingItem((ctx) {
       return zone.runUnary(callback, ctx);
-    });
+    }, lockTimeout: lockTimeout);
     _queue.add(item);
     _nextRead();
 
-    return await item.completer.future;
+    return (await item.future) as T;
   }
 
   @override
@@ -207,6 +219,28 @@ typedef ReadCallback<T> = Future<T> Function(SqliteReadContext tx);
 class _PendingItem {
   ReadCallback<dynamic> callback;
   Completer<dynamic> completer = Completer.sync();
+  late Future<dynamic> future = completer.future;
+  DateTime? deadline;
+  final Duration? lockTimeout;
+  late final Timer? lockTimer;
 
-  _PendingItem(this.callback);
+  _PendingItem(this.callback, {this.lockTimeout}) {
+    if (lockTimeout != null) {
+      deadline = DateTime.now().add(lockTimeout!);
+      lockTimer = Timer(lockTimeout!, () {
+        // Note: isCompleted is true when `nextItem.completer.complete` is called, not when the result is available.
+        // This matches the behavior we need for a timeout on the lock, but not the entire operation.
+        if (!completer.isCompleted) {
+          // completer.completeError(
+          //     TimeoutException('Failed to get a read connection', lockTimeout));
+          completer.complete(Future.sync(() async {
+            throw TimeoutException(
+                'Failed to get a read connection', lockTimeout);
+          }));
+        }
+      });
+    } else {
+      lockTimer = null;
+    }
+  }
 }
