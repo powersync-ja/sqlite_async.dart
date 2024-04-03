@@ -53,7 +53,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   @override
   Future<bool> getAutoCommit() async {
     if (_writeConnection == null) {
-      throw AssertionError('Closed');
+      throw ClosedException();
     }
     return await _writeConnection!.getAutoCommit();
   }
@@ -118,7 +118,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) {
     if (closed) {
-      throw AssertionError('Closed');
+      throw ClosedException();
     }
     if (_writeConnection?.closed == true) {
       _writeConnection = null;
