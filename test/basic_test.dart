@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:test/expect.dart';
 import 'package:test/test.dart';
 
 import 'util.dart';
@@ -301,8 +302,11 @@ void main() {
       }).catchError((error) {
         caughtError = error;
       });
-      // This may change into a better error in the future
-      expect(caughtError.toString(), equals("Instance of 'ClosedException'"));
+      // The specific error message may change
+      expect(
+          caughtError.toString(),
+          equals(
+              "IsolateError in sqlite-writer: Invalid argument(s): uncaught async error"));
 
       // Check that we can still continue afterwards
       final computed = await db.computeWithDatabase((db) async {
@@ -328,8 +332,11 @@ void main() {
         }).catchError((error) {
           caughtError = error;
         });
-        // This may change into a better error in the future
-        expect(caughtError.toString(), equals("Instance of 'ClosedException'"));
+        // The specific message may change
+        expect(
+            caughtError.toString(),
+            matches(RegExp(
+                r'IsolateError in sqlite-\d+: Invalid argument\(s\): uncaught async error')));
       }
 
       // Check that we can still continue afterwards

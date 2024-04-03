@@ -21,6 +21,8 @@ class ParentPortClient implements PortClient {
   final ReceivePort _receivePort = ReceivePort();
   final ReceivePort _errorPort = ReceivePort();
   bool closed = false;
+  Object? _closeError;
+  String? _isolateDebugName;
   int _nextId = 1;
 
   Map<int, Completer<Object?>> handlers = HashMap();
@@ -59,14 +61,15 @@ class ParentPortClient implements PortClient {
       close();
     });
     _errorPort.listen((message) {
-      var [error, stackTrace] = message;
+      final [error, stackTraceString] = message;
+      final stackTrace = stackTraceString == null
+          ? null
+          : StackTrace.fromString(stackTraceString);
       if (!initCompleter.isCompleted) {
-        if (stackTrace == null) {
-          initCompleter.completeError(error);
-        } else {
-          initCompleter.completeError(error, StackTrace.fromString(stackTrace));
-        }
+        initCompleter.completeError(error, stackTrace);
       }
+      _close(IsolateError(cause: error, isolateDebugName: _isolateDebugName),
+          stackTrace);
     });
   }
 
@@ -74,18 +77,18 @@ class ParentPortClient implements PortClient {
     await sendPortFuture;
   }
 
-  void _cancelAll(Object error) {
+  void _cancelAll(Object error, [StackTrace? stackTrace]) {
     var handlers = this.handlers;
     this.handlers = {};
     for (var message in handlers.values) {
-      message.completeError(error);
+      message.completeError(error, stackTrace);
     }
   }
 
   @override
   Future<T> post<T>(Object message) async {
     if (closed) {
-      throw ClosedException();
+      throw _closeError ?? const ClosedException();
     }
     var completer = Completer<T>.sync();
     var id = _nextId++;
@@ -98,7 +101,7 @@ class ParentPortClient implements PortClient {
   @override
   void fire(Object message) async {
     if (closed) {
-      throw ClosedException();
+      throw _closeError ?? ClosedException();
     }
     final port = sendPort ?? await sendPortFuture;
     port.send(_FireMessage(message));
@@ -108,17 +111,27 @@ class ParentPortClient implements PortClient {
     return RequestPortServer(_receivePort.sendPort);
   }
 
-  void close() async {
+  void _close([Object? error, StackTrace? stackTrace]) {
     if (!closed) {
       closed = true;
 
       _receivePort.close();
       _errorPort.close();
-      _cancelAll(const ClosedException());
+      if (error == null) {
+        _cancelAll(const ClosedException());
+      } else {
+        _closeError = error;
+        _cancelAll(error, stackTrace);
+      }
     }
   }
 
+  void close() {
+    _close();
+  }
+
   tieToIsolate(Isolate isolate) {
+    _isolateDebugName = isolate.debugName;
     isolate.addErrorListener(_errorPort.sendPort);
     isolate.addOnExitListener(_receivePort.sendPort, response: _closeMessage);
   }
@@ -274,6 +287,27 @@ class _RequestMessage {
 
 class ClosedException implements Exception {
   const ClosedException();
+
+  @override
+  String toString() {
+    return 'ClosedException';
+  }
+}
+
+class IsolateError extends Error {
+  final Object cause;
+  final String? isolateDebugName;
+
+  IsolateError({required this.cause, this.isolateDebugName});
+
+  @override
+  String toString() {
+    if (isolateDebugName != null) {
+      return 'IsolateError in $isolateDebugName: $cause';
+    } else {
+      return 'IsolateError: $cause';
+    }
+  }
 }
 
 class _PortChannelResult<T> {

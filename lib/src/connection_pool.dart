@@ -158,7 +158,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     if (closed || _readConnections.length >= maxReaders) {
       return;
     }
-    bool hasCapacity = _readConnections.any((connection) => !connection.locked);
+    bool hasCapacity = _readConnections
+        .any((connection) => !connection.locked && !connection.closed);
     if (!hasCapacity) {
       var name = debugName == null
           ? null
