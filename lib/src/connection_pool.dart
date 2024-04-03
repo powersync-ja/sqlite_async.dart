@@ -183,7 +183,12 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   @override
   Future<void> close() async {
     closed = true;
-    for (var connection in _readConnections) {
+
+    // It is possible that `readLock()` removes connections from the pool while we're
+    // closing connections, but not possible for new connections to be added.
+    // Create a copy of the list, to avoid this triggering "Concurrent modification during iteration"
+    final toClose = _readConnections.sublist(0);
+    for (var connection in toClose) {
       await connection.close();
     }
     // Closing the write connection cleans up the journal files (-shm and -wal files).
