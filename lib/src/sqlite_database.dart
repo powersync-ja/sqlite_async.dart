@@ -15,8 +15,10 @@ import 'update_notification.dart';
 
 /// A SQLite database instance.
 ///
-/// Use one instance per database file. If multiple instances are used, update
-/// notifications may not trigger, and calls may fail with "SQLITE_BUSY" errors.
+/// Use one instance per database file where feasible.
+///
+/// If multiple instances are used, update notifications will not be propagated between them.
+/// For update notifications across isolates, use [isolateConnectionFactory].
 class SqliteDatabase with SqliteQueries implements SqliteConnection {
   /// The maximum number of concurrent read transactions if not explicitly specified.
   static const int defaultMaxReaders = 5;
