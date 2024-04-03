@@ -60,7 +60,6 @@ class ParentPortClient implements PortClient {
     });
     _errorPort.listen((message) {
       var [error, stackTrace] = message;
-      print('got an error ${initCompleter.isCompleted} $error');
       if (!initCompleter.isCompleted) {
         if (stackTrace == null) {
           initCompleter.completeError(error);
