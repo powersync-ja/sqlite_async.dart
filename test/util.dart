@@ -14,11 +14,13 @@ const defaultSqlitePath = 'libsqlite3.so.0';
 
 class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
   String sqlitePath;
+  List<String> initStatements;
 
   TestSqliteOpenFactory(
       {required super.path,
       super.sqliteOptions,
-      this.sqlitePath = defaultSqlitePath});
+      this.sqlitePath = defaultSqlitePath,
+      this.initStatements = const []});
 
   @override
   sqlite.Database open(SqliteOpenOptions options) {
@@ -45,12 +47,29 @@ class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
       },
     );
 
+    db.createFunction(
+      functionName: 'test_connection_number',
+      argumentCount: const sqlite.AllowedArgumentCount(0),
+      function: (args) {
+        // write: 0, read: 1 - 5
+        final name = Isolate.current.debugName ?? '-0';
+        var nr = name.split('-').last;
+        return int.tryParse(nr) ?? 0;
+      },
+    );
+
+    for (var s in initStatements) {
+      db.execute(s);
+    }
+
     return db;
   }
 }
 
-SqliteOpenFactory testFactory({String? path}) {
-  return TestSqliteOpenFactory(path: path ?? dbPath());
+SqliteOpenFactory testFactory(
+    {String? path, List<String> initStatements = const []}) {
+  return TestSqliteOpenFactory(
+      path: path ?? dbPath(), initStatements: initStatements);
 }
 
 Future<SqliteDatabase> setupDatabase({String? path}) async {
