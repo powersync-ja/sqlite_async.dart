@@ -191,6 +191,9 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     // Create a copy of the list, to avoid this triggering "Concurrent modification during iteration"
     final toClose = _readConnections.sublist(0);
     for (var connection in toClose) {
+      // Wait for connection initialization, so that any existing readLock()
+      // requests go through before closing.
+      await connection.ready;
       await connection.close();
     }
     // Closing the write connection cleans up the journal files (-shm and -wal files).
