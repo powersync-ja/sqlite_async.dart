@@ -383,6 +383,7 @@ void main() {
         // Second connection to sleep more than first connection
         'SELECT test_sleep(test_connection_number() * 10)'
       ]));
+      await db.initialize();
 
       final future1 = db.get('SELECT test_sleep(10) as sleep');
       final future2 = db.get('SELECT test_sleep(10) as sleep');

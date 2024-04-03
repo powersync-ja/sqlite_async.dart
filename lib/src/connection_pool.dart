@@ -94,6 +94,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
           }, lockTimeout: lockTimeout, debugContext: debugContext);
         } on TimeoutException {
           return false;
+        } on ClosedException {
+          return false;
         }
       });
 
