@@ -64,6 +64,39 @@ void main() {
       }
     });
 
+    test('Concurrency 2', () async {
+      final db1 =
+          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
+
+      final db2 =
+          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
+      await db1.initialize();
+      await createTables(db1);
+      await db2.initialize();
+      print("${DateTime.now()} start");
+
+      var futures1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) {
+        return db1.execute(
+            "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 1 ' || datetime() as connection RETURNING *",
+            [
+              i,
+              5 + Random().nextInt(20)
+            ]).then((value) => print("${DateTime.now()} $value"));
+      }).toList();
+
+      var futures2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) {
+        return db2.execute(
+            "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 2 ' || datetime() as connection RETURNING *",
+            [
+              i,
+              5 + Random().nextInt(20)
+            ]).then((value) => print("${DateTime.now()} $value"));
+      }).toList();
+      await Future.wait(futures1);
+      await Future.wait(futures2);
+      print("${DateTime.now()} done");
+    });
+
     test('read-only transactions', () async {
       final db = await setupDatabase(path: path);
       await createTables(db);
