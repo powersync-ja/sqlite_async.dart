@@ -88,6 +88,9 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
   @override
   Future<void> close() async {
     await _connectionMutex.lock(() async {
+      if (closed) {
+        return;
+      }
       if (readOnly) {
         await _isolateClient.post(const _SqliteIsolateConnectionClose());
       } else {
@@ -97,6 +100,7 @@ class SqliteConnectionImpl with SqliteQueries implements SqliteConnection {
           await _isolateClient.post(const _SqliteIsolateConnectionClose());
         });
       }
+      _isolateClient.close();
       _isolate.kill();
     });
   }
