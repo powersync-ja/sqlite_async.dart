@@ -59,9 +59,10 @@ class _AsyncSqliteDatabase extends WorkerDatabase {
         mutex.release();
       case CustomDatabaseMessageKind.lockObtained:
         throw UnsupportedError('This is a response, not a request');
+      case CustomDatabaseMessageKind.getAutoCommit:
+        return database.autocommit.toJS;
     }
 
-    return CustomDatabaseMessage(
-        rawKind: CustomDatabaseMessageKind.lockObtained.name.toJS);
+    return CustomDatabaseMessage(CustomDatabaseMessageKind.lockObtained);
   }
 }

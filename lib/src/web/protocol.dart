@@ -12,12 +12,17 @@ enum CustomDatabaseMessageKind {
   requestExclusiveLock,
   releaseLock,
   lockObtained,
+  getAutoCommit,
 }
 
-extension type CustomDatabaseMessage._(JSObject _) implements JSObject {
-  external factory CustomDatabaseMessage({
+extension type CustomDatabaseMessage._raw(JSObject _) implements JSObject {
+  external factory CustomDatabaseMessage._({
     required JSString rawKind,
   });
+
+  factory CustomDatabaseMessage(CustomDatabaseMessageKind kind) {
+    return CustomDatabaseMessage._(rawKind: kind.name.toJS);
+  }
 
   external JSString get rawKind;
 

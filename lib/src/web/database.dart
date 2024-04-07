@@ -28,9 +28,10 @@ class WebDatabase
   }
 
   @override
-  Future<bool> getAutoCommit() {
-    // TODO: implement getAutoCommit
-    throw UnimplementedError();
+  Future<bool> getAutoCommit() async {
+    final response = await _database.customRequest(
+        CustomDatabaseMessage(CustomDatabaseMessageKind.getAutoCommit));
+    return (response as JSBoolean?)?.toDart ?? false;
   }
 
   @override
@@ -57,18 +58,23 @@ class WebDatabase
       {Duration? lockTimeout, String? debugContext}) async {
     if (_mutex case var mutex?) {
       return await mutex.lock(() async {
-        return await callback(_ExlusiveContext(this));
+        final context = _SharedContext(this);
+        try {
+          return await callback(context);
+        } finally {
+          context.markClosed();
+        }
       });
     } else {
       // No custom mutex, coordinate locks through shared worker.
-      await _database.customRequest(CustomDatabaseMessage(
-          rawKind: CustomDatabaseMessageKind.requestSharedLock.name.toJS));
+      await _database.customRequest(
+          CustomDatabaseMessage(CustomDatabaseMessageKind.requestSharedLock));
 
       try {
         return await callback(_SharedContext(this));
       } finally {
-        await _database.customRequest(CustomDatabaseMessage(
-            rawKind: CustomDatabaseMessageKind.releaseLock.name.toJS));
+        await _database.customRequest(
+            CustomDatabaseMessage(CustomDatabaseMessageKind.releaseLock));
       }
     }
   }
@@ -87,18 +93,25 @@ class WebDatabase
       {Duration? lockTimeout, String? debugContext}) async {
     if (_mutex case var mutex?) {
       return await mutex.lock(() async {
-        return await callback(_ExlusiveContext(this));
+        final context = _ExlusiveContext(this);
+        try {
+          return await callback(context);
+        } finally {
+          context.markClosed();
+        }
       });
     } else {
       // No custom mutex, coordinate locks through shared worker.
       await _database.customRequest(CustomDatabaseMessage(
-          rawKind: CustomDatabaseMessageKind.requestExclusiveLock.name.toJS));
+          CustomDatabaseMessageKind.requestExclusiveLock));
+      final context = _ExlusiveContext(this);
 
       try {
-        return await callback(_ExlusiveContext(this));
+        return await callback(context);
       } finally {
-        await _database.customRequest(CustomDatabaseMessage(
-            rawKind: CustomDatabaseMessageKind.releaseLock.name.toJS));
+        context.markClosed();
+        await _database.customRequest(
+            CustomDatabaseMessage(CustomDatabaseMessageKind.releaseLock));
       }
     }
   }
@@ -106,11 +119,12 @@ class WebDatabase
 
 class _SharedContext implements SqliteReadContext {
   final WebDatabase _database;
+  bool _contextClosed = false;
 
   _SharedContext(this._database);
 
   @override
-  bool get closed => _database.closed;
+  bool get closed => _contextClosed || _database.closed;
 
   @override
   Future<T> computeWithDatabase<T>(
@@ -132,9 +146,8 @@ class _SharedContext implements SqliteReadContext {
   }
 
   @override
-  Future<bool> getAutoCommit() {
-    // TODO: implement getAutoCommit
-    throw UnimplementedError();
+  Future<bool> getAutoCommit() async {
+    return _database.getAutoCommit();
   }
 
   @override
@@ -142,6 +155,10 @@ class _SharedContext implements SqliteReadContext {
       [List<Object?> parameters = const []]) async {
     final results = await getAll(sql, parameters);
     return results.singleOrNull;
+  }
+
+  void markClosed() {
+    _contextClosed = true;
   }
 }
 
