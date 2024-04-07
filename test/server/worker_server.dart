@@ -27,7 +27,7 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
       '-o',
       driftWorkerPath,
       '-O0',
-      'lib/src/web/worker/drift_worker.dart',
+      'lib/src/web/worker/worker.dart',
     ]);
     if (process.exitCode != 0) {
       fail('Could not compile worker');
