@@ -12,3 +12,5 @@ pubspec.lock
 test-db
 sqlite-autoconf-*
 doc
+
+build

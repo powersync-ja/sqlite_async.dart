@@ -9,6 +9,7 @@ dependencies:
   sqlite3: "^2.3.0"
   async: ^2.10.0
   collection: ^1.17.0
+  meta: ^1.10.0
 
 dev_dependencies:
   lints: ^3.0.0
@@ -16,3 +17,7 @@ dev_dependencies:
   test_api: ^0.7.0
   glob: ^2.1.1
   benchmarking: ^0.6.1
+  shelf: ^1.4.1
+  shelf_static: ^1.1.2
+  stream_channel: ^2.1.2
+  path: ^1.9.0

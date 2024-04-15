@@ -1,33 +1,35 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'mutex.dart';
-import 'port_channel.dart';
-import 'sqlite_connection.dart';
-import 'sqlite_connection_impl.dart';
-import 'sqlite_open_factory.dart';
-import 'sqlite_queries.dart';
-import 'update_notification.dart';
+import 'package:sqlite_async/sqlite_async.dart';
+import '../database/native_sqlite_connection_impl.dart';
+import '../native_isolate_mutex.dart';
 
 /// A connection pool with a single write connection and multiple read connections.
 class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
-  SqliteConnection? _writeConnection;
+  final StreamController<UpdateNotification> updatesController =
+      StreamController.broadcast();
+
+  @override
+
+  /// The write connection might be recreated if it's closed
+  /// This will allow the update stream remain constant even
+  /// after using a new write connection.
+  late final Stream<UpdateNotification> updates = updatesController.stream;
+
+  SqliteConnectionImpl? _writeConnection;
 
   final Set<SqliteConnectionImpl> _allReadConnections = {};
   final Queue<SqliteConnectionImpl> _availableReadConnections = Queue();
   final Queue<_PendingItem> _queue = Queue();
 
-  final SqliteOpenFactory _factory;
-  final SerializedPortClient _upstreamPort;
-
-  @override
-  final Stream<UpdateNotification>? updates;
+  final AbstractDefaultSqliteOpenFactory _factory;
 
   final int maxReaders;
 
   final String? debugName;
 
-  final Mutex mutex;
+  final MutexImpl mutex;
 
   @override
   bool closed = false;
@@ -43,14 +45,14 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   /// Read connections are opened in read-only mode, and will reject any statements
   /// that modify the database.
   SqliteConnectionPool(this._factory,
-      {this.updates,
-      this.maxReaders = 5,
-      SqliteConnection? writeConnection,
+      {this.maxReaders = 5,
+      SqliteConnectionImpl? writeConnection,
       this.debugName,
-      required this.mutex,
-      required SerializedPortClient upstreamPort})
-      : _writeConnection = writeConnection,
-        _upstreamPort = upstreamPort;
+      required this.mutex})
+      : _writeConnection = writeConnection {
+    // Use the write connection's updates
+    _writeConnection?.updates?.forEach(updatesController.add);
+  }
 
   /// Returns true if the _write_ connection is currently in autocommit mode.
   @override
@@ -131,21 +133,24 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
+      {Duration? lockTimeout, String? debugContext}) async {
     if (closed) {
       throw ClosedException();
     }
     if (_writeConnection?.closed == true) {
       _writeConnection = null;
     }
-    _writeConnection ??= SqliteConnectionImpl(
-        upstreamPort: _upstreamPort,
-        primary: false,
-        updates: updates,
-        debugName: debugName != null ? '$debugName-writer' : null,
-        mutex: mutex,
-        readOnly: false,
-        openFactory: _factory);
+
+    if (_writeConnection == null) {
+      _writeConnection = (await _factory.openConnection(SqliteOpenOptions(
+          primaryConnection: true,
+          debugName: debugName != null ? '$debugName-writer' : null,
+          mutex: mutex,
+          readOnly: false))) as SqliteConnectionImpl;
+      // Expose the new updates on the connection pool
+      _writeConnection!.updates?.forEach(updatesController.add);
+    }
+
     return _runZoned(() {
       return _writeConnection!.writeLock(callback,
           lockTimeout: lockTimeout, debugContext: debugContext);
@@ -175,7 +180,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
         ? null
         : '$debugName-${_allReadConnections.length + 1}';
     var connection = SqliteConnectionImpl(
-        upstreamPort: _upstreamPort,
+        upstreamPort: upstreamPort,
         primary: false,
         updates: updates,
         debugName: name,
@@ -191,6 +196,10 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     // To avoid that, we wait for the connection to be ready.
     await connection.ready;
     return connection;
+  }
+
+  SerializedPortClient? get upstreamPort {
+    return _writeConnection?.upstreamPort;
   }
 
   @override

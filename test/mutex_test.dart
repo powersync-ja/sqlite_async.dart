@@ -1,6 +1,7 @@
+@TestOn('!browser')
 import 'dart:isolate';
 
-import 'package:sqlite_async/mutex.dart';
+import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:test/test.dart';
 
 void main() {
