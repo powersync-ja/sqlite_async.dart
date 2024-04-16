@@ -1,8 +1,9 @@
+import 'dart:async';
 import 'dart:io';
 import 'dart:isolate';
 
+import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 /// Since the functions need to be created on every SQLite connection,
 /// we do this in a SqliteOpenFactory.
@@ -10,12 +11,12 @@ class TestOpenFactory extends DefaultSqliteOpenFactory {
   TestOpenFactory({required super.path, super.sqliteOptions});
 
   @override
-  sqlite.Database open(SqliteOpenOptions options) {
-    final db = super.open(options);
+  FutureOr<CommonDatabase> open(SqliteOpenOptions options) async {
+    final db = await super.open(options);
 
     db.createFunction(
       functionName: 'sleep',
-      argumentCount: const sqlite.AllowedArgumentCount(1),
+      argumentCount: const AllowedArgumentCount(1),
       function: (args) {
         final millis = args[0] as int;
         sleep(Duration(milliseconds: millis));
@@ -25,7 +26,7 @@ class TestOpenFactory extends DefaultSqliteOpenFactory {
 
     db.createFunction(
       functionName: 'isolate_name',
-      argumentCount: const sqlite.AllowedArgumentCount(0),
+      argumentCount: const AllowedArgumentCount(0),
       function: (args) {
         return Isolate.current.debugName;
       },

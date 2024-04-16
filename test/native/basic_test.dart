@@ -1,24 +1,26 @@
+@TestOn('!browser')
 import 'dart:async';
 import 'dart:math';
 
-import 'package:sqlite3/sqlite3.dart' as sqlite;
-import 'package:sqlite_async/mutex.dart';
+import 'package:sqlite3/common.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
-import 'util.dart';
+import '../utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
 
 void main() {
   group('Basic Tests', () {
     late String path;
 
     setUp(() async {
-      path = dbPath();
-      await cleanDb(path: path);
+      path = testUtils.dbPath();
+      await testUtils.cleanDb(path: path);
     });
 
     tearDown(() async {
-      await cleanDb(path: path);
+      await testUtils.cleanDb(path: path);
     });
 
     createTables(SqliteDatabase db) async {
@@ -29,7 +31,7 @@ void main() {
     }
 
     test('Basic Setup', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       await db.execute(
@@ -50,8 +52,9 @@ void main() {
 
     // Manually verified
     test('Concurrency', () async {
-      final db =
-          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
+      final db = SqliteDatabase.withFactory(
+          await testUtils.testFactory(path: path),
+          maxReaders: 3);
       await db.initialize();
       await createTables(db);
 
@@ -65,11 +68,9 @@ void main() {
     });
 
     test('Concurrency 2', () async {
-      final db1 =
-          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
+      final db1 = await testUtils.setupDatabase(path: path, maxReaders: 3);
+      final db2 = await testUtils.setupDatabase(path: path, maxReaders: 3);
 
-      final db2 =
-          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 3);
       await db1.initialize();
       await createTables(db1);
       await db2.initialize();
@@ -98,7 +99,7 @@ void main() {
     });
 
     test('read-only transactions', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       // Can read
@@ -135,22 +136,9 @@ void main() {
       });
     });
 
-    test('should not allow direct db calls within a transaction callback',
-        () async {
-      final db = await setupDatabase(path: path);
-      await createTables(db);
-
-      await db.writeTransaction((tx) async {
-        await expectLater(() async {
-          await db.execute(
-              'INSERT INTO test_data(description) VALUES(?)', ['test']);
-        }, throwsA((e) => e is LockError && e.message.contains('tx.execute')));
-      });
-    });
-
     test('should not allow read-only db calls within transaction callback',
         () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       await db.writeTransaction((tx) async {
@@ -174,7 +162,7 @@ void main() {
     });
 
     test('should not allow read-only db calls within lock callback', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       // Locks - should behave the same as transactions above
 
@@ -198,7 +186,7 @@ void main() {
     test(
         'should allow read-only db calls within transaction callback in separate zone',
         () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       // Get a reference to the parent zone (outside the transaction).
@@ -234,95 +222,24 @@ void main() {
       // });
     });
 
-    test('should allow PRAMGAs', () async {
-      final db = await setupDatabase(path: path);
-      await createTables(db);
-      // Not allowed in transactions, but does work as a direct statement.
-      await db.execute('PRAGMA wal_checkpoint(TRUNCATE)');
-      await db.execute('VACUUM');
-    });
-
     test('should allow ignoring errors', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
       ignore(db.execute(
           'INSERT INTO test_data(description) VALUES(json(?))', ['test3']));
     });
 
-    test('should properly report errors in transactions', () async {
-      final db = await setupDatabase(path: path);
-      await createTables(db);
-
-      var tp = db.writeTransaction((tx) async {
-        await tx.execute(
-            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-            [1, 'test1']);
-        await tx.execute(
-            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-            [2, 'test2']);
-        expect(await tx.getAutoCommit(), equals(false));
-        try {
-          await tx.execute(
-              'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-              [2, 'test3']);
-        } catch (e) {
-          // Ignore
-        }
-        expect(await tx.getAutoCommit(), equals(true));
-        expect(tx.closed, equals(false));
-
-        // Will not be executed because of the above rollback
-        ignore(tx.execute(
-            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-            [4, 'test4']));
-      });
-
-      // The error propagates up to the transaction
-      await expectLater(
-          tp,
-          throwsA((e) =>
-              e is sqlite.SqliteException &&
-              e.message
-                  .contains('Transaction rolled back by earlier statement') &&
-              e.message.contains('UNIQUE constraint failed')));
-
-      expect(await db.get('SELECT count() count FROM test_data'),
-          equals({'count': 0}));
-
-      // Check that we can open another transaction afterwards
-      await db.writeTransaction((tx) async {});
-    });
-
     test('should error on dangling transactions', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       await expectLater(() async {
         await db.execute('BEGIN');
       }, throwsA((e) => e is sqlite.SqliteException));
     });
 
-    test('should handle normal errors', () async {
-      final db = await setupDatabase(path: path);
-      await createTables(db);
-      Error? caughtError;
-      final syntheticError = ArgumentError('foobar');
-      await db.computeWithDatabase<void>((db) async {
-        throw syntheticError;
-      }).catchError((error) {
-        caughtError = error;
-      });
-      expect(caughtError.toString(), equals(syntheticError.toString()));
-
-      // Check that we can still continue afterwards
-      final computed = await db.computeWithDatabase((db) async {
-        return 5;
-      });
-      expect(computed, equals(5));
-    });
-
     test('should handle uncaught errors', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       Object? caughtError;
       await db.computeWithDatabase<void>((db) async {
@@ -348,7 +265,7 @@ void main() {
     });
 
     test('should handle uncaught errors in read connections', () async {
-      final db = await setupDatabase(path: path);
+      final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       for (var i = 0; i < 10; i++) {
         Object? caughtError;
@@ -380,34 +297,6 @@ void main() {
       expect(computed, equals(5));
     });
 
-    test('should allow resuming transaction after errors', () async {
-      final db = await setupDatabase(path: path);
-      await createTables(db);
-      SqliteWriteContext? savedTx;
-      await db.writeTransaction((tx) async {
-        savedTx = tx;
-        var caught = false;
-        try {
-          // This error does not rollback the transaction
-          await tx.execute('NOT A VALID STATEMENT');
-        } catch (e) {
-          // Ignore
-          caught = true;
-        }
-        expect(caught, equals(true));
-
-        expect(await tx.getAutoCommit(), equals(false));
-        expect(tx.closed, equals(false));
-
-        final rs = await tx.execute(
-            'INSERT INTO test_data(description) VALUES(?) RETURNING description',
-            ['Test Data']);
-        expect(rs.rows[0], equals(['Test Data']));
-      });
-      expect(await savedTx!.getAutoCommit(), equals(true));
-      expect(savedTx!.closed, equals(true));
-    });
-
     test('closing', () async {
       // Test race condition in SqliteConnectionPool:
       // 1. Open two concurrent queries, which opens two connection.
@@ -416,8 +305,8 @@ void main() {
       // 4. Now second connection is ready. Second query has two connections to choose from.
       // 5. However, first connection is closed, so it's removed from the pool.
       // 6. Triggers `Concurrent modification during iteration: Instance(length:1) of '_GrowableList'`
-      final db =
-          SqliteDatabase.withFactory(testFactory(path: path, initStatements: [
+      final db = SqliteDatabase.withFactory(
+          await testUtils.testFactory(path: path, initStatements: [
         // Second connection to sleep more than first connection
         'SELECT test_sleep(test_connection_number() * 10)'
       ]));
@@ -433,8 +322,7 @@ void main() {
     });
 
     test('lockTimeout', () async {
-      final db =
-          SqliteDatabase.withFactory(testFactory(path: path), maxReaders: 2);
+      final db = await testUtils.setupDatabase(path: path, maxReaders: 2);
       await db.initialize();
 
       final f1 = db.readTransaction((tx) async {
