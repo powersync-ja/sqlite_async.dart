@@ -1,10 +1,20 @@
 ## 0.7.0-alpha.2
 
-- Fix re-using a shared Mutex from https://github.com/powersync-ja/sqlite_async.dart/pull/31
+- Fix re-using a shared Mutex from <https://github.com/powersync-ja/sqlite_async.dart/pull/31>
 
 ## 0.7.0-alpha.1
 
 - Added initial support for web platform.
+
+## 0.6.1
+
+- Fix errors when closing a `SqliteDatabase`.
+- Configure SQLite `busy_timeout` (30s default). This fixes "database is locked (code 5)" error when using multiple `SqliteDatabase` instances for the same database.
+- Fix errors when opening multiple connections at the same time, e.g. when running multiple read queries concurrently
+  right after opening the dtaabase.
+- Improved error handling when an Isolate crashes with an uncaught error.
+- Rewrite connection pool logic to fix performance issues when multiple read connections are open.
+- Fix using `SqliteDatabase.isolateConnectionFactory()` in multiple isolates.
 
 ## 0.6.0
 

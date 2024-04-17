@@ -6,7 +6,7 @@ import 'package:sqlite3/common.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
-import 'utils/test_utils_impl.dart';
+import '../utils/test_utils_impl.dart';
 
 final testUtils = TestUtils();
 
@@ -65,6 +65,37 @@ void main() {
       await for (var result in Stream.fromFutures(futures)) {
         print("${DateTime.now()} $result");
       }
+    });
+
+    test('Concurrency 2', () async {
+      final db1 = await testUtils.setupDatabase(path: path, maxReaders: 3);
+      final db2 = await testUtils.setupDatabase(path: path, maxReaders: 3);
+
+      await db1.initialize();
+      await createTables(db1);
+      await db2.initialize();
+      print("${DateTime.now()} start");
+
+      var futures1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) {
+        return db1.execute(
+            "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 1 ' || datetime() as connection RETURNING *",
+            [
+              i,
+              5 + Random().nextInt(20)
+            ]).then((value) => print("${DateTime.now()} $value"));
+      }).toList();
+
+      var futures2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) {
+        return db2.execute(
+            "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 2 ' || datetime() as connection RETURNING *",
+            [
+              i,
+              5 + Random().nextInt(20)
+            ]).then((value) => print("${DateTime.now()} $value"));
+      }).toList();
+      await Future.wait(futures1);
+      await Future.wait(futures2);
+      print("${DateTime.now()} done");
     });
 
     test('read-only transactions', () async {
@@ -220,8 +251,11 @@ void main() {
       }).catchError((error) {
         caughtError = error;
       });
-      // This may change into a better error in the future
-      expect(caughtError.toString(), equals("Instance of 'ClosedException'"));
+      // The specific error message may change
+      expect(
+          caughtError.toString(),
+          equals(
+              "IsolateError in sqlite-writer: Invalid argument(s): uncaught async error"));
 
       // Check that we can still continue afterwards
       final computed = await db.computeWithDatabase((db) async {
@@ -247,8 +281,11 @@ void main() {
         }).catchError((error) {
           caughtError = error;
         });
-        // This may change into a better error in the future
-        expect(caughtError.toString(), equals("Instance of 'ClosedException'"));
+        // The specific message may change
+        expect(
+            caughtError.toString(),
+            matches(RegExp(
+                r'IsolateError in sqlite-\d+: Invalid argument\(s\): uncaught async error')));
       }
 
       // Check that we can still continue afterwards
@@ -258,6 +295,51 @@ void main() {
         });
       });
       expect(computed, equals(5));
+    });
+
+    test('closing', () async {
+      // Test race condition in SqliteConnectionPool:
+      // 1. Open two concurrent queries, which opens two connection.
+      // 2. Second connection takes longer to open than first.
+      // 3. Call db.close().
+      // 4. Now second connection is ready. Second query has two connections to choose from.
+      // 5. However, first connection is closed, so it's removed from the pool.
+      // 6. Triggers `Concurrent modification during iteration: Instance(length:1) of '_GrowableList'`
+      final db = await testUtils.setupDatabase(path: path, initStatements: [
+        // Second connection to sleep more than first connection
+        'SELECT test_sleep(test_connection_number() * 10)'
+      ]);
+      await db.initialize();
+
+      final future1 = db.get('SELECT test_sleep(10) as sleep');
+      final future2 = db.get('SELECT test_sleep(10) as sleep');
+
+      await db.close();
+
+      await future1;
+      await future2;
+    });
+
+    test('lockTimeout', () async {
+      final db = await testUtils.setupDatabase(path: path, maxReaders: 2);
+      await db.initialize();
+
+      final f1 = db.readTransaction((tx) async {
+        await tx.get('select test_sleep(100)');
+      }, lockTimeout: const Duration(milliseconds: 200));
+
+      final f2 = db.readTransaction((tx) async {
+        await tx.get('select test_sleep(100)');
+      }, lockTimeout: const Duration(milliseconds: 200));
+
+      // At this point, both read connections are in use
+      await expectLater(() async {
+        await db.readLock((tx) async {
+          await tx.get('select test_sleep(10)');
+        }, lockTimeout: const Duration(milliseconds: 2));
+      }, throwsA((e) => e is TimeoutException));
+
+      await Future.wait([f1, f2]);
     });
   });
 }

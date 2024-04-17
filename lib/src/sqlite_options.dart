@@ -25,17 +25,24 @@ class SqliteOptions {
 
   final WebSqliteOptions webSqliteOptions;
 
+  /// Timeout waiting for locks to be released by other connections.
+  /// Defaults to 30 seconds.
+  /// Set to null or [Duration.zero] to fail immediately when the database is locked.
+  final Duration? lockTimeout;
+
   const SqliteOptions.defaults()
       : journalMode = SqliteJournalMode.wal,
         journalSizeLimit = 6 * 1024 * 1024, // 1.5x the default checkpoint size
         synchronous = SqliteSynchronous.normal,
-        webSqliteOptions = const WebSqliteOptions.defaults();
+        webSqliteOptions = const WebSqliteOptions.defaults(),
+        lockTimeout = const Duration(seconds: 30);
 
   const SqliteOptions(
       {this.journalMode = SqliteJournalMode.wal,
       this.journalSizeLimit = 6 * 1024 * 1024,
       this.synchronous = SqliteSynchronous.normal,
-      this.webSqliteOptions = const WebSqliteOptions.defaults()});
+      this.webSqliteOptions = const WebSqliteOptions.defaults(),
+      this.lockTimeout = const Duration(seconds: 30)});
 }
 
 /// SQLite journal mode. Set on the primary connection.

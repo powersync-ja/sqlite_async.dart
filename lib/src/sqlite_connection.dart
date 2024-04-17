@@ -90,7 +90,8 @@ abstract class SqliteConnection extends SqliteWriteContext {
   /// Open a read-write transaction.
   ///
   /// This takes a global lock - only one write transaction can execute against
-  /// the database at a time.
+  /// the database at a time. This applies even when constructing separate
+  /// [SqliteDatabase] instances for the same database file.
   ///
   /// Statements within the transaction must be done on the provided
   /// [SqliteWriteContext] - attempting statements on the [SqliteConnection]
@@ -110,6 +111,9 @@ abstract class SqliteConnection extends SqliteWriteContext {
 
   /// Takes a read lock, without starting a transaction.
   ///
+  /// The lock only applies to a single [SqliteConnection], and multiple
+  /// connections may hold read locks at the same time.
+  ///
   /// In most cases, [readTransaction] should be used instead.
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext});
@@ -117,6 +121,10 @@ abstract class SqliteConnection extends SqliteWriteContext {
   /// Takes a global lock, without starting a transaction.
   ///
   /// In most cases, [writeTransaction] should be used instead.
+  ///
+  /// The lock applies to all [SqliteConnection] instances for a [SqliteDatabase].
+  /// Locks for separate [SqliteDatabase] instances on the same database file
+  /// may be held concurrently.
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext});
 

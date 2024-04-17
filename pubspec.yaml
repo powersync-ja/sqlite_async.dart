@@ -3,7 +3,7 @@ description: High-performance asynchronous interface for SQLite on Dart and Flut
 version: 0.7.0-alpha.2
 repository: https://github.com/powersync-ja/sqlite_async.dart
 environment:
-  sdk: '>=3.2.0 <4.0.0'
+  sdk: ">=3.2.0 <4.0.0"
 
 dependencies:
   drift: ^2.15.0
@@ -13,7 +13,7 @@ dependencies:
   #     url: https://github.com/powersync-ja/drift.git
   #     ref: test # branch name
   #     path: drift
-  sqlite3: '^2.3.0'
+  sqlite3: "^2.3.0"
   js: ^0.6.3
   async: ^2.10.0
   collection: ^1.17.0

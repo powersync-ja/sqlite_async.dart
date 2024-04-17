@@ -8,7 +8,7 @@ import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/database_utils.dart';
 import 'package:test/test.dart';
 
-import 'utils/test_utils_impl.dart';
+import '../utils/test_utils_impl.dart';
 
 final testUtils = TestUtils();
 
