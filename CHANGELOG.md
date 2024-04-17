@@ -1,4 +1,4 @@
-## 0.7.0-alpha.2
+## 0.7.0-alpha.3
 
 - Add latest changes from master
 
