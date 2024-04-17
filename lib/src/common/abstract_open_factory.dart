@@ -86,8 +86,21 @@ abstract class AbstractDefaultSqliteOpenFactory<
   FutureOr<Database> open(SqliteOpenOptions options) async {
     var db = await openDB(options);
 
+    // Pragma statements don't have the same BUSY_TIMEOUT behavior as normal statements.
+    // We add a manual retry loop for those.
     for (var statement in pragmaStatements(options)) {
-      db.execute(statement);
+      for (var tries = 0; tries < 30; tries++) {
+        try {
+          db.execute(statement);
+          break;
+        } on sqlite.SqliteException catch (e) {
+          if (e.resultCode == sqlite.SqlError.SQLITE_BUSY && tries < 29) {
+            continue;
+          } else {
+            rethrow;
+          }
+        }
+      }
     }
     return db;
   }

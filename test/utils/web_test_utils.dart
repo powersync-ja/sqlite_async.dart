@@ -46,7 +46,10 @@ class TestUtils extends AbstractTestUtils {
   }
 
   @override
-  Future<SqliteDatabase> setupDatabase({String? path}) async {
+  Future<SqliteDatabase> setupDatabase(
+      {String? path,
+      List<String> initStatements = const [],
+      int maxReaders = SqliteDatabase.defaultMaxReaders}) async {
     await _isInitialized;
     return super.setupDatabase(path: path);
   }

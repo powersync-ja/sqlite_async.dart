@@ -1,4 +1,4 @@
-import 'package:sqlite3/sqlite3.dart';
+import 'package:sqlite_async/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite3_common.dart';
 
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
@@ -15,13 +15,19 @@ class DefaultSqliteOpenFactory extends AbstractDefaultSqliteOpenFactory {
   @override
   CommonDatabase openDB(SqliteOpenOptions options) {
     final mode = options.openMode;
-    var db = sqlite3.open(path, mode: mode, mutex: false);
+    var db = sqlite.sqlite3.open(path, mode: mode, mutex: false);
     return db;
   }
 
   @override
   List<String> pragmaStatements(SqliteOpenOptions options) {
     List<String> statements = [];
+
+    if (sqliteOptions.lockTimeout != null) {
+      // May be replaced by a Dart-level retry mechanism in the future
+      statements.add(
+          'PRAGMA busy_timeout = ${sqliteOptions.lockTimeout!.inMilliseconds}');
+    }
 
     if (options.primaryConnection && sqliteOptions.journalMode != null) {
       // Persisted - only needed on the primary connection

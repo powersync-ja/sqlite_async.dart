@@ -17,7 +17,8 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
   TestSqliteOpenFactory(
       {required super.path,
       super.sqliteOptions,
-      super.sqlitePath = defaultSqlitePath});
+      super.sqlitePath = defaultSqlitePath,
+      initStatements});
 
   @override
   FutureOr<CommonDatabase> open(SqliteOpenOptions options) async {
@@ -88,8 +89,12 @@ class TestUtils extends AbstractTestUtils {
   Future<TestDefaultSqliteOpenFactory> testFactory(
       {String? path,
       String sqlitePath = defaultSqlitePath,
+      List<String> initStatements = const [],
       SqliteOptions options = const SqliteOptions.defaults()}) async {
     return TestSqliteOpenFactory(
-        path: path ?? dbPath(), sqlitePath: sqlitePath, sqliteOptions: options);
+        path: path ?? dbPath(),
+        sqlitePath: sqlitePath,
+        sqliteOptions: options,
+        initStatements: initStatements);
   }
 }
