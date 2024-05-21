@@ -40,6 +40,9 @@ class SqliteDatabaseImpl
   late final SqliteConnectionImpl _internalConnection;
   late final SqliteConnectionPool _pool;
 
+  final StreamController<UpdateNotification> updatesController =
+      StreamController.broadcast();
+
   /// Open a SqliteDatabase.
   ///
   /// Only a single SqliteDatabase per [path] should be opened at a time.

@@ -24,9 +24,6 @@ mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
   @override
   Stream<UpdateNotification> get updates;
 
-  final StreamController<UpdateNotification> updatesController =
-      StreamController.broadcast();
-
   @protected
   Future<void> get isInitialized;
 

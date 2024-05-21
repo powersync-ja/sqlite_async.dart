@@ -8,6 +8,7 @@ import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'protocol.dart';
 
 class WebDatabase
@@ -84,16 +85,32 @@ class WebDatabase
       _database.updates.map((event) => UpdateNotification({event.tableName}));
 
   @override
-  // todo: Why do we have to expose both a stream and a controller?
-  StreamController<UpdateNotification> get updatesController =>
-      throw UnimplementedError();
-
-  @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
+    return _writeLock(callback,
+        lockTimeout: lockTimeout, debugContext: debugContext);
+  }
+
+  @override
+  Future<T> writeTransaction<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout}) {
+    return _writeLock((ctx) => internalWriteTransaction(ctx, callback),
+        debugContext: 'writeTransaction()',
+        isTransaction: true,
+        lockTimeout: lockTimeout);
+  }
+
+  /// Internal writeLock which intercepts transaction context's to verify auto commit is not active
+  Future<T> _writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout,
+      String? debugContext,
+      bool isTransaction = false}) async {
     if (_mutex case var mutex?) {
       return await mutex.lock(() async {
-        final context = _ExlusiveContext(this);
+        final context = isTransaction
+            ? _ExclusiveTransactionContext(this)
+            : _ExclusiveContext(this);
         try {
           return await callback(context);
         } finally {
@@ -104,7 +121,10 @@ class WebDatabase
       // No custom mutex, coordinate locks through shared worker.
       await _database.customRequest(CustomDatabaseMessage(
           CustomDatabaseMessageKind.requestExclusiveLock));
-      final context = _ExlusiveContext(this);
+      final context = isTransaction
+          ? _ExclusiveTransactionContext(this)
+          : _ExclusiveContext(this);
+      ;
 
       try {
         return await callback(context);
@@ -142,7 +162,8 @@ class _SharedContext implements SqliteReadContext {
   @override
   Future<ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]) async {
-    return await _database._database.select(sql, parameters);
+    return await wrapSqliteException(
+        () => _database._database.select(sql, parameters));
   }
 
   @override
@@ -162,22 +183,67 @@ class _SharedContext implements SqliteReadContext {
   }
 }
 
-class _ExlusiveContext extends _SharedContext implements SqliteWriteContext {
-  _ExlusiveContext(super.database);
+class _ExclusiveContext extends _SharedContext implements SqliteWriteContext {
+  _ExclusiveContext(super.database);
 
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    return await _database._database.select(sql, parameters);
+    return wrapSqliteException(
+        () => _database._database.select(sql, parameters));
   }
 
   @override
   Future<void> executeBatch(
       String sql, List<List<Object?>> parameterSets) async {
-    for (final set in parameterSets) {
-      // use execute instead of select to avoid transferring rows from the
-      // worker to this context.
-      await _database._database.execute(sql, set);
+    return wrapSqliteException(() async {
+      for (final set in parameterSets) {
+        // use execute instead of select to avoid transferring rows from the
+        // worker to this context.
+        await _database._database.execute(sql, set);
+      }
+    });
+  }
+}
+
+class _ExclusiveTransactionContext extends _ExclusiveContext {
+  _ExclusiveTransactionContext(super.database);
+
+  @override
+  Future<ResultSet> execute(String sql,
+      [List<Object?> parameters = const []]) async {
+    final isAutoCommit = await getAutoCommit();
+    if (isAutoCommit && !sql.toLowerCase().contains('begin')) {
+      throw SqliteException(0,
+          "Transaction rolled back by earlier statement. Cannot execute: $sql");
     }
+    return super.execute(sql, parameters);
+  }
+
+  @override
+  Future<void> executeBatch(
+      String sql, List<List<Object?>> parameterSets) async {
+    final isAutoCommit = await getAutoCommit();
+    if (isAutoCommit && !sql.toLowerCase().contains('begin')) {
+      throw SqliteException(0,
+          "Transaction rolled back by earlier statement. Cannot execute: $sql");
+    }
+    return super.executeBatch(sql, parameterSets);
+  }
+}
+
+/// Throws SqliteException if the Remote Exception is a SqliteException
+Future<T> wrapSqliteException<T>(Future<T> Function() callback) async {
+  try {
+    return await callback();
+  } on RemoteException catch (ex) {
+    if (ex.toString().contains('SqliteException')) {
+      RegExp regExp = RegExp(r'SqliteException\((\d+)\)');
+      // Drift wraps these in remote errors
+      throw SqliteException(
+          int.parse(regExp.firstMatch(ex.message)?.group(1) ?? '0'),
+          ex.message);
+    }
+    rethrow;
   }
 }

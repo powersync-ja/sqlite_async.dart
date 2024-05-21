@@ -67,7 +67,6 @@ class SqliteDatabaseImpl
   ///  4. Creating temporary views or triggers.
   SqliteDatabaseImpl.withFactory(this.openFactory,
       {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
-    updates = updatesController.stream;
     mutex = MutexImpl();
     isInitialized = _init();
   }
@@ -75,9 +74,7 @@ class SqliteDatabaseImpl
   Future<void> _init() async {
     _connection = await openFactory.openConnection(SqliteOpenOptions(
         primaryConnection: true, readOnly: false, mutex: mutex));
-    _connection.updates!.forEach((update) {
-      updatesController.add(update);
-    });
+    updates = _connection.updates!;
   }
 
   T _runZoned<T>(T Function() callback, {required String debugContext}) {
@@ -107,6 +104,16 @@ class SqliteDatabaseImpl
       return _connection.writeLock(callback,
           lockTimeout: lockTimeout, debugContext: debugContext);
     }, debugContext: debugContext ?? 'execute()');
+  }
+
+  @override
+  Future<T> writeTransaction<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout}) async {
+    await isInitialized;
+    return _runZoned(
+        () => _connection.writeTransaction(callback, lockTimeout: lockTimeout),
+        debugContext: 'writeTransaction()');
   }
 
   @override

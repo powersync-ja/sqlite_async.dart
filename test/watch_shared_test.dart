@@ -1,7 +1,3 @@
-@TestOn('!browser')
-// TODO watched query tests on web
-// require a forked version of Drift's worker
-// The forked version is not published yet.
 import 'dart:async';
 import 'dart:math';
 import 'package:sqlite_async/sqlite_async.dart';

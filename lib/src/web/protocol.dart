@@ -4,9 +4,6 @@ library;
 
 import 'dart:js_interop';
 
-/// Custom function which exposes CommonDatabase.autocommit
-const sqliteAsyncAutoCommitCommand = 'sqlite_async_autocommit';
-
 enum CustomDatabaseMessageKind {
   requestSharedLock,
   requestExclusiveLock,
