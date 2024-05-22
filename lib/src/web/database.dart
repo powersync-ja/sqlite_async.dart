@@ -212,6 +212,7 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
+    // TODO offload this to a custom request for single round trip
     final isAutoCommit = await getAutoCommit();
     if (isAutoCommit && !sql.toLowerCase().contains('begin')) {
       throw SqliteException(0,
@@ -223,6 +224,7 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
   @override
   Future<void> executeBatch(
       String sql, List<List<Object?>> parameterSets) async {
+    // TODO offload this to a custom request for single round trip
     final isAutoCommit = await getAutoCommit();
     if (isAutoCommit && !sql.toLowerCase().contains('begin')) {
       throw SqliteException(0,

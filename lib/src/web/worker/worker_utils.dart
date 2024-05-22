@@ -1,5 +1,4 @@
 import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
 
 import 'package:mutex/mutex.dart';
 import 'package:sqlite3/wasm.dart';
@@ -8,7 +7,7 @@ import 'package:sqlite_async/sqlite3_common.dart';
 
 import '../protocol.dart';
 
-final class AsyncSqliteController extends DatabaseController {
+base class AsyncSqliteController extends DatabaseController {
   @override
   Future<WorkerDatabase> openDatabase(
       WasmSqlite3 sqlite3, String path, String vfs) async {

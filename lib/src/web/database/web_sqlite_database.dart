@@ -21,6 +21,9 @@ class SqliteDatabaseImpl
     return _connection.closed;
   }
 
+  final StreamController<UpdateNotification> updatesController =
+      StreamController.broadcast();
+
   @override
   late Stream<UpdateNotification> updates;
 
@@ -68,13 +71,17 @@ class SqliteDatabaseImpl
   SqliteDatabaseImpl.withFactory(this.openFactory,
       {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
     mutex = MutexImpl();
+    // This way the `updates` member is available synchronously
+    updates = updatesController.stream;
     isInitialized = _init();
   }
 
   Future<void> _init() async {
     _connection = await openFactory.openConnection(SqliteOpenOptions(
         primaryConnection: true, readOnly: false, mutex: mutex));
-    updates = _connection.updates!;
+    _connection.updates!.forEach((update) {
+      updatesController.add(update);
+    });
   }
 
   T _runZoned<T>(T Function() callback, {required String debugContext}) {

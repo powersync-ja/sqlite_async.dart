@@ -7,7 +7,7 @@ import 'package:sqlite_async/src/web/web_mutex.dart';
 
 import 'database.dart';
 
-Map<SqliteOptions, WebSqlite> webSQLiteImplementations = {};
+Map<String, FutureOr<WebSqlite>> webSQLiteImplementations = {};
 
 /// Web implementation of [AbstractDefaultSqliteOpenFactory]
 class DefaultSqliteOpenFactory
@@ -20,15 +20,18 @@ class DefaultSqliteOpenFactory
       {required super.path,
       super.sqliteOptions = const SqliteOptions.defaults()})
       : _initialized = Future.sync(() {
-          if (webSQLiteImplementations.containsKey(sqliteOptions)) {
-            return webSQLiteImplementations[sqliteOptions]!;
+          final cacheKey = sqliteOptions.webSqliteOptions.wasmUri +
+              sqliteOptions.webSqliteOptions.workerUri;
+
+          if (webSQLiteImplementations.containsKey(cacheKey)) {
+            return webSQLiteImplementations[cacheKey]!;
           }
 
-          webSQLiteImplementations[sqliteOptions] = WebSqlite.open(
+          webSQLiteImplementations[cacheKey] = WebSqlite.open(
             wasmModule: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
             worker: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
           );
-          return webSQLiteImplementations[sqliteOptions]!;
+          return webSQLiteImplementations[cacheKey]!;
         });
 
   @override
