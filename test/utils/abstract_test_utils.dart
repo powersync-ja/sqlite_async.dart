@@ -28,8 +28,12 @@ abstract class AbstractTestUtils {
   }
 
   /// Creates a SqliteDatabaseConnection
-  Future<SqliteDatabase> setupDatabase({String? path}) async {
-    final db = SqliteDatabase.withFactory(await testFactory(path: path));
+  Future<SqliteDatabase> setupDatabase(
+      {String? path,
+      List<String> initStatements = const [],
+      int maxReaders = SqliteDatabase.defaultMaxReaders}) async {
+    final db = SqliteDatabase.withFactory(await testFactory(path: path),
+        maxReaders: maxReaders);
     await db.initialize();
     return db;
   }
