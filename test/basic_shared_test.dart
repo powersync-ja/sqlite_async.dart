@@ -38,8 +38,6 @@ void main() {
               'INSERT INTO test_data(description) VALUES(?)', ['test']);
         }, throwsA((e) => e is LockError && e.message.contains('tx.execute')));
       });
-      // Uncomment this to break this test
-      // await db.close();
     });
 
     test('should allow PRAMGAs', () async {
