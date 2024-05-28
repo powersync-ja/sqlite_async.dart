@@ -58,7 +58,6 @@ class TestUtils extends AbstractTestUtils {
 
   @override
   List<String> findSqliteLibraries() {
-    // Maintains consistency with native tests
     return ['sqlite3.wasm'];
   }
 }

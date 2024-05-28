@@ -21,6 +21,8 @@ void main() {
       await testUtils.cleanDb(path: path);
     });
 
+    generateSourceTableTests(testUtils.findSqliteLibraries(), () => path);
+
     test('watch in isolate', () async {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);

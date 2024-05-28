@@ -12,8 +12,6 @@ Map<String, FutureOr<WebSqlite>> webSQLiteImplementations = {};
 /// Web implementation of [AbstractDefaultSqliteOpenFactory]
 class DefaultSqliteOpenFactory
     extends AbstractDefaultSqliteOpenFactory<CommonDatabase> {
-  // todo: For users with multiple databases, the WebSqlite should be shared
-  // between the different paths.
   final Future<WebSqlite> _initialized;
 
   DefaultSqliteOpenFactory(

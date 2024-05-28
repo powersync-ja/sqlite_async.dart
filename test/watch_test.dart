@@ -21,47 +21,50 @@ createTables(SqliteDatabase db) async {
   });
 }
 
+// Web and native have different requirements for `sqlitePaths`.
+void generateSourceTableTests(
+    List<String> sqlitePaths, String Function() getPath) {
+  for (var sqlite in sqlitePaths) {
+    test('getSourceTables - $sqlite', () async {
+      final db = SqliteDatabase.withFactory(
+          await testUtils.testFactory(path: getPath(), sqlitePath: sqlite));
+      await db.initialize();
+      await createTables(db);
+
+      var versionRow = await db.get('SELECT sqlite_version() as version');
+      print('Testing SQLite ${versionRow['version']} - $sqlite');
+
+      final tables = await getSourceTables(db,
+          'SELECT * FROM assets INNER JOIN customers ON assets.customer_id = customers.id');
+      expect(tables, equals({'assets', 'customers'}));
+
+      final tables2 = await getSourceTables(db,
+          'SELECT count() FROM assets INNER JOIN "other_customers" AS oc ON assets.customer_id = oc.id AND assets.make = oc.name');
+      expect(tables2, equals({'assets', 'other_customers'}));
+
+      final tables3 = await getSourceTables(db, 'SELECT count() FROM assets');
+      expect(tables3, equals({'assets'}));
+
+      final tables4 =
+          await getSourceTables(db, 'SELECT count() FROM assets_alias');
+      expect(tables4, equals({'assets'}));
+
+      final tables5 =
+          await getSourceTables(db, 'SELECT sqlite_version() as version');
+      expect(tables5, equals(<String>{}));
+    });
+  }
+}
+
 void main() {
+  // Shared tests for watch
   group('Query Watch Tests', () {
     late String path;
-    List<String> sqlitePaths = [];
 
     setUp(() async {
       path = testUtils.dbPath();
-      sqlitePaths = testUtils.findSqliteLibraries();
       await testUtils.cleanDb(path: path);
     });
-
-    for (var sqlite in sqlitePaths) {
-      test('getSourceTables - $sqlite', () async {
-        final db = SqliteDatabase.withFactory(
-            await testUtils.testFactory(path: path, sqlitePath: sqlite));
-        await db.initialize();
-        await createTables(db);
-
-        var versionRow = await db.get('SELECT sqlite_version() as version');
-        print('Testing SQLite ${versionRow['version']} - $sqlite');
-
-        final tables = await getSourceTables(db,
-            'SELECT * FROM assets INNER JOIN customers ON assets.customer_id = customers.id');
-        expect(tables, equals({'assets', 'customers'}));
-
-        final tables2 = await getSourceTables(db,
-            'SELECT count() FROM assets INNER JOIN "other_customers" AS oc ON assets.customer_id = oc.id AND assets.make = oc.name');
-        expect(tables2, equals({'assets', 'other_customers'}));
-
-        final tables3 = await getSourceTables(db, 'SELECT count() FROM assets');
-        expect(tables3, equals({'assets'}));
-
-        final tables4 =
-            await getSourceTables(db, 'SELECT count() FROM assets_alias');
-        expect(tables4, equals({'assets'}));
-
-        final tables5 =
-            await getSourceTables(db, 'SELECT sqlite_version() as version');
-        expect(tables5, equals(<String>{}));
-      });
-    }
 
     test('watch', () async {
       final db = await testUtils.setupDatabase(path: path);
