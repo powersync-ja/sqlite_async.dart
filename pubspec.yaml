@@ -6,7 +6,7 @@ environment:
   sdk: '>=3.3.0 <4.0.0'
 
 dependencies:
-  sqlite3_web: ^0.1.1-wip
+  sqlite3_web: ^0.1.2-wip
   sqlite3: ^2.4.3
   async: ^2.10.0
   collection: ^1.17.0
