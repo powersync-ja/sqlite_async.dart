@@ -17,7 +17,7 @@ void main() {
       await testUtils.cleanDb(path: path);
     });
 
-    /// Can't use testUtils instance here since it requires spawnHybridUri
+    /// Can't use testUtils instance here directly (can be in callback) since it requires spawnHybridUri
     /// which is not available when declaring tests
     generateSourceTableTests(['sqlite3.wasm'], (String sqlitePath) async {
       final db =
