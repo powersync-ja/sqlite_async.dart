@@ -22,13 +22,11 @@ createTables(SqliteDatabase db) async {
 }
 
 // Web and native have different requirements for `sqlitePaths`.
-void generateSourceTableTests(
-    List<String> sqlitePaths, String Function() getPath) {
+void generateSourceTableTests(List<String> sqlitePaths,
+    Future<SqliteDatabase> Function(String sqlitePath) generateDB) {
   for (var sqlite in sqlitePaths) {
     test('getSourceTables - $sqlite', () async {
-      final db = SqliteDatabase.withFactory(
-          await testUtils.testFactory(path: getPath(), sqlitePath: sqlite));
-      await db.initialize();
+      final db = await generateDB(sqlite);
       await createTables(db);
 
       var versionRow = await db.get('SELECT sqlite_version() as version');
