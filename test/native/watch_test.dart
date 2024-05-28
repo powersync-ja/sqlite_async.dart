@@ -5,27 +5,14 @@ import 'dart:math';
 
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite_async/src/utils/database_utils.dart';
 import 'package:test/test.dart';
 
 import '../utils/test_utils_impl.dart';
+import '../watch_test.dart';
 
 final testUtils = TestUtils();
 
 void main() {
-  createTables(SqliteDatabase db) async {
-    await db.writeTransaction((tx) async {
-      await tx.execute(
-          'CREATE TABLE assets(id INTEGER PRIMARY KEY AUTOINCREMENT, make TEXT, customer_id INTEGER)');
-      await tx.execute('CREATE INDEX assets_customer ON assets(customer_id)');
-      await tx.execute(
-          'CREATE TABLE customers(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)');
-      await tx.execute(
-          'CREATE TABLE other_customers(id INTEGER PRIMARY KEY AUTOINCREMENT, name TEXT)');
-      await tx.execute('CREATE VIEW assets_alias AS SELECT * FROM assets');
-    });
-  }
-
   group('Query Watch Tests', () {
     late String path;
 
@@ -33,37 +20,6 @@ void main() {
       path = testUtils.dbPath();
       await testUtils.cleanDb(path: path);
     });
-
-    for (var sqlite in testUtils.findSqliteLibraries()) {
-      test('getSourceTables - $sqlite', () async {
-        final db = SqliteDatabase.withFactory(
-            await testUtils.testFactory(path: path, sqlitePath: sqlite));
-        await db.initialize();
-        await createTables(db);
-
-        var versionRow = await db.get('SELECT sqlite_version() as version');
-        print('Testing SQLite ${versionRow['version']} - $sqlite');
-
-        final tables = await getSourceTables(db,
-            'SELECT * FROM assets INNER JOIN customers ON assets.customer_id = customers.id');
-        expect(tables, equals({'assets', 'customers'}));
-
-        final tables2 = await getSourceTables(db,
-            'SELECT count() FROM assets INNER JOIN "other_customers" AS oc ON assets.customer_id = oc.id AND assets.make = oc.name');
-        expect(tables2, equals({'assets', 'other_customers'}));
-
-        final tables3 = await getSourceTables(db, 'SELECT count() FROM assets');
-        expect(tables3, equals({'assets'}));
-
-        final tables4 =
-            await getSourceTables(db, 'SELECT count() FROM assets_alias');
-        expect(tables4, equals({'assets'}));
-
-        final tables5 =
-            await getSourceTables(db, 'SELECT sqlite_version() as version');
-        expect(tables5, equals(<String>{}));
-      });
-    }
 
     test('watch in isolate', () async {
       final db = await testUtils.setupDatabase(path: path);
