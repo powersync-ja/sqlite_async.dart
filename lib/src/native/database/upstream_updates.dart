@@ -2,10 +2,10 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:meta/meta.dart';
-import '../../common/port_channel.dart';
-import '../../update_notification.dart';
-import '../../utils/native_database_utils.dart';
-import '../../utils/shared_utils.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/native_database_utils.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 
 mixin UpStreamTableUpdates {
   final StreamController<UpdateNotification> updatesController =
