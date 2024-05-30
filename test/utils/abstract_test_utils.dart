@@ -22,9 +22,12 @@ abstract class AbstractTestUtils {
   Future<TestDefaultSqliteOpenFactory> testFactory(
       {String? path,
       String sqlitePath = '',
+      List<String> initStatements = const [],
       SqliteOptions options = const SqliteOptions.defaults()}) async {
     return TestDefaultSqliteOpenFactory(
-        path: path ?? dbPath(), sqliteOptions: options);
+      path: path ?? dbPath(),
+      sqliteOptions: options,
+    );
   }
 
   /// Creates a SqliteDatabaseConnection
