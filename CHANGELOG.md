@@ -1,3 +1,7 @@
+## 0.7.0-alpha.4
+
+- Add latest changes from master
+
 ## 0.7.0-alpha.3
 
 - Add latest changes from master
