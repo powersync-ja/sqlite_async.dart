@@ -58,7 +58,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         final parameters = [
           for (final raw in (message.rawParameters).toDart) raw.dartify()
         ];
-        if (database.autocommit && !sql.toLowerCase().contains('begin')) {
+        if (database.autocommit) {
           throw SqliteException(0,
               "Transaction rolled back by earlier statement. Cannot execute: $sql");
         }
@@ -74,7 +74,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         final parameters = [
           for (final raw in (message.rawParameters).toDart) raw.dartify()
         ];
-        if (database.autocommit && !sql.toLowerCase().contains('begin')) {
+        if (database.autocommit) {
           throw SqliteException(0,
               "Transaction rolled back by earlier statement. Cannot execute: $sql");
         }

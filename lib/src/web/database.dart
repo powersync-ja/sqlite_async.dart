@@ -4,6 +4,7 @@ import 'dart:js_interop';
 import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/mutex.dart';
+import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
@@ -85,32 +86,28 @@ class WebDatabase
       _database.updates.map((event) => UpdateNotification({event.tableName}));
 
   @override
-  Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
-    return _writeLock(callback,
-        lockTimeout: lockTimeout, debugContext: debugContext);
-  }
-
-  @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout}) {
-    return _writeLock((ctx) => internalWriteTransaction(ctx, callback),
+    return writeLock(
+        (writeContext) =>
+            internalWriteTransaction(writeContext, (context) async {
+              // All execute calls done in the callback will be checked for the
+              // autocommit state
+              return callback(_ExclusiveTransactionContext(this, writeContext));
+            }),
         debugContext: 'writeTransaction()',
-        isTransaction: true,
         lockTimeout: lockTimeout);
   }
 
+  @override
+
   /// Internal writeLock which intercepts transaction context's to verify auto commit is not active
-  Future<T> _writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout,
-      String? debugContext,
-      bool isTransaction = false}) async {
+  Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout, String? debugContext}) async {
     if (_mutex case var mutex?) {
       return await mutex.lock(() async {
-        final context = isTransaction
-            ? _ExclusiveTransactionContext(this)
-            : _ExclusiveContext(this);
+        final context = _ExclusiveContext(this);
         try {
           return await callback(context);
         } finally {
@@ -121,11 +118,7 @@ class WebDatabase
       // No custom mutex, coordinate locks through shared worker.
       await _database.customRequest(CustomDatabaseMessage(
           CustomDatabaseMessageKind.requestExclusiveLock));
-      final context = isTransaction
-          ? _ExclusiveTransactionContext(this)
-          : _ExclusiveContext(this);
-      ;
-
+      final context = _ExclusiveContext(this);
       try {
         return await callback(context);
       } finally {
@@ -207,47 +200,56 @@ class _ExclusiveContext extends _SharedContext implements SqliteWriteContext {
 }
 
 class _ExclusiveTransactionContext extends _ExclusiveContext {
-  _ExclusiveTransactionContext(super.database);
+  SqliteWriteContext baseContext;
+  _ExclusiveTransactionContext(super.database, this.baseContext);
+
+  @override
+  bool get closed => baseContext.closed;
 
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    var res = await _database._database.customRequest(CustomDatabaseMessage(
-        CustomDatabaseMessageKind.executeInTransaction, sql, parameters));
-    var result = Map<String, dynamic>.from((res as JSObject).dartify() as Map);
-    final columnNames = [
-      for (final entry in result['columnNames']) entry as String
-    ];
-    final rawTableNames = result['tableNames'];
-    final tableNames = rawTableNames != null
-        ? [
-            for (final entry in (rawTableNames as List<Object?>))
-              entry as String
-          ]
-        : null;
+    return await wrapSqliteException(() async {
+      var res = await _database._database.customRequest(CustomDatabaseMessage(
+          CustomDatabaseMessageKind.executeInTransaction, sql, parameters));
+      var result =
+          Map<String, dynamic>.from((res as JSObject).dartify() as Map);
+      final columnNames = [
+        for (final entry in result['columnNames']) entry as String
+      ];
+      final rawTableNames = result['tableNames'];
+      final tableNames = rawTableNames != null
+          ? [
+              for (final entry in (rawTableNames as List<Object?>))
+                entry as String
+            ]
+          : null;
 
-    final rows = <List<Object?>>[];
-    for (final row in (result['rows'] as List<Object?>)) {
-      final dartRow = <Object?>[];
+      final rows = <List<Object?>>[];
+      for (final row in (result['rows'] as List<Object?>)) {
+        final dartRow = <Object?>[];
 
-      for (final column in (row as List<Object?>)) {
-        dartRow.add(column);
+        for (final column in (row as List<Object?>)) {
+          dartRow.add(column);
+        }
+
+        rows.add(dartRow);
       }
-
-      rows.add(dartRow);
-    }
-    final resultSet = ResultSet(columnNames, tableNames, rows);
-    return resultSet;
+      final resultSet = ResultSet(columnNames, tableNames, rows);
+      return resultSet;
+    });
   }
 
   @override
   Future<void> executeBatch(
       String sql, List<List<Object?>> parameterSets) async {
-    for (final set in parameterSets) {
-      await _database._database.customRequest(CustomDatabaseMessage(
-          CustomDatabaseMessageKind.executeBatchInTransaction, sql, set));
-    }
-    return;
+    return await wrapSqliteException(() async {
+      for (final set in parameterSets) {
+        await _database._database.customRequest(CustomDatabaseMessage(
+            CustomDatabaseMessageKind.executeBatchInTransaction, sql, set));
+      }
+      return;
+    });
   }
 }
 
