@@ -1,4 +1,5 @@
 import 'dart:js_interop';
+import 'dart:js_util' as js_util;
 
 import 'package:mutex/mutex.dart';
 import 'package:sqlite3/wasm.dart';
@@ -52,8 +53,44 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         throw UnsupportedError('This is a response, not a request');
       case CustomDatabaseMessageKind.getAutoCommit:
         return database.autocommit.toJS;
+      case CustomDatabaseMessageKind.executeInTransaction:
+        final sql = message.rawSql.toDart;
+        final parameters = [
+          for (final raw in (message.rawParameters).toDart) raw.dartify()
+        ];
+        if (database.autocommit && !sql.toLowerCase().contains('begin')) {
+          throw SqliteException(0,
+              "Transaction rolled back by earlier statement. Cannot execute: $sql");
+        }
+        var res = database.select(sql, parameters);
+
+        var dartObject = resultSetToDartMap(res);
+
+        var jsObject = js_util.jsify(dartObject);
+
+        return jsObject;
+      case CustomDatabaseMessageKind.executeBatchInTransaction:
+        final sql = message.rawSql.toDart;
+        final parameters = [
+          for (final raw in (message.rawParameters).toDart) raw.dartify()
+        ];
+        if (database.autocommit && !sql.toLowerCase().contains('begin')) {
+          throw SqliteException(0,
+              "Transaction rolled back by earlier statement. Cannot execute: $sql");
+        }
+        database.execute(sql, parameters);
     }
 
     return CustomDatabaseMessage(CustomDatabaseMessageKind.lockObtained);
+  }
+
+  Map<String, dynamic> resultSetToDartMap(ResultSet resultSet) {
+    var dartObject = <String, dynamic>{};
+
+    dartObject['columnNames'] = resultSet.columnNames;
+    dartObject['tableNames'] = resultSet.tableNames;
+    dartObject['rows'] = resultSet.rows;
+
+    return dartObject;
   }
 }

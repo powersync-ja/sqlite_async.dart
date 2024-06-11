@@ -212,25 +212,42 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    // TODO offload this to a custom request for single round trip
-    final isAutoCommit = await getAutoCommit();
-    if (isAutoCommit && !sql.toLowerCase().contains('begin')) {
-      throw SqliteException(0,
-          "Transaction rolled back by earlier statement. Cannot execute: $sql");
+    var res = await _database._database.customRequest(CustomDatabaseMessage(
+        CustomDatabaseMessageKind.executeInTransaction, sql, parameters));
+    var result = Map<String, dynamic>.from((res as JSObject).dartify() as Map);
+    final columnNames = [
+      for (final entry in result['columnNames']) entry as String
+    ];
+    final rawTableNames = result['tableNames'];
+    final tableNames = rawTableNames != null
+        ? [
+            for (final entry in (rawTableNames as List<Object?>))
+              entry as String
+          ]
+        : null;
+
+    final rows = <List<Object?>>[];
+    for (final row in (result['rows'] as List<Object?>)) {
+      final dartRow = <Object?>[];
+
+      for (final column in (row as List<Object?>)) {
+        dartRow.add(column);
+      }
+
+      rows.add(dartRow);
     }
-    return super.execute(sql, parameters);
+    final resultSet = ResultSet(columnNames, tableNames, rows);
+    return resultSet;
   }
 
   @override
   Future<void> executeBatch(
       String sql, List<List<Object?>> parameterSets) async {
-    // TODO offload this to a custom request for single round trip
-    final isAutoCommit = await getAutoCommit();
-    if (isAutoCommit && !sql.toLowerCase().contains('begin')) {
-      throw SqliteException(0,
-          "Transaction rolled back by earlier statement. Cannot execute: $sql");
+    for (final set in parameterSets) {
+      await _database._database.customRequest(CustomDatabaseMessage(
+          CustomDatabaseMessageKind.executeBatchInTransaction, sql, set));
     }
-    return super.executeBatch(sql, parameterSets);
+    return;
   }
 }
 
