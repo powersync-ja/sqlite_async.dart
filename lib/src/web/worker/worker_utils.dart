@@ -64,9 +64,9 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         }
         var res = database.select(sql, parameters);
 
-        var dartObject = resultSetToDartMap(res);
+        var dartMap = resultSetToMap(res);
 
-        var jsObject = js_util.jsify(dartObject);
+        var jsObject = js_util.jsify(dartMap);
 
         return jsObject;
       case CustomDatabaseMessageKind.executeBatchInTransaction:
@@ -84,13 +84,13 @@ class AsyncSqliteDatabase extends WorkerDatabase {
     return CustomDatabaseMessage(CustomDatabaseMessageKind.lockObtained);
   }
 
-  Map<String, dynamic> resultSetToDartMap(ResultSet resultSet) {
-    var dartObject = <String, dynamic>{};
+  Map<String, dynamic> resultSetToMap(ResultSet resultSet) {
+    var resultSetMap = <String, dynamic>{};
 
-    dartObject['columnNames'] = resultSet.columnNames;
-    dartObject['tableNames'] = resultSet.tableNames;
-    dartObject['rows'] = resultSet.rows;
+    resultSetMap['columnNames'] = resultSet.columnNames;
+    resultSetMap['tableNames'] = resultSet.tableNames;
+    resultSetMap['rows'] = resultSet.rows;
 
-    return dartObject;
+    return resultSetMap;
   }
 }
