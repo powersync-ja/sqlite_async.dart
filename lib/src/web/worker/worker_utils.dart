@@ -8,6 +8,9 @@ import 'package:sqlite_async/sqlite3_common.dart';
 
 import '../protocol.dart';
 
+/// A base class for a web worker SQLite controller.
+/// This returns an instance of [AsyncSqliteDatabase] which
+/// can be extended to perform custom requests.
 base class AsyncSqliteController extends DatabaseController {
   @override
   Future<WorkerDatabase> openDatabase(
@@ -26,6 +29,8 @@ base class AsyncSqliteController extends DatabaseController {
   }
 }
 
+/// Worker database which handles custom requests. These requests are used for
+/// handling exclusive locks for shared web workers and custom SQL execution scripts.
 class AsyncSqliteDatabase extends WorkerDatabase {
   @override
   final CommonDatabase database;

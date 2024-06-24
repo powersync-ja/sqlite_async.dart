@@ -45,14 +45,20 @@ class WebDatabase
   Future<void> get isInitialized => initialize();
 
   @override
+
+  /// Not relevant for web.
   Never isolateConnectionFactory() {
     throw UnimplementedError();
   }
 
   @override
+
+  /// Not supported on web. There is only 1 connection.
   int get maxReaders => throw UnimplementedError();
 
   @override
+
+  /// Not relevant for web.
   Never get openFactory => throw UnimplementedError();
 
   @override
@@ -209,6 +215,12 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
+    // Operations inside transactions are executed with custom requests
+    // in order to verify that the connection does not have autocommit enabled.
+    // The worker will check if autocommit = true before executing the SQL.
+    // An exception will be thrown if autocommit is enabled.
+    // The custom request which does the above will return the ResultSet as a formatted
+    // JavaScript object. This is the converted into a Dart ResultSet.
     return await wrapSqliteException(() async {
       var res = await _database._database.customRequest(CustomDatabaseMessage(
           CustomDatabaseMessageKind.executeInTransaction, sql, parameters));
