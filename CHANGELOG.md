@@ -1,4 +1,4 @@
-## 0.6.2
+## 0.7.0
 
 - Fix `ArgumentError (Invalid argument(s): argument value for 'return_value' is null)` in sqlite3 by upgrading to version 2.4.4.
 

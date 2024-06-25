@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:sqlite_async/sqlite3_common.dart';
+import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
@@ -11,7 +11,7 @@ import 'package:sqlite_async/src/sqlite_connection.dart';
 class IsolateConnectionFactoryImpl<Database extends CommonDatabase>
     implements IsolateConnectionFactory<Database> {
   @override
-  AbstractDefaultSqliteOpenFactory openFactory;
+  AbstractDefaultSqliteOpenFactory<Database> openFactory;
 
   IsolateConnectionFactoryImpl(
       {required this.openFactory,
