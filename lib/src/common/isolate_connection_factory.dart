@@ -1,13 +1,14 @@
 import 'dart:async';
-import 'package:sqlite3/sqlite3.dart' as sqlite;
+import 'package:sqlite_async/sqlite3.dart';
+import 'package:sqlite_async/sqlite3_common.dart' as sqlite;
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/impl/isolate_connection_factory_impl.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'port_channel.dart';
 
-mixin IsolateOpenFactoryMixin {
-  AbstractDefaultSqliteOpenFactory get openFactory;
+mixin IsolateOpenFactoryMixin<Database extends sqlite.CommonDatabase> {
+  AbstractDefaultSqliteOpenFactory<Database> get openFactory;
 
   /// Opens a synchronous sqlite.Database directly in the current isolate.
   ///
@@ -16,14 +17,15 @@ mixin IsolateOpenFactoryMixin {
   ///     with SQLITE_BUSY if another isolate is using the database at the same time.
   ///  2. Other connections are not notified of any updates to tables made within
   ///     this connection.
-  FutureOr<sqlite.Database> openRawDatabase({bool readOnly = false}) async {
+  FutureOr<Database> openRawDatabase({bool readOnly = false}) async {
     return openFactory
         .open(SqliteOpenOptions(primaryConnection: false, readOnly: readOnly));
   }
 }
 
 /// A connection factory that can be passed to different isolates.
-abstract class IsolateConnectionFactory with IsolateOpenFactoryMixin {
+abstract class IsolateConnectionFactory<Database extends sqlite.CommonDatabase>
+    with IsolateOpenFactoryMixin<Database> {
   Mutex get mutex;
 
   SerializedPortClient get upstreamPort;
@@ -35,7 +37,7 @@ abstract class IsolateConnectionFactory with IsolateOpenFactoryMixin {
     return IsolateConnectionFactoryImpl(
         openFactory: openFactory,
         mutex: mutex,
-        upstreamPort: upstreamPort) as IsolateConnectionFactory;
+        upstreamPort: upstreamPort) as IsolateConnectionFactory<Database>;
   }
 
   /// Open a new SqliteConnection.

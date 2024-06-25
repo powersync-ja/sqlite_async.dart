@@ -1,7 +1,7 @@
 import 'dart:async';
 import 'package:meta/meta.dart';
 
-import 'package:sqlite_async/sqlite3.dart' as sqlite;
+import 'package:sqlite_async/sqlite3_common.dart' as sqlite;
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
@@ -11,11 +11,11 @@ import 'package:sqlite_async/src/update_notification.dart';
 ///
 /// Since connections are opened in dedicated background isolates, this class
 /// must be safe to pass to different isolates.
-abstract class SqliteOpenFactory {
+abstract class SqliteOpenFactory<Database extends sqlite.CommonDatabase> {
   String get path;
 
   /// Opens a direct connection to the SQLite database
-  FutureOr<sqlite.Database> open(SqliteOpenOptions options);
+  FutureOr<Database> open(SqliteOpenOptions options);
 
   /// Opens an asynchronous [SqliteConnection]
   FutureOr<SqliteConnection> openConnection(SqliteOpenOptions options);
@@ -61,7 +61,9 @@ class SqliteOpenOptions {
 /// to configure the connection.
 ///
 /// Override the [open] method to customize the process.
-abstract class AbstractDefaultSqliteOpenFactory implements SqliteOpenFactory {
+abstract class AbstractDefaultSqliteOpenFactory<
+        Database extends sqlite.CommonDatabase>
+    implements SqliteOpenFactory<Database> {
   @override
   final String path;
   final SqliteOptions sqliteOptions;
@@ -75,13 +77,13 @@ abstract class AbstractDefaultSqliteOpenFactory implements SqliteOpenFactory {
   @protected
 
   /// Opens a direct connection to a SQLite database connection
-  FutureOr<sqlite.Database> openDB(SqliteOpenOptions options);
+  FutureOr<Database> openDB(SqliteOpenOptions options);
 
   @override
 
   /// Opens a direct connection to a SQLite database connection
   /// and executes setup pragma statements to initialize the DB
-  FutureOr<sqlite.Database> open(SqliteOpenOptions options) async {
+  FutureOr<Database> open(SqliteOpenOptions options) async {
     var db = await openDB(options);
 
     // Pragma statements don't have the same BUSY_TIMEOUT behavior as normal statements.
