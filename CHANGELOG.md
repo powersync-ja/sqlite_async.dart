@@ -1,6 +1,8 @@
 ## 0.7.0
 
-- Fix `ArgumentError (Invalid argument(s): argument value for 'return_value' is null)` in sqlite3 by upgrading to version 2.4.4.
+- BREAKING CHANGE: Update all Database types to use a `CommonDatabase` interface.
+- BREAKING CHANGE: Update the openDB and open mthods to be synchronous.
+- Fix `ArgumentError (Invalid argument(s): argument value for 'return_value' is null)` in sqlite3 when closing the database connection by upgrading to version 2.4.4.
 
 ## 0.6.1
 
