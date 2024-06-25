@@ -264,7 +264,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
     await client.post(const InitDb());
   }
 
-  final db = await params.openFactory.open(SqliteOpenOptions(
+  final db = params.openFactory.open(SqliteOpenOptions(
       primaryConnection: params.primary, readOnly: params.readOnly));
 
   runZonedGuarded(() async {

@@ -1,4 +1,3 @@
-import 'dart:async';
 import 'dart:ffi';
 
 import 'package:sqlite3/common.dart';
