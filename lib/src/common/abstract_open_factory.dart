@@ -15,7 +15,7 @@ abstract class SqliteOpenFactory<Database extends sqlite.CommonDatabase> {
   String get path;
 
   /// Opens a direct connection to the SQLite database
-  FutureOr<Database> open(SqliteOpenOptions options);
+  Database open(SqliteOpenOptions options);
 
   /// Opens an asynchronous [SqliteConnection]
   FutureOr<SqliteConnection> openConnection(SqliteOpenOptions options);
@@ -77,14 +77,14 @@ abstract class AbstractDefaultSqliteOpenFactory<
   @protected
 
   /// Opens a direct connection to a SQLite database connection
-  FutureOr<Database> openDB(SqliteOpenOptions options);
+  Database openDB(SqliteOpenOptions options);
 
   @override
 
   /// Opens a direct connection to a SQLite database connection
   /// and executes setup pragma statements to initialize the DB
-  FutureOr<Database> open(SqliteOpenOptions options) async {
-    var db = await openDB(options);
+  Database open(SqliteOpenOptions options) {
+    var db = openDB(options);
 
     // Pragma statements don't have the same BUSY_TIMEOUT behavior as normal statements.
     // We add a manual retry loop for those.
