@@ -32,19 +32,19 @@ jobs:
         include:
           - sqlite_version: "3440200"
             sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3440200.tar.gz"
-            dart_sdk: 3.3.3
+            dart_sdk: 3.4.0
           - sqlite_version: "3430200"
             sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3430200.tar.gz"
-            dart_sdk: 3.3.3
+            dart_sdk: 3.4.0
           - sqlite_version: "3420000"
             sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3420000.tar.gz"
-            dart_sdk: 3.3.3
+            dart_sdk: 3.4.0
           - sqlite_version: "3410100"
             sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3410100.tar.gz"
-            dart_sdk: 3.3.3
+            dart_sdk: 3.4.0
           - sqlite_version: "3380000"
             sqlite_url: "https://www.sqlite.org/2022/sqlite-autoconf-3380000.tar.gz"
-            dart_sdk: 3.3.3
+            dart_sdk: 3.4.0
     steps:
       - uses: actions/checkout@v3
       - uses: dart-lang/setup-dart@v1
