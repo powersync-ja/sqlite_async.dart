@@ -11,8 +11,8 @@ class TestOpenFactory extends DefaultSqliteOpenFactory {
   TestOpenFactory({required super.path, super.sqliteOptions});
 
   @override
-  FutureOr<CommonDatabase> open(SqliteOpenOptions options) async {
-    final db = await super.open(options);
+  CommonDatabase open(SqliteOpenOptions options) {
+    final db = super.open(options);
 
     db.createFunction(
       functionName: 'sleep',

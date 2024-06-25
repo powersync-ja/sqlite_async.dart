@@ -17,7 +17,7 @@ class TestOpenFactory extends DefaultSqliteOpenFactory {
       this.sqlitePath = defaultSqlitePath});
 
   @override
-  FutureOr<CommonDatabase> open(SqliteOpenOptions options) async {
+  CommonDatabase open(SqliteOpenOptions options) {
     // For details, see:
     // https://pub.dev/packages/sqlite3#manually-providing-sqlite3-libraries
     sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
