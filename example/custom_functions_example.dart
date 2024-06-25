@@ -3,6 +3,7 @@ import 'dart:io';
 import 'dart:isolate';
 
 import 'package:sqlite3/common.dart';
+import 'package:sqlite_async/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
 
 /// Since the functions need to be created on every SQLite connection,
@@ -11,7 +12,7 @@ class TestOpenFactory extends DefaultSqliteOpenFactory {
   TestOpenFactory({required super.path, super.sqliteOptions});
 
   @override
-  FutureOr<CommonDatabase> open(SqliteOpenOptions options) async {
+  FutureOr<sqlite.Database> open(SqliteOpenOptions options) async {
     final db = await super.open(options);
 
     db.createFunction(

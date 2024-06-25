@@ -8,6 +8,7 @@ import 'package:glob/list_local_fs.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite3/open.dart' as sqlite_open;
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import 'abstract_test_utils.dart';
 
@@ -21,7 +22,7 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
       initStatements});
 
   @override
-  FutureOr<CommonDatabase> open(SqliteOpenOptions options) async {
+  FutureOr<sqlite.Database> open(SqliteOpenOptions options) async {
     sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
       return DynamicLibrary.open(sqlitePath);
     });

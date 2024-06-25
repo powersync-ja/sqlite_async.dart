@@ -1,6 +1,6 @@
 import 'dart:async';
 
-import 'package:sqlite3/common.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
@@ -8,10 +8,9 @@ import 'package:sqlite_async/src/common/port_channel.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 
 /// A connection factory that can be passed to different isolates.
-class IsolateConnectionFactoryImpl<Database extends CommonDatabase>
-    implements IsolateConnectionFactory<Database> {
+class IsolateConnectionFactoryImpl implements IsolateConnectionFactory {
   @override
-  AbstractDefaultSqliteOpenFactory<Database> openFactory;
+  AbstractDefaultSqliteOpenFactory openFactory;
 
   IsolateConnectionFactoryImpl(
       {required this.openFactory,
@@ -35,7 +34,7 @@ class IsolateConnectionFactoryImpl<Database extends CommonDatabase>
   ///  2. Other connections are not notified of any updates to tables made within
   ///     this connection.
   @override
-  Future<Database> openRawDatabase({bool readOnly = false}) async {
+  Future<sqlite.Database> openRawDatabase({bool readOnly = false}) async {
     throw UnimplementedError();
   }
 
