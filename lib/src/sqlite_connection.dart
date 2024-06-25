@@ -1,10 +1,11 @@
 import 'dart:async';
 
 import 'package:sqlite3/common.dart' as sqlite;
+import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 
 /// Abstract class representing calls available in a read-only or read-write context.
-abstract class SqliteReadContext<Database extends sqlite.CommonDatabase> {
+abstract class SqliteReadContext {
   /// Execute a read-only (SELECT) query and return the results.
   Future<sqlite.ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]);
@@ -57,7 +58,8 @@ abstract class SqliteReadContext<Database extends sqlite.CommonDatabase> {
   ///   });
   /// }
   /// ```
-  Future<T> computeWithDatabase<T>(Future<T> Function(Database db) compute);
+  Future<T> computeWithDatabase<T>(
+      Future<T> Function(CommonDatabase db) compute);
 }
 
 /// Abstract class representing calls available in a read-write context.
