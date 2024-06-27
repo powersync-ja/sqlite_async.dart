@@ -1,13 +1,13 @@
 name: sqlite_async
 description: High-performance asynchronous interface for SQLite on Dart and Flutter.
-version: 0.7.0-alpha.4
+version: 0.7.0-alpha.5
 repository: https://github.com/powersync-ja/sqlite_async.dart
 environment:
-  sdk: ">=3.3.0 <4.0.0"
+  sdk: ">=3.4.0 <4.0.0"
 
 dependencies:
   sqlite3_web: ^0.1.2-wip
-  sqlite3: ^2.4.3
+  sqlite3: ^2.4.4
   async: ^2.10.0
   collection: ^1.17.0
   mutex: ^3.1.0
