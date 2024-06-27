@@ -27,6 +27,28 @@ void main() {
       });
     }
 
+    test('should not delete data on close', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+
+      await db
+          .execute('INSERT INTO test_data(description) VALUES(?)', ['test']);
+
+      final initialItems = await db.getAll('SELECT * FROM test_data');
+      expect(initialItems.rows.length, greaterThan(0));
+
+      await db.close();
+
+      final db2 = await testUtils.setupDatabase(path: path);
+      // This could also be a get call with an exception
+      final table2 = await db2.getAll(
+          "SELECT name FROM sqlite_master WHERE type='table' AND name='test_data';");
+      expect(table2.rows.length, greaterThan(0),
+          reason: "Table should be persisted from last connection");
+
+      await db2.close();
+    });
+
     test('should not allow direct db calls within a transaction callback',
         () async {
       final db = await testUtils.setupDatabase(path: path);

@@ -21,6 +21,9 @@ class SqliteDatabaseImpl
     return _connection.closed;
   }
 
+  final StreamController<UpdateNotification> updatesController =
+      StreamController.broadcast();
+
   @override
   late Stream<UpdateNotification> updates;
 
@@ -67,8 +70,9 @@ class SqliteDatabaseImpl
   ///  4. Creating temporary views or triggers.
   SqliteDatabaseImpl.withFactory(this.openFactory,
       {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
-    updates = updatesController.stream;
     mutex = MutexImpl();
+    // This way the `updates` member is available synchronously
+    updates = updatesController.stream;
     isInitialized = _init();
   }
 
@@ -80,38 +84,43 @@ class SqliteDatabaseImpl
     });
   }
 
+  T _runZoned<T>(T Function() callback, {required String debugContext}) {
+    if (Zone.current[this] != null) {
+      throw LockError(
+          'Recursive lock is not allowed. Use `tx.$debugContext` instead of `db.$debugContext`.');
+    }
+    var zone = Zone.current.fork(zoneValues: {this: true});
+    return zone.run(callback);
+  }
+
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await isInitialized;
-    return _connection.readLock(callback,
-        lockTimeout: lockTimeout, debugContext: debugContext);
+    return _runZoned(() {
+      return _connection.readLock(callback,
+          lockTimeout: lockTimeout, debugContext: debugContext);
+    }, debugContext: debugContext ?? 'execute()');
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     await isInitialized;
-    return _connection.writeLock(callback,
-        lockTimeout: lockTimeout, debugContext: debugContext);
-  }
-
-  @override
-  Future<T> readTransaction<T>(
-      Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout,
-      String? debugContext}) async {
-    await isInitialized;
-    return _connection.readTransaction(callback, lockTimeout: lockTimeout);
+    return _runZoned(() {
+      return _connection.writeLock(callback,
+          lockTimeout: lockTimeout, debugContext: debugContext);
+    }, debugContext: debugContext ?? 'execute()');
   }
 
   @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout,
-      String? debugContext}) async {
+      {Duration? lockTimeout}) async {
     await isInitialized;
-    return _connection.writeTransaction(callback, lockTimeout: lockTimeout);
+    return _runZoned(
+        () => _connection.writeTransaction(callback, lockTimeout: lockTimeout),
+        debugContext: 'writeTransaction()');
   }
 
   @override

@@ -58,6 +58,6 @@ class TestUtils extends AbstractTestUtils {
 
   @override
   List<String> findSqliteLibraries() {
-    return [];
+    return ['sqlite3.wasm'];
   }
 }

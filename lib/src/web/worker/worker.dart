@@ -5,17 +5,9 @@
 /// The output should then be included in each project's `web` directory
 library;
 
-import 'package:sqlite_async/drift.dart';
-import 'package:sqlite_async/sqlite3_common.dart';
-
-/// Use this function to register any custom DB functionality
-/// which requires direct access to the connection
-void setupDatabase(CommonDatabase database) {
-  setupCommonWorkerDB(database);
-}
+import 'package:sqlite3_web/sqlite3_web.dart';
+import 'worker_utils.dart';
 
 void main() {
-  WasmDatabase.workerMainForOpen(
-    setupAllDatabases: setupDatabase,
-  );
+  WebSqlite.workerEntrypoint(controller: AsyncSqliteController());
 }

@@ -42,6 +42,7 @@ class SqliteConnectionImpl
       this.readOnly = false,
       bool primary = false})
       : _writeMutex = mutex {
+    isInitialized = _isolateClient.ready;
     this.upstreamPort = upstreamPort ?? listenForEvents();
     // Accept an incoming stream of updates, or expose one if not given.
     this.updates = updates ?? updatesController.stream;
@@ -88,7 +89,6 @@ class SqliteConnectionImpl
           paused: true);
       _isolateClient.tieToIsolate(_isolate);
       _isolate.resume(_isolate.pauseCapability!);
-      isInitialized = _isolateClient.ready;
       await _isolateClient.ready;
     });
   }
