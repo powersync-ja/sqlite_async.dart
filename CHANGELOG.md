@@ -1,3 +1,10 @@
+## 0.7.0-alpha.5
+
+- The dependency for the `Drift` package is now removed in favour of using the new `sqlite3_web` package.
+- A new implementation for WebDatabase is used for SQL database connections on web.
+- New exports are added for downstream consumers of this package to extended custom workers with custom SQLite function capabilities.
+- Update minimum Dart SDK to 3.4.0
+
 ## 0.7.0-alpha.4
 
 - Add latest changes from master
