@@ -2,7 +2,7 @@ import 'package:mutex/mutex.dart' as mutex;
 import 'package:sqlite_async/src/common/mutex.dart';
 
 /// Web implementation of [Mutex]
-/// This will use `navigator.locks` in future
+/// This should use `navigator.locks` in future
 class MutexImpl implements Mutex {
   late final mutex.Mutex m;
 
@@ -12,12 +12,12 @@ class MutexImpl implements Mutex {
 
   @override
   Future<void> close() async {
-    // TODO
+    // This isn't relevant for web at the moment.
   }
 
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) {
-    // TODO: use web navigator locks here
+    // Note this lock is only valid in a single web tab
     return m.protect(callback);
   }
 

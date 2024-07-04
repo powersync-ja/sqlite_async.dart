@@ -23,7 +23,7 @@ jobs:
       - name: Check publish score
         run: |
           dart pub global activate pana
-          dart pub global run pana --no-warning --exit-code-threshold 10
+          dart pub global run pana --no-warning --exit-code-threshold 0
 
   test:
     runs-on: ubuntu-latest
