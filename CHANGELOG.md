@@ -1,8 +1,35 @@
+## 0.8.0
+
+- Added web support (web functionality is in beta)
+
 ## 0.7.0
 
 - BREAKING CHANGE: Update all Database types to use a `CommonDatabase` interface.
 - Update `openDB` and `open` methods to be synchronous.
 - Fix `ArgumentError (Invalid argument(s): argument value for 'return_value' is null)` in sqlite3 when closing the database connection by upgrading to version 2.4.4.
+
+## 0.7.0-alpha.5
+
+- The dependency for the `Drift` package is now removed in favour of using the new `sqlite3_web` package.
+- A new implementation for WebDatabase is used for SQL database connections on web.
+- New exports are added for downstream consumers of this package to extended custom workers with custom SQLite function capabilities.
+- Update minimum Dart SDK to 3.4.0
+
+## 0.7.0-alpha.4
+
+- Add latest changes from master
+
+## 0.7.0-alpha.3
+
+- Add latest changes from master
+
+## 0.7.0-alpha.2
+
+- Fix re-using a shared Mutex from <https://github.com/powersync-ja/sqlite_async.dart/pull/31>
+
+## 0.7.0-alpha.1
+
+- Added initial support for web platform.
 
 ## 0.6.1
 

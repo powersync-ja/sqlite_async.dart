@@ -2,6 +2,7 @@
 import 'dart:io';
 
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:test/test.dart';
 
 import 'utils/test_utils_impl.dart';

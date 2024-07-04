@@ -1,17 +1,17 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
-import '../../common/abstract_open_factory.dart';
-import '../../common/sqlite_database.dart';
-import '../../native/database/connection_pool.dart';
-import '../../native/database/native_sqlite_connection_impl.dart';
-import '../../native/native_isolate_connection_factory.dart';
-import '../../native/native_isolate_mutex.dart';
-import '../../native/native_sqlite_open_factory.dart';
-import '../../sqlite_connection.dart';
-import '../../sqlite_options.dart';
-import '../../sqlite_queries.dart';
-import '../../update_notification.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/sqlite_database.dart';
+import 'package:sqlite_async/src/native/database/connection_pool.dart';
+import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
+import 'package:sqlite_async/src/native/native_isolate_connection_factory.dart';
+import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
+import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_options.dart';
+import 'package:sqlite_async/src/sqlite_queries.dart';
+import 'package:sqlite_async/src/update_notification.dart';
 
 /// A SQLite database instance.
 ///
@@ -39,6 +39,9 @@ class SqliteDatabaseImpl
 
   late final SqliteConnectionImpl _internalConnection;
   late final SqliteConnectionPool _pool;
+
+  final StreamController<UpdateNotification> updatesController =
+      StreamController.broadcast();
 
   /// Open a SqliteDatabase.
   ///

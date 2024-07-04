@@ -1,4 +1,4 @@
-# sqlite_async 
+# sqlite_async
 
 High-performance asynchronous interface for SQLite on Dart & Flutter.
 
@@ -15,13 +15,13 @@ query access.
 
 ## Features
 
- * All operations are asynchronous by default - does not block the main isolate.
- * Watch a query to automatically re-run on changes to the underlying data.
- * Concurrent transactions supported by default - one write transaction and many multiple read transactions.
- * Uses WAL mode for fast writes and running read transactions concurrently with a write transaction.
- * Direct synchronous access in an isolate is supported for performance-sensitive use cases. 
- * Automatically convert query args to JSON where applicable, making JSON1 operations simple.
- * Direct SQL queries - no wrapper classes or code generation required.
+- All operations are asynchronous by default - does not block the main isolate.
+- Watch a query to automatically re-run on changes to the underlying data.
+- Concurrent transactions supported by default - one write transaction and many multiple read transactions.
+- Uses WAL mode for fast writes and running read transactions concurrently with a write transaction.
+- Direct synchronous access in an isolate is supported for performance-sensitive use cases.
+- Automatically convert query args to JSON where applicable, making JSON1 operations simple.
+- Direct SQL queries - no wrapper classes or code generation required.
 
 See this [blog post](https://www.powersync.co/blog/sqlite-optimizations-for-ultra-high-performance),
 explaining why these features are important for using SQLite.
@@ -74,4 +74,28 @@ void main() async {
 
   await db.close();
 }
+```
+
+# Web
+
+Note: Web support is currently in Beta.
+
+Web support requires Sqlite3 WASM and web worker Javascript files to be accessible via configurable URIs.
+
+Default URIs are shown in the example below. URIs only need to be specified if they differ from default values.
+
+The compiled web worker files can be found in our Github [releases](https://github.com/powersync-ja/sqlite_async.dart/releases)
+The `sqlite3.wasm` asset can be found [here](https://github.com/simolus3/sqlite3.dart/releases)
+
+Setup
+
+```Dart
+import 'package:sqlite_async/sqlite_async.dart';
+
+final db = SqliteDatabase(
+    path: 'test.db',
+    options: SqliteOptions(
+        webSqliteOptions: WebSqliteOptions(
+            wasmUri: 'sqlite3.wasm', workerUri: 'db_worker.js')));
+
 ```

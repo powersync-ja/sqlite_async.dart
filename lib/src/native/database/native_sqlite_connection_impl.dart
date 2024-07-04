@@ -3,14 +3,14 @@ import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite3_common.dart';
-import '../../common/abstract_open_factory.dart';
-import '../../common/mutex.dart';
-import '../../common/port_channel.dart';
-import '../../native/native_isolate_mutex.dart';
-import '../../sqlite_connection.dart';
-import '../../sqlite_queries.dart';
-import '../../update_notification.dart';
-import '../../utils/shared_utils.dart';
+import 'package:sqlite_async/src/common/abstract_open_factory.dart';
+import 'package:sqlite_async/src/common/mutex.dart';
+import 'package:sqlite_async/src/common/port_channel.dart';
+import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
+import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_queries.dart';
+import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 
 import 'upstream_updates.dart';
 
@@ -42,6 +42,7 @@ class SqliteConnectionImpl
       this.readOnly = false,
       bool primary = false})
       : _writeMutex = mutex {
+    isInitialized = _isolateClient.ready;
     this.upstreamPort = upstreamPort ?? listenForEvents();
     // Accept an incoming stream of updates, or expose one if not given.
     this.updates = updates ?? updatesController.stream;
@@ -88,7 +89,6 @@ class SqliteConnectionImpl
           paused: true);
       _isolateClient.tieToIsolate(_isolate);
       _isolate.resume(_isolate.pauseCapability!);
-      isInitialized = _isolateClient.ready;
       await _isolateClient.ready;
     });
   }

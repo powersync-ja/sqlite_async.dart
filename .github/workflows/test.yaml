@@ -55,9 +55,14 @@ jobs:
         run: dart pub get
 
       - name: Install SQLite
-        run: ./scripts/install_sqlite.sh ${{ matrix.sqlite_version }} ${{ matrix.sqlite_url }}
+        run: |
+          ./scripts/install_sqlite.sh ${{ matrix.sqlite_version }} ${{ matrix.sqlite_url }}
+          mkdir -p assets && curl -LJ https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-2.4.3/sqlite3.wasm -o assets/sqlite3.wasm
+
+      - name: Compile WebWorker
+        run: dart compile js -o assets/db_worker.js -O0 lib/src/web/worker/worker.dart
 
       - name: Run Tests
         run: |
           export LD_LIBRARY_PATH=./sqlite-autoconf-${{ matrix.sqlite_version }}/.libs
-          dart test
+          dart test -p vm,chrome

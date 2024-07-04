@@ -2,8 +2,8 @@ import 'dart:async';
 import 'dart:collection';
 
 import 'package:sqlite_async/sqlite_async.dart';
-import '../database/native_sqlite_connection_impl.dart';
-import '../native_isolate_mutex.dart';
+import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
+import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 
 /// A connection pool with a single write connection and multiple read connections.
 class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
