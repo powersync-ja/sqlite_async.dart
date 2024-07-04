@@ -10,4 +10,5 @@ To configure the monorepo for development run `melos prepare` after cloning
 
 ## Packages
 
-See [./packages/sqlite_async](./packages/sqlite_async) for details.
+- [./packages/sqlite_async](./packages/sqlite_async) Creates asynchronous SQLite connections
+- [./packages/drify_sqlite_async](./packages/drift_sqlite_async/README.md) A Drift wrapper for `sqlite_async`
