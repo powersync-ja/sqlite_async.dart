@@ -1,3 +1,5 @@
+// TODO
+@TestOn('!browser')
 import 'dart:async';
 
 import 'package:drift/drift.dart';

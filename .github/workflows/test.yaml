@@ -23,7 +23,9 @@ jobs:
       - name: Publish dry-run
         run: melos publish --dry-run --yes
       - name: Check publish score
-        run: melos analyze:packages:pana
+        run: |
+          dart pub global activate pana
+          melos analyze:packages:pana
 
   test:
     runs-on: ubuntu-latest
