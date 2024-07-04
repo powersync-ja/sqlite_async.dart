@@ -34,19 +34,10 @@ class DefaultSqliteOpenFactory
 
   @override
 
-  /// It is possible to open a CommonDatabase in the main Dart/JS context with standard sqlite3.dart,
-  /// This connection requires an external Webworker implementation for asynchronous operations.
-  /// Do not use this in conjunction with async connections provided by Drift
-  Future<CommonDatabase> openDB(SqliteOpenOptions options) async {
-    final wasmSqlite = await WasmSqlite3.loadFromUrl(
-        Uri.parse(sqliteOptions.webSqliteOptions.wasmUri));
-
-    wasmSqlite.registerVirtualFileSystem(
-      await IndexedDbFileSystem.open(dbName: path),
-      makeDefault: true,
-    );
-
-    return wasmSqlite.open(path);
+  /// This is currently not supported on web
+  CommonDatabase openDB(SqliteOpenOptions options) {
+    throw UnimplementedError(
+        'Direct access to CommonDatabase is not available on web.');
   }
 
   @override
