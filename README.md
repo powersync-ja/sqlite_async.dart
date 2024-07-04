@@ -78,6 +78,8 @@ void main() async {
 
 # Web
 
+Note: Web support is currently in Beta.
+
 Web support requires Sqlite3 WASM and web worker Javascript files to be accessible via configurable URIs.
 
 Default URIs are shown in the example below. URIs only need to be specified if they differ from default values.

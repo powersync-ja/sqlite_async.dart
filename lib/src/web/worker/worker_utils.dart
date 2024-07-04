@@ -4,7 +4,6 @@ import 'dart:js_util' as js_util;
 import 'package:mutex/mutex.dart';
 import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
-import 'package:sqlite_async/sqlite3_common.dart';
 
 import '../protocol.dart';
 

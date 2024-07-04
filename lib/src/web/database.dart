@@ -3,12 +3,7 @@ import 'dart:js_interop';
 
 import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
-import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite_async/src/common/sqlite_database.dart';
-import 'package:sqlite_async/src/sqlite_connection.dart';
-import 'package:sqlite_async/src/sqlite_queries.dart';
-import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'protocol.dart';
 

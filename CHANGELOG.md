@@ -1,3 +1,7 @@
+## 0.8.0
+
+- Added web support (web functionality is in beta)
+
 ## 0.7.0
 
 - BREAKING CHANGE: Update all Database types to use a `CommonDatabase` interface.
