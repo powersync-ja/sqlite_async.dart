@@ -267,7 +267,7 @@ Future<T> wrapSqliteException<T>(Future<T> Function() callback) async {
   } on RemoteException catch (ex) {
     if (ex.toString().contains('SqliteException')) {
       RegExp regExp = RegExp(r'SqliteException\((\d+)\)');
-      // Drift wraps these in remote errors
+      // The SQLite Web package wraps these in remote errors
       throw SqliteException(
           int.parse(regExp.firstMatch(ex.message)?.group(1) ?? '0'),
           ex.message);

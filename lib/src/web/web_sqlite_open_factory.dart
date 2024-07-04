@@ -42,8 +42,8 @@ class DefaultSqliteOpenFactory
 
   @override
 
-  /// Currently this only uses the Drift WASM implementation.
-  /// The Drift SQLite package provides built in async Web worker functionality
+  /// Currently this only uses the SQLite Web WASM implementation.
+  /// This provides built in async Web worker functionality
   /// and automatic persistence storage selection.
   /// Due to being asynchronous, the under laying CommonDatabase is not accessible
   Future<SqliteConnection> openConnection(SqliteOpenOptions options) async {

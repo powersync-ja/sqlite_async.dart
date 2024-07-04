@@ -23,23 +23,13 @@ class IsolateConnectionFactoryImpl
       required this.mutex,
       required SerializedPortClient upstreamPort});
 
-  /// Open a new SqliteConnection.
-  ///
-  /// This opens a single connection in a background execution isolate.
+  /// Not supported on web
   @override
   SqliteConnection open({String? debugName, bool readOnly = false}) {
     throw UnimplementedError();
   }
 
-  /// Opens a synchronous sqlite.Database directly in the current isolate.
-  /// This should not be used in conjunction with async connections provided
-  /// by Drift.
-  ///
-  /// This gives direct access to the database, but:
-  ///  1. No app-level locking is performed automatically. Transactions may fail
-  ///     with SQLITE_BUSY if another isolate is using the database at the same time.
-  ///  2. Other connections are not notified of any updates to tables made within
-  ///     this connection.
+  /// Not supported on web
   @override
   Future<CommonDatabase> openRawDatabase({bool readOnly = false}) async {
     throw UnimplementedError();
