@@ -7,3 +7,7 @@ Running tests for the `web` platform requires some preparation to be executed. T
 See the [test action](./.github/workflows/test.yaml) for the latest steps.
 
 On your local machine run the commands from the `Install SQLite`, `Compile WebWorker` and `Run Tests` steps.
+
+## Releases
+
+Web worker files are compiled and uploaded to draft Github releases whenever tags matching `v*` are pushed. These tags are created when versioning. Releases should be manually finalized and published when releasing new package versions.
