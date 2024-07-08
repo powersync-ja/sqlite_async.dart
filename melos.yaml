@@ -28,8 +28,7 @@ scripts:
 
   analyze:packages:pana:
     description: Analyze Dart packages with Pana
-    run: |
-      ./.github/workflows/scripts/run-pana.sh
+    run: dart pub global run pana --no-warning --exit-code-threshold 0
     packageFilters:
       noPrivate: true
 
