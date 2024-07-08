@@ -28,7 +28,7 @@ scripts:
 
   analyze:packages:pana:
     description: Analyze Dart packages with Pana
-    run: dart pub global run pana --no-warning --exit-code-threshold 0
+    exec: dart pub global run pana --no-warning --exit-code-threshold 0
     packageFilters:
       noPrivate: true
 
