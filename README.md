@@ -11,7 +11,10 @@ High-performance asynchronous interface for SQLite on Dart & Flutter.
 
 This monorepo uses [melos](https://melos.invertase.dev/) to handle command and package management.
 
-To configure the monorepo for development run `melos prepare` after cloning
+To configure the monorepo for development run `melos prepare` after cloning.
+
+For detailed usage, check out the inner [sqlite_async](https://github.com/powersync-ja/sqlite_async.dart/tree/main/packages/sqlite_async) and [drift_sqlite_async](https://github.com/powersync-ja/sqlite_async.dart/tree/main/packages/drift_sqlite_async) packages.
+
 
 ## Packages
 
