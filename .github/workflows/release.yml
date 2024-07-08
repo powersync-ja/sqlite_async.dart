@@ -21,11 +21,11 @@ jobs:
 
       - uses: dart-lang/setup-dart@v1
 
-      - name: Install dependencies
-        run: dart pub get
+      - name: Install Melos
+        run: dart pub global activate melos
 
-      - name: Compile WebWorker
-        run: dart compile js -o assets/db_worker.js -O0 lib/src/web/worker/worker.dart
+      - name: Install dependencies
+        run: melos prepare
 
       - name: Set tag name
         id: tag

@@ -1,0 +1,6 @@
+targets:
+  $default:
+    builders:
+      drift_dev:
+        options:
+          fatal_warnings: true

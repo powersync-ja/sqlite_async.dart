@@ -1,0 +1,46 @@
+name: sqlite_async_monorepo
+
+packages:
+  - packages/**
+
+scripts:
+  prepare: melos bootstrap && melos prepare:compile:webworker && melos prepare:sqlite:wasm
+
+  prepare:compile:webworker:
+    description: Compile Javascript web worker distributable
+    run: dart compile js -o assets/db_worker.js -O0 packages/sqlite_async/lib/src/web/worker/worker.dart
+
+  prepare:sqlite:wasm:
+    description: Download SQLite3 WASM binary
+    run: dart run ./scripts/sqlite3_wasm_download.dart
+
+  format:
+    description: Format Dart code.
+    run: dart format .
+
+  format:check:packages:
+    description: Check formatting of Dart code in packages.
+    run: dart format --output none --set-exit-if-changed packages
+
+  analyze:packages:
+    description: Analyze Dart code in packages.
+    run: dart analyze packages --fatal-infos
+
+  analyze:packages:pana:
+    description: Analyze Dart packages with Pana
+    exec: dart pub global run pana --no-warning --exit-code-threshold 0
+    packageFilters:
+      noPrivate: true
+
+  test:
+    description: Run tests in a specific package.
+    run: dart test -p chrome,vm
+    exec:
+      concurrency: 1
+    packageFilters:
+      dirExists:
+        - test
+    # This tells Melos tests to ignore env variables passed to tests from `melos run test`
+    # as they could change the behaviour of how tests filter packages.
+    env:
+      MELOS_TEST: true

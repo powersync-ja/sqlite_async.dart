@@ -17,5 +17,6 @@ assets
 test-db
 sqlite-autoconf-*
 doc
+*.iml
 
 build
