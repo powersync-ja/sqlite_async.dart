@@ -1,4 +1,0 @@
-# melos_managed_dependency_overrides: sqlite_async
-dependency_overrides:
-  sqlite_async:
-    path: ../sqlite_async
