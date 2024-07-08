@@ -2,8 +2,6 @@
 
 High-performance asynchronous interface for SQLite on Dart & Flutter.
 
-===========
-
 | package        | build                                                                                                                                                                                 | pub                                                                                                        | likes                                                                                                                | popularity | pub points |
 |----------------|---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------|----------------------------------------------------------------------------------------------------------------------| ------- | ------- |
 | sqlite_async         | [![build](https://github.com/powersync-ja/sqlite_async.dart/actions/workflows/test.yaml/badge.svg?branch=main)](https://github.com/powersync-ja/sqlite_async.dart/actions?query=workflow%3Atest)       | [![pub package](https://img.shields.io/pub/v/sqlite_async.svg)](https://pub.dev/packages/sqlite_async)                 | [![likes](https://img.shields.io/pub/likes/powersync?logo=dart)](https://pub.dev/packages/sqlite_async/score)                 | [![popularity](https://img.shields.io/pub/popularity/sqlite_async?logo=dart)](https://pub.dev/packages/sqlite_async/score) | [![pub points](https://img.shields.io/pub/points/sqlite_async?logo=dart)](https://pub.dev/packages/sqlite_async/score)
