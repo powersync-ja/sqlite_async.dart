@@ -8,7 +8,7 @@ import 'package:sqlite_async/src/common/port_channel.dart';
 
 abstract class MutexImpl implements Mutex {
   factory MutexImpl({String? identifier}) {
-    return SimpleMutex();
+    return SimpleMutex(identifier: identifier);
   }
 }
 
