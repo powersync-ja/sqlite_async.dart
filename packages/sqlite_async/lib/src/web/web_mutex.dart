@@ -54,14 +54,12 @@ class MutexImpl implements Mutex {
     final completer = Completer<T>();
     // Need to implement timeout manually for this
     bool isTimedOut = false;
-    bool lockObtained = false;
+    Timer? timer;
     if (timeout != null) {
-      Future.delayed(timeout, () {
-        if (lockObtained == false) {
-          isTimedOut = true;
-          completer.completeError(
-              TimeoutException('Failed to acquire lock', timeout));
-        }
+      timer = Timer(timeout, () {
+        isTimedOut = true;
+        completer
+            .completeError(TimeoutException('Failed to acquire lock', timeout));
       });
     }
 
@@ -71,7 +69,7 @@ class MutexImpl implements Mutex {
           // Don't actually run logic
           return;
         }
-        lockObtained = true;
+        timer?.cancel();
         final result = await callback();
         completer.complete(result);
       } catch (ex) {
@@ -104,13 +102,10 @@ class MutexImpl implements Mutex {
     // Navigator locks can be timed out by using an AbortSignal
     final controller = AbortController();
 
-    bool lockAcquired = false;
+    Timer? timer;
+
     if (timeout != null) {
-      // Can't really abort the `delayed` call easily :(
-      Future.delayed(timeout, () {
-        if (lockAcquired == true) {
-          return;
-        }
+      timer = Timer(timeout, () {
         gotLock
             .completeError(TimeoutException('Failed to acquire lock', timeout));
         controller.abort('Timeout'.toJS);
@@ -119,8 +114,7 @@ class MutexImpl implements Mutex {
 
     // If timeout occurred before the lock is available, then this callback should not be called.
     JSPromise jsCallback(JSAny lock) {
-      // Mark that if the timeout occurs after this point then nothing should be done
-      lockAcquired = true;
+      timer?.cancel();
 
       // Give the Held lock something to mark this Navigator lock as completed
       final jsCompleter = Completer.sync();
