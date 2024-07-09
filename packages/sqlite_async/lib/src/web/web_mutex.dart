@@ -12,9 +12,6 @@ import 'package:web/web.dart';
 @JS('navigator')
 external Navigator get _navigator;
 
-@JS('AbortController')
-external AbortController get _abortController;
-
 /// Web implementation of [Mutex]
 class MutexImpl implements Mutex {
   late final mutex.Mutex fallback;
