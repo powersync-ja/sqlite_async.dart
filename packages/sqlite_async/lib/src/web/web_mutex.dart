@@ -57,8 +57,8 @@ class MutexImpl implements Mutex {
     bool lockObtained = false;
     if (timeout != null) {
       Future.delayed(timeout, () {
-        isTimedOut = true;
         if (lockObtained == false) {
+          isTimedOut = true;
           completer.completeError(
               TimeoutException('Failed to acquire lock', timeout));
         }
