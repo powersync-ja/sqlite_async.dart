@@ -58,7 +58,8 @@ class MutexImpl implements Mutex {
       Future.delayed(timeout, () {
         isTimedOut = true;
         if (lockObtained == false) {
-          completer.completeError(LockError('Timeout reached'));
+          completer.completeError(
+              TimeoutException('Failed to acquire lock', timeout));
         }
       });
     }
@@ -109,7 +110,8 @@ class MutexImpl implements Mutex {
         if (lockAcquired == true) {
           return;
         }
-        gotLock.completeError(LockError('Timeout reached'));
+        gotLock
+            .completeError(TimeoutException('Failed to acquire lock', timeout));
         controller.abort('Timeout'.toJS);
       });
     }

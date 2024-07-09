@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:math';
 
 import 'package:sqlite_async/sqlite_async.dart';
@@ -41,7 +42,9 @@ void main() {
         m.lock(() async {
           print('This should not get executed');
         }, timeout: Duration(milliseconds: 200)),
-        throwsA((e) => e is LockError && e.message.contains('Timeout')));
+        throwsA((e) =>
+            e is TimeoutException &&
+            e.message!.contains('Failed to acquire lock')));
   });
 
   test('In-time timeout should function normally', () async {

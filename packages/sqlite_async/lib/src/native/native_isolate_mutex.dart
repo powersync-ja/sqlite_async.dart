@@ -7,7 +7,7 @@ import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/common/port_channel.dart';
 
 abstract class MutexImpl implements Mutex {
-  factory MutexImpl() {
+  factory MutexImpl({String? identifier}) {
     return SimpleMutex();
   }
 }
@@ -19,12 +19,13 @@ class SimpleMutex implements MutexImpl {
   // Adapted from https://github.com/tekartik/synchronized.dart/blob/master/synchronized/lib/src/basic_lock.dart
 
   Future<dynamic>? last;
+  String? identifier;
 
   // Hack to make sure the Mutex is not copied to another isolate.
   // ignore: unused_field
   final Finalizer _f = Finalizer((_) {});
 
-  SimpleMutex();
+  SimpleMutex({this.identifier});
 
   bool get locked => last != null;
 
