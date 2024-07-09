@@ -3,11 +3,12 @@ import 'dart:math';
 
 import 'package:meta/meta.dart';
 import 'package:mutex/mutex.dart' as mutex;
-import 'package:sqlite_async/src/common/mutex.dart';
 import 'dart:js_interop';
 // This allows for checking things like hasProperty without the need for depending on the `js` package
 import 'dart:js_interop_unsafe';
 import 'package:web/web.dart';
+
+import 'package:sqlite_async/src/common/mutex.dart';
 
 @JS('navigator')
 external Navigator get _navigator;
