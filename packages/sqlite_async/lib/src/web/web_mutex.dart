@@ -4,6 +4,7 @@ import 'dart:math';
 import 'package:meta/meta.dart';
 import 'package:mutex/mutex.dart' as mutex;
 import 'dart:js_interop';
+import 'dart:js_util' as js_util;
 // This allows for checking things like hasProperty without the need for depending on the `js` package
 import 'dart:js_interop_unsafe';
 import 'package:web/web.dart';
@@ -129,8 +130,11 @@ class MutexImpl implements Mutex {
 
     final lockOptions = JSObject();
     lockOptions['signal'] = controller.signal;
-    _navigator.locks.request(_resolvedIdentifier, lockOptions, jsCallback.toJS);
-
+    final promise = _navigator.locks
+        .request(_resolvedIdentifier, lockOptions, jsCallback.toJS);
+    // A timeout abort will throw an exception which needs to be handled.
+    // There should not be any other unhandled lock errors.
+    js_util.promiseToFuture(promise).catchError((error) {});
     return gotLock.future;
   }
 

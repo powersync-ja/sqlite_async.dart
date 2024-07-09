@@ -32,7 +32,7 @@ void main() {
     });
   });
 
-  test('Timeout should throw a LockError', () async {
+  test('Timeout should throw a TimeoutException', () async {
     final m = Mutex();
     m.lock(() async {
       await Future.delayed(Duration(milliseconds: 300));
