@@ -1,10 +1,12 @@
 import 'dart:async';
-import 'dart:js_interop_unsafe';
 import 'dart:math';
 
+import 'package:meta/meta.dart';
 import 'package:mutex/mutex.dart' as mutex;
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'dart:js_interop';
+// This allows for checking things like hasProperty without the need for depending on the `js` package
+import 'dart:js_interop_unsafe';
 import 'package:web/web.dart';
 
 @JS('navigator')
@@ -17,7 +19,7 @@ external AbortController get _abortController;
 class MutexImpl implements Mutex {
   late final mutex.Mutex fallback;
   String? identifier;
-  String _resolvedIdentifier;
+  final String _resolvedIdentifier;
 
   MutexImpl({this.identifier})
 
@@ -26,7 +28,7 @@ class MutexImpl implements Mutex {
       /// This provides a best effort unique identifier, if no identifier is provided.
       /// This should be fine for most use cases:
       ///    - The uuid package could be added for better uniqueness if required.
-      ///    - This would add another package dependency to `sqlite_async` which is potentially unnecessary at this point.
+      ///      This would add another package dependency to `sqlite_async` which is potentially unnecessary at this point.
       /// An identifier should be supplied for better exclusion.
       : _resolvedIdentifier = identifier ??
             "${DateTime.now().microsecondsSinceEpoch}-${Random().nextDouble()}" {
@@ -47,6 +49,7 @@ class MutexImpl implements Mutex {
     }
   }
 
+  /// Locks the callback with a standard Mutex from the `mutex` package
   Future<T> _fallbackLock<T>(Future<T> Function() callback,
       {Duration? timeout}) {
     final completer = Completer<T>();
@@ -79,8 +82,25 @@ class MutexImpl implements Mutex {
     return completer.future;
   }
 
-  Future<T> _webLock<T>(Future<T> Function() callback, {Duration? timeout}) {
-    final completer = Completer<T>();
+  /// Locks the callback with web Navigator locks
+  Future<T> _webLock<T>(Future<T> Function() callback,
+      {Duration? timeout}) async {
+    final lock = await _getWebLock(timeout);
+    try {
+      final result = await callback();
+      return result;
+    } finally {
+      lock.release();
+    }
+  }
+
+  /// Passing the Dart callback directly to the JS Navigator can cause some weird
+  /// context related bugs. Instead the JS lock callback will return a hold on the lock
+  /// which is represented as a [HeldLock]. This hold can be used when wrapping the Dart
+  /// callback to manage the JS lock.
+  /// This is inspired and adapted from https://github.com/simolus3/sqlite3.dart/blob/7bdca77afd7be7159dbef70fd1ac5aa4996211a9/sqlite3_web/lib/src/locks.dart#L6
+  Future<HeldLock> _getWebLock(Duration? timeout) {
+    final gotLock = Completer<HeldLock>.sync();
     // Navigator locks can be timed out by using an AbortSignal
     final controller = AbortController();
 
@@ -91,30 +111,43 @@ class MutexImpl implements Mutex {
         if (lockAcquired == true) {
           return;
         }
-        completer.completeError(LockError('Timeout reached'));
+        gotLock.completeError(LockError('Timeout reached'));
         controller.abort('Timeout'.toJS);
       });
     }
 
+    // If timeout occurred before the lock is available, then this callback should not be called.
     JSPromise jsCallback(JSAny lock) {
+      // Mark that if the timeout occurs after this point then nothing should be done
       lockAcquired = true;
-      callback().then((value) {
-        completer.complete(value);
-      }).catchError((error) {
-        completer.completeError(error);
-      });
-      return completer.future.toJS;
+
+      // Give the Held lock something to mark this Navigator lock as completed
+      final jsCompleter = Completer.sync();
+      gotLock.complete(HeldLock._(jsCompleter));
+      return jsCompleter.future.toJS;
     }
 
     final lockOptions = JSObject();
     lockOptions['signal'] = controller.signal;
     _navigator.locks.request(_resolvedIdentifier, lockOptions, jsCallback.toJS);
 
-    return completer.future;
+    return gotLock.future;
   }
 
   @override
   Mutex open() {
     return this;
   }
+}
+
+/// This represents a hold on an active Navigator lock.
+/// This is created inside the Navigator lock callback function and is used to release the lock
+/// from an external source.
+@internal
+class HeldLock {
+  final Completer<void> _completer;
+
+  HeldLock._(this._completer);
+
+  void release() => _completer.complete();
 }
