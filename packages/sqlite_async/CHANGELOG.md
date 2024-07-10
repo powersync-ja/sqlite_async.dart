@@ -1,3 +1,7 @@
+## 0.8.1
+
+ - Added Navigator locks for web `Mutex`s.
+
 ## 0.8.0
 
 - Added web support (web functionality is in beta)

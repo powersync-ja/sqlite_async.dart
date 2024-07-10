@@ -1,8 +1,14 @@
 import 'package:sqlite_async/src/impl/mutex_impl.dart';
 
 abstract class Mutex {
-  factory Mutex() {
-    return MutexImpl();
+  factory Mutex(
+      {
+      /// An optional identifier for this Mutex instance.
+      /// This could be used for platform specific logic or debugging purposes.
+      /// Currently this is not used on native platforms.
+      /// On web this will be used for the lock name if Navigator locks are available.
+      String? identifier}) {
+    return MutexImpl(identifier: identifier);
   }
 
   /// timeout is a timeout for acquiring the lock, not for the callback
