@@ -1,3 +1,7 @@
+## 0.8.1
+
+ - **FEAT**: use navigator locks.
+
 ## 0.8.0
 
 - Added web support (web functionality is in beta)
