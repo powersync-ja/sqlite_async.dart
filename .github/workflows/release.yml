@@ -4,8 +4,8 @@ name: Compile Assets and Create Draft Release
 on:
   push:
     tags:
-      # Trigger on tags beginning with 'v'
-      - 'v*'
+      # Trigger on sqlite_async tags
+      - 'sqlite_async-v*'
 
 jobs:
   release:
