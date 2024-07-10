@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:drift/backends.dart';
 import 'package:drift_sqlite_async/src/transaction_executor.dart';
-import 'package:sqlite_async/sqlite3.dart';
+import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
 class _SqliteAsyncDelegate extends DatabaseDelegate {
