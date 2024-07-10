@@ -1,6 +1,6 @@
 ## 0.8.1
 
- - **FEAT**: use navigator locks.
+ - Added Navigator locks for web `Mutex`s.
 
 ## 0.8.0
 
