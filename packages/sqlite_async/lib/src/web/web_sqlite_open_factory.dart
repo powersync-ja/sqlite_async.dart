@@ -55,7 +55,7 @@ class DefaultSqliteOpenFactory
     // cases, we need to implement a mutex locally.
     final mutex = connection.access == AccessMode.throughSharedWorker
         ? null
-        : MutexImpl();
+        : MutexImpl(identifier: path); // Use the DB path as a mutex identifier
 
     return WebDatabase(connection.database, options.mutex ?? mutex);
   }

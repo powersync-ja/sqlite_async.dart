@@ -1,67 +1,83 @@
-@TestOn('!browser')
-import 'dart:isolate';
+import 'dart:async';
+import 'dart:math';
 
-import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
+import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
+import 'utils/test_utils_impl.dart';
+
+final testUtils = TestUtils();
+
 void main() {
-  group('Mutex Tests', () {
-    test('Closing', () async {
-      // Test that locks are properly released when calling SharedMutex.close()
-      // in in Isolate.
-      // A timeout in this test indicates a likely error.
-      for (var i = 0; i < 50; i++) {
-        final mutex = SimpleMutex();
-        final serialized = mutex.shared;
+  group('Shared Mutex Tests', () {
+    test('Queue exclusive operations', () async {
+      final m = Mutex();
+      final collection = List.generate(10, (index) => index);
+      final results = <int>[];
 
-        final result = await Isolate.run(() async {
-          return _lockInIsolate(serialized);
+      final futures = collection.map((element) async {
+        return m.lock(() async {
+          // Simulate some asynchronous work
+          await Future.delayed(Duration(milliseconds: Random().nextInt(100)));
+          results.add(element);
+          return element;
         });
+      }).toList();
 
-        await mutex.lock(() async {});
+      // Await all the promises
+      await Future.wait(futures);
 
-        expect(result, equals(5));
-      }
+      // Check if the results are in ascending order
+      expect(results, equals(collection));
+    });
+  });
+
+  test('Timeout should throw a TimeoutException', () async {
+    final m = Mutex();
+    m.lock(() async {
+      await Future.delayed(Duration(milliseconds: 300));
     });
 
-    test('Re-use after closing', () async {
-      // Test that shared locks can be opened and closed multiple times.
-      final mutex = SimpleMutex();
-      final serialized = mutex.shared;
+    await expectLater(
+        m.lock(() async {
+          print('This should not get executed');
+        }, timeout: Duration(milliseconds: 200)),
+        throwsA((e) =>
+            e is TimeoutException &&
+            e.message!.contains('Failed to acquire lock')));
+  });
 
-      final result = await Isolate.run(() async {
-        return _lockInIsolate(serialized);
-      });
-
-      final result2 = await Isolate.run(() async {
-        return _lockInIsolate(serialized);
-      });
-
-      await mutex.lock(() async {});
-
-      expect(result, equals(5));
-      expect(result2, equals(5));
+  test('In-time timeout should function normally', () async {
+    final m = Mutex();
+    final results = [];
+    m.lock(() async {
+      await Future.delayed(Duration(milliseconds: 100));
+      results.add(1);
     });
-  }, timeout: const Timeout(Duration(milliseconds: 5000)));
-}
 
-Future<Object> _lockInIsolate(
-  SerializedMutex smutex,
-) async {
-  final mutex = smutex.open();
-  // Start a "thread" that repeatedly takes a lock
-  _infiniteLock(mutex).ignore();
-  await Future.delayed(const Duration(milliseconds: 10));
-  // Then close the mutex while the above loop is running.
-  await mutex.close();
+    await m.lock(() async {
+      results.add(2);
+    }, timeout: Duration(milliseconds: 200));
 
-  return 5;
-}
+    expect(results, equals([1, 2]));
+  });
 
-Future<void> _infiniteLock(SharedMutex mutex) async {
-  while (true) {
-    await mutex.lock(() async {
-      await Future.delayed(const Duration(milliseconds: 1));
+  test('Different Mutex instances should cause separate locking', () async {
+    final m1 = Mutex();
+    final m2 = Mutex();
+
+    final results = [];
+    final p1 = m1.lock(() async {
+      await Future.delayed(Duration(milliseconds: 300));
+      results.add(1);
     });
-  }
+
+    final p2 = m2.lock(() async {
+      results.add(2);
+    });
+
+    await p1;
+    await p2;
+    expect(results, equals([2, 1]));
+  });
 }
