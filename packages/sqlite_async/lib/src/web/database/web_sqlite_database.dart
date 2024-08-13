@@ -139,4 +139,9 @@ class SqliteDatabaseImpl
     await isInitialized;
     return _connection.getAutoCommit();
   }
+
+  @override
+  Future<void> refreshSchema() async {
+    await _connection.refreshSchema();
+  }
 }

@@ -158,6 +158,11 @@ class SqliteConnectionImpl
       });
     }, timeout: lockTimeout);
   }
+
+  @override
+  Future<void> refreshSchema() async {
+    await get("PRAGMA table_info('sqlite_master')");
+  }
 }
 
 int _nextCtxId = 1;

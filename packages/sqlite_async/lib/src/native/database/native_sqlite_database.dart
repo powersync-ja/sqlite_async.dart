@@ -166,4 +166,9 @@ class SqliteDatabaseImpl
         readOnly: false,
         openFactory: openFactory);
   }
+
+  @override
+  Future<void> refreshSchema() async {
+    await _pool.refreshSchema();
+  }
 }

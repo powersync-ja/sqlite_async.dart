@@ -64,4 +64,9 @@ class SqliteDatabaseImpl
   Future<bool> getAutoCommit() {
     throw UnimplementedError();
   }
+
+  @override
+  Future<void> refreshSchema() {
+    throw UnimplementedError();
+  }
 }

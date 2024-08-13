@@ -1,6 +1,10 @@
+## 0.8.2
+
+- Added `refreshSchema()` to `SqliteConnection` and its implementations, allowing queries and watch calls to work against update schemas.
+
 ## 0.8.1
 
- - Added Navigator locks for web `Mutex`s.
+- Added Navigator locks for web `Mutex`s.
 
 ## 0.8.0
 

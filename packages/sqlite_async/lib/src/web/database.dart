@@ -129,6 +129,11 @@ class WebDatabase
       }
     }
   }
+
+  @override
+  Future<void> refreshSchema() async {
+    _database.execute("PRAGMA table_info('sqlite_master')");
+  }
 }
 
 class _SharedContext implements SqliteReadContext {
