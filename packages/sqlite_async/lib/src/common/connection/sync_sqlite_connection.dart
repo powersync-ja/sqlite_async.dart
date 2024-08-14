@@ -50,11 +50,6 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   Future<bool> getAutoCommit() async {
     return db.autocommit;
   }
-
-  @override
-  Future<void> refreshSchema() async {
-    db.execute("PRAGMA table_info('sqlite_master')");
-  }
 }
 
 class SyncReadContext implements SqliteReadContext {

@@ -128,10 +128,6 @@ abstract class SqliteConnection extends SqliteWriteContext {
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext});
 
-  /// Ensures that all connections are aware of the latest schema changes applied (if any).
-  /// Queries and watch calls can potentially use outdated schema information after a schema update.
-  Future<void> refreshSchema();
-
   Future<void> close();
 
   /// Returns true if the connection is closed

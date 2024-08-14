@@ -168,7 +168,8 @@ class SqliteDatabaseImpl
   }
 
   @override
-  Future<void> refreshSchema() async {
-    await _pool.refreshSchema();
+  Future<void> exclusiveLock<T>(
+      Future<T> Function(SqliteReadContext ctx) callback) {
+    return _pool.exclusiveLock(callback);
   }
 }
