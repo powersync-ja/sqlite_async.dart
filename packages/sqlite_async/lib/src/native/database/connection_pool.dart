@@ -54,67 +54,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     _writeConnection?.updates?.forEach(updatesController.add);
   }
 
-  /// Executes a provided callback function exclusively across all read and
-  /// write connections in the pool.
-  ///
-  /// This function first locks all read and write connections, collecting their
-  /// contexts. It then executes the provided [callback] function on each of these
-  /// contexts. After the [callback] completes for each context, the locks are released.
-  ///
-  /// Example usage:
-  /// ```dart
-  /// await runExclusive((ctx) async {
-  ///   // Perform some database operation with the ctx
-  ///   await ctx.execute('PRAGMA schema_version');
-  /// });
-  /// ```
-  exclusiveLock<T>(
-    Future<T> Function(SqliteReadContext tx) callback,
-  ) async {
-    final List<Completer<SqliteReadContext>> completers = [];
-    final List<Completer<void>> releasers = [];
-
-    for (final read in _allReadConnections) {
-      final completer = Completer<SqliteReadContext>();
-
-      completers.add(completer);
-      read.readLock((ctx) async {
-        completer.complete(ctx);
-
-        final releaser = Completer();
-        releasers.add(releaser);
-
-        // Keep this active, close the context when finished
-        await releaser.future;
-      });
-    }
-
-    final writeCompleter = Completer<SqliteReadContext>();
-    completers.add(writeCompleter);
-    _writeConnection?.writeLock((ctx) async {
-      writeCompleter.complete(ctx);
-
-      final releaser = Completer();
-      releasers.add(releaser);
-      await releaser.future;
-    });
-
-    // Get all the connection contexts and execute the callback on each of them
-    final List<SqliteReadContext> contexts = [];
-    for (final completer in completers) {
-      contexts.add(await completer.future);
-    }
-
-    for (final c in contexts) {
-      await callback(c);
-    }
-
-    // Release all the releasers
-    for (final r in releasers) {
-      r.complete();
-    }
-  }
-
   /// Returns true if the _write_ connection is currently in autocommit mode.
   @override
   Future<bool> getAutoCommit() async {
@@ -281,6 +220,17 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     // It can only do that if there are no other open connections, so we close the
     // read-only connections first.
     await _writeConnection?.close();
+  }
+
+  @override
+  Future<void> refreshSchema() async {
+    final toRefresh = _allReadConnections.toList();
+
+    await _writeConnection?.refreshSchema();
+
+    for (var connection in toRefresh) {
+      await connection.refreshSchema();
+    }
   }
 }
 

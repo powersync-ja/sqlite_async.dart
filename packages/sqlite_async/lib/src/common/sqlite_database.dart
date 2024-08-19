@@ -38,21 +38,6 @@ mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
   ///
   /// Use this to access the database in background isolates.
   IsolateConnectionFactory isolateConnectionFactory();
-
-  /// TODO Improve on this definition by supporting a writeable context.
-  Future<void> exclusiveLock<T>(
-    Future<T> Function(SqliteReadContext ctx) callback,
-  ) {
-    return writeLock(callback);
-  }
-
-  /// Ensures that all connections are aware of the latest schema changes applied (if any).
-  /// Queries and watch calls can potentially use outdated schema information after a schema update.
-  Future<void> refreshSchema() {
-    return exclusiveLock((ctx) async {
-      return ctx.get("PRAGMA table_info('sqlite_master')");
-    });
-  }
 }
 
 /// A SQLite database instance.

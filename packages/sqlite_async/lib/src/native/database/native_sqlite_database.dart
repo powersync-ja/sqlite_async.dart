@@ -168,8 +168,7 @@ class SqliteDatabaseImpl
   }
 
   @override
-  Future<void> exclusiveLock<T>(
-      Future<T> Function(SqliteReadContext ctx) callback) {
-    return _pool.exclusiveLock(callback);
+  Future<void> refreshSchema() {
+    return _pool.refreshSchema();
   }
 }
