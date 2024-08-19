@@ -1,6 +1,6 @@
 ## 0.8.2
 
-- Added `refreshSchema()` to `SqliteConnection` and its implementations, allowing queries and watch calls to work against update schemas.
+- Added `refreshSchema()` and `exclusiveLock()` to `SqliteDatabaseMixin`, allowing queries and watch calls to work against updated schemas.
 
 ## 0.8.1
 
