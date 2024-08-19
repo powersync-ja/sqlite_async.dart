@@ -59,7 +59,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   ///
   /// This function first locks all read and write connections, collecting their
   /// contexts. It then executes the provided [callback] function on each of these
-  /// contexts. After the [callback] completex for each context, the locks are released
+  /// contexts. After the [callback] completes for each context, the locks are released.
   ///
   /// Example usage:
   /// ```dart
@@ -68,8 +68,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   ///   await ctx.execute('PRAGMA schema_version');
   /// });
   /// ```
-  ///
-  ///
   exclusiveLock<T>(
     Future<T> Function(SqliteReadContext tx) callback,
   ) async {
