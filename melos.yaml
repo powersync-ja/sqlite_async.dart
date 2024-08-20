@@ -3,6 +3,12 @@ name: sqlite_async_monorepo
 packages:
   - packages/**
 
+command:
+  version:
+    changelog: false
+    packageFilters:
+      noPrivate: true
+
 scripts:
   prepare: melos bootstrap && melos prepare:compile:webworker && melos prepare:sqlite:wasm
 
