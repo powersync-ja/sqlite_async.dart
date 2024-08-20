@@ -138,8 +138,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
     });
   }
 
-  /// Ensures that all connections are aware of the latest schema changes applied (if any).
-  /// Queries and watch calls can potentially use outdated schema information after a schema update.
+  @override
   Future<void> refreshSchema() {
     return get("PRAGMA table_info('sqlite_master')");
   }

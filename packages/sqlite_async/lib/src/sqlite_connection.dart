@@ -130,6 +130,10 @@ abstract class SqliteConnection extends SqliteWriteContext {
 
   Future<void> close();
 
+  /// Ensures that all connections are aware of the latest schema changes applied (if any).
+  /// Queries and watch calls can potentially use outdated schema information after a schema update.
+  Future<void> refreshSchema();
+
   /// Returns true if the connection is closed
   @override
   bool get closed;

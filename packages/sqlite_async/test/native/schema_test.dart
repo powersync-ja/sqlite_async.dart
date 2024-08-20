@@ -96,8 +96,3 @@ void main() {
     });
   });
 }
-
-// For some reason, future.ignore() doesn't actually ignore errors in these tests.
-void ignore(Future future) {
-  future.then((_) {}, onError: (_) {});
-}

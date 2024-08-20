@@ -1,7 +1,3 @@
-## 0.8.2
-
-- Added `refreshSchema()`, allowing queries and watch calls to work against updated schemas.
-
 ## 0.8.1
 
 - Added Navigator locks for web `Mutex`s.
