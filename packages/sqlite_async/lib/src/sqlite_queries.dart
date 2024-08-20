@@ -137,4 +137,9 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       return tx.executeBatch(sql, parameterSets);
     });
   }
+
+  @override
+  Future<void> refreshSchema() {
+    return get("PRAGMA table_info('sqlite_master')");
+  }
 }

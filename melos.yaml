@@ -3,6 +3,12 @@ name: sqlite_async_monorepo
 packages:
   - packages/**
 
+command:
+  version:
+    changelog: false
+    packageFilters:
+      noPrivate: true
+
 scripts:
   prepare: melos bootstrap && melos prepare:compile:webworker && melos prepare:sqlite:wasm
 
@@ -26,9 +32,10 @@ scripts:
     description: Analyze Dart code in packages.
     run: dart analyze packages --fatal-infos
 
+  # TODO: Temporarily setting the exit-code-threshold to 10 until drift_sqlite_async dependencies are updated.
   analyze:packages:pana:
     description: Analyze Dart packages with Pana
-    exec: dart pub global run pana --no-warning --exit-code-threshold 0
+    exec: dart pub global run pana --no-warning --exit-code-threshold 10
     packageFilters:
       noPrivate: true
 

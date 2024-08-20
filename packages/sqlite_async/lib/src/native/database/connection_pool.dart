@@ -221,6 +221,17 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     // read-only connections first.
     await _writeConnection?.close();
   }
+
+  @override
+  Future<void> refreshSchema() async {
+    final toRefresh = _allReadConnections.toList();
+
+    await _writeConnection?.refreshSchema();
+
+    for (var connection in toRefresh) {
+      await connection.refreshSchema();
+    }
+  }
 }
 
 typedef ReadCallback<T> = Future<T> Function(SqliteReadContext tx);
