@@ -140,6 +140,6 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
 
   @override
   Future<void> refreshSchema() {
-    return get("PRAGMA table_info('sqlite_master')");
+    return getAll("PRAGMA table_info('sqlite_master')");
   }
 }

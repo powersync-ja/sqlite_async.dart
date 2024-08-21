@@ -150,7 +150,7 @@ class _SharedContext implements SqliteReadContext {
   @override
   Future<Row> get(String sql, [List<Object?> parameters = const []]) async {
     final results = await getAll(sql, parameters);
-    return results.single;
+    return results.first;
   }
 
   @override
@@ -169,7 +169,7 @@ class _SharedContext implements SqliteReadContext {
   Future<Row?> getOptional(String sql,
       [List<Object?> parameters = const []]) async {
     final results = await getAll(sql, parameters);
-    return results.singleOrNull;
+    return results.firstOrNull;
   }
 
   void markClosed() {
