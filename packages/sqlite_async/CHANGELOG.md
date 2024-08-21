@@ -1,3 +1,7 @@
+## 0.8.3
+
+ - Updated web database implementation for get and getOptional. Fixed refreshSchema not working in web.
+
 ## 0.8.2
 
 - **FEAT**: Added `refreshSchema()`, allowing queries and watch calls to work against updated schemas.
