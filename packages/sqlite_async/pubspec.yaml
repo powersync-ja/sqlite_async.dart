@@ -13,12 +13,12 @@ topics:
 
 dependencies:
   sqlite3: "^2.4.4"
-  sqlite3_web: ^0.1.2-wip
+  sqlite3_web: ^0.1.3
   async: ^2.10.0
   collection: ^1.17.0
   mutex: ^3.1.0
   meta: ^1.10.0
-  web: ^0.5.1
+  web: ^1.0.0
 
 dev_dependencies:
   dcli: ^4.0.0
