@@ -1,3 +1,9 @@
+## 0.9.0
+
+ - Support the latest version of package:web and package:sqlite3_web
+
+ - Export sqlite3 `open` for packages that depend on `sqlite_async`
+
 ## 0.8.3
 
  - Updated web database implementation for get and getOptional. Fixed refreshSchema not working in web.
