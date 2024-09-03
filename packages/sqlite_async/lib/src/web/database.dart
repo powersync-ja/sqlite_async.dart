@@ -5,11 +5,12 @@ import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
+import 'package:sqlite_async/web.dart';
 import 'protocol.dart';
 
 class WebDatabase
     with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase {
+    implements SqliteDatabase, WebSqliteConnection {
   final Database _database;
   final Mutex? _mutex;
 
@@ -55,6 +56,11 @@ class WebDatabase
 
   /// Not relevant for web.
   Never get openFactory => throw UnimplementedError();
+
+  @override
+  Future<SqliteWebEndpoint> exposeEndpoint() async {
+    return await _database.additionalConnection();
+  }
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
