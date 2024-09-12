@@ -129,6 +129,9 @@ class WebDatabase
       }
     }
   }
+
+  @override
+  int get numConnections => 0;
 }
 
 class _SharedContext implements SqliteReadContext {

@@ -95,6 +95,7 @@ class SqliteConnectionImpl
 
   @override
   Future<void> close() async {
+    print("Closing native sqlite Connection ${StackTrace.current}");
     eventsPort?.close();
     await _connectionMutex.lock(() async {
       if (readOnly) {

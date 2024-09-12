@@ -9,7 +9,9 @@ class _SqliteAsyncDelegate extends DatabaseDelegate {
   final SqliteConnection db;
   bool _closed = false;
 
-  _SqliteAsyncDelegate(this.db);
+  _SqliteAsyncDelegate(
+    this.db,
+  );
 
   @override
   late final DbVersionDelegate versionDelegate =
@@ -127,10 +129,8 @@ class _SqliteAsyncVersionDelegate extends DynamicVersionDelegate {
 /// Extnral update notifications from the [SqliteConnection] are _not_ forwarded
 /// automatically - use [SqliteAsyncDriftConnection] for that.
 class SqliteAsyncQueryExecutor extends DelegatedDatabase {
-  SqliteAsyncQueryExecutor(SqliteConnection db)
-      : super(
-          _SqliteAsyncDelegate(db),
-        );
+  SqliteAsyncQueryExecutor(SqliteConnection db, {bool logStatements = false})
+      : super(_SqliteAsyncDelegate(db), logStatements: logStatements);
 
   /// The underlying SqliteConnection used by drift to send queries.
   SqliteConnection get db {

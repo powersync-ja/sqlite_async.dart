@@ -50,6 +50,8 @@ abstract class SqliteDatabase
   /// The maximum number of concurrent read transactions if not explicitly specified.
   static const int defaultMaxReaders = 5;
 
+  int get numConnections;
+
   /// Open a SqliteDatabase.
   ///
   /// Only a single SqliteDatabase per [path] should be opened at a time.

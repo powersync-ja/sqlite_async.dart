@@ -139,4 +139,7 @@ class SqliteDatabaseImpl
     await isInitialized;
     return _connection.getAutoCommit();
   }
+
+  @override
+  int get numConnections => 0;
 }
