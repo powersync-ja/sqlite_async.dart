@@ -1,4 +1,7 @@
+/// Exposes interfaces implemented by database implementations on the web.
 ///
+/// These expose methods allowing database instances to be shared across web
+/// workers.
 library sqlite_async.web;
 
 import 'package:sqlite3_web/sqlite3_web.dart';
