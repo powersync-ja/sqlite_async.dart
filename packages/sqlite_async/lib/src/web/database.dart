@@ -7,6 +7,7 @@ import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'package:sqlite_async/web.dart';
 import 'protocol.dart';
+import 'web_mutex.dart';
 
 class WebDatabase
     with SqliteQueries, SqliteDatabaseMixin
@@ -58,8 +59,17 @@ class WebDatabase
   Never get openFactory => throw UnimplementedError();
 
   @override
-  Future<SqliteWebEndpoint> exposeEndpoint() async {
-    return await _database.additionalConnection();
+  Future<WebDatabaseEndpoint> exposeEndpoint() async {
+    final endpoint = await _database.additionalConnection();
+
+    return (
+      connectPort: endpoint.$1,
+      connectName: endpoint.$2,
+      lockName: switch (_mutex) {
+        MutexImpl(:final resolvedIdentifier) => resolvedIdentifier,
+        _ => null,
+      },
+    );
   }
 
   @override
