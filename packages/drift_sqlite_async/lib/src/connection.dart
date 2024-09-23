@@ -15,8 +15,8 @@ import 'package:sqlite_async/sqlite_async.dart';
 class SqliteAsyncDriftConnection extends DatabaseConnection {
   late StreamSubscription _updateSubscription;
 
-  SqliteAsyncDriftConnection(SqliteConnection db)
-      : super(SqliteAsyncQueryExecutor(db)) {
+  SqliteAsyncDriftConnection(SqliteConnection db, {bool logStatements = false})
+      : super(SqliteAsyncQueryExecutor(db, logStatements: logStatements)) {
     _updateSubscription = (db as SqliteQueries).updates!.listen((event) {
       var setUpdates = <TableUpdate>{};
       for (var tableName in event.tables) {
