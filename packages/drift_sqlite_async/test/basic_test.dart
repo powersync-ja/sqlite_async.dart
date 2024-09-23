@@ -172,7 +172,7 @@ void main() {
             {'description': 'Test 1'},
             {'description': 'Test 3'}
           ]));
-    });
+    }, skip: 'sqlite_async does not support nested transactions');
 
     test('Concurrent select', () async {
       var completer1 = Completer<void>();

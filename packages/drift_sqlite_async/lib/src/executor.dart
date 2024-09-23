@@ -1,15 +1,24 @@
 import 'dart:async';
 
 import 'package:drift/backends.dart';
-import 'package:drift_sqlite_async/src/transaction_executor.dart';
+import 'package:drift/src/runtime/query_builder/query_builder.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
-class _SqliteAsyncDelegate extends DatabaseDelegate {
+// Ends with " RETURNING *", or starts with insert/update/delete.
+// Drift-generated queries will always have the RETURNING *.
+// The INSERT/UPDATE/DELETE check is for custom queries, and is not exhaustive.
+final _returningCheck = RegExp(r'( RETURNING \*;?$)|(^(INSERT|UPDATE|DELETE))',
+    caseSensitive: false);
+
+class _SqliteAsyncDelegate extends _SqliteAsyncQueryDelegate
+    implements DatabaseDelegate {
   final SqliteConnection db;
   bool _closed = false;
 
-  _SqliteAsyncDelegate(this.db);
+  _SqliteAsyncDelegate(this.db) : super(db, db.writeLock);
+
+  bool isInTransaction = false; // unused
 
   @override
   late final DbVersionDelegate versionDelegate =
@@ -18,17 +27,10 @@ class _SqliteAsyncDelegate extends DatabaseDelegate {
   // Not used - we override beginTransaction() with SqliteAsyncTransactionExecutor for more control.
   @override
   late final TransactionDelegate transactionDelegate =
-      const NoTransactionDelegate();
+      _SqliteAsyncTransactionDelegate(db);
 
   @override
   bool get isOpen => !db.closed && !_closed;
-
-  // Ends with " RETURNING *", or starts with insert/update/delete.
-  // Drift-generated queries will always have the RETURNING *.
-  // The INSERT/UPDATE/DELETE check is for custom queries, and is not exhaustive.
-  final _returningCheck = RegExp(
-      r'( RETURNING \*;?$)|(^(INSERT|UPDATE|DELETE))',
-      caseSensitive: false);
 
   @override
   Future<void> open(QueryExecutorUser user) async {
@@ -43,8 +45,29 @@ class _SqliteAsyncDelegate extends DatabaseDelegate {
   }
 
   @override
+  void notifyDatabaseOpened(OpeningDetails details) {
+    // Unused
+  }
+}
+
+class _SqliteAsyncQueryDelegate extends QueryDelegate {
+  final SqliteWriteContext _context;
+  final Future<T> Function<T>(
+      Future<T> Function(SqliteWriteContext tx) callback)? _writeLock;
+
+  _SqliteAsyncQueryDelegate(this._context, this._writeLock);
+
+  Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback) {
+    if (_writeLock case var writeLock?) {
+      return writeLock.call(callback);
+    } else {
+      return callback(_context);
+    }
+  }
+
+  @override
   Future<void> runBatched(BatchedStatements statements) async {
-    return db.writeLock((tx) async {
+    return writeLock((tx) async {
       // sqlite_async's batch functionality doesn't have enough flexibility to support
       // this with prepared statements yet.
       for (final arg in statements.arguments) {
@@ -56,12 +79,12 @@ class _SqliteAsyncDelegate extends DatabaseDelegate {
 
   @override
   Future<void> runCustom(String statement, List<Object?> args) {
-    return db.execute(statement, args);
+    return _context.execute(statement, args);
   }
 
   @override
   Future<int> runInsert(String statement, List<Object?> args) async {
-    return db.writeLock((tx) async {
+    return writeLock((tx) async {
       await tx.execute(statement, args);
       final row = await tx.get('SELECT last_insert_rowid() as row_id');
       return row['row_id'];
@@ -77,20 +100,34 @@ class _SqliteAsyncDelegate extends DatabaseDelegate {
       // This takes write lock, so we want to avoid it for plain select statements.
       // This is not an exhaustive check, but should cover all Drift-generated queries using
       // `runSelect()`.
-      result = await db.execute(statement, args);
+      result = await _context.execute(statement, args);
     } else {
       // Plain SELECT statement - use getAll() to avoid using a write lock.
-      result = await db.getAll(statement, args);
+      result = await _context.getAll(statement, args);
     }
     return QueryResult(result.columnNames, result.rows);
   }
 
   @override
   Future<int> runUpdate(String statement, List<Object?> args) {
-    return db.writeLock((tx) async {
+    return writeLock((tx) async {
       await tx.execute(statement, args);
       final row = await tx.get('SELECT changes() as changes');
       return row['changes'];
+    });
+  }
+}
+
+class _SqliteAsyncTransactionDelegate extends SupportedTransactionDelegate {
+  final SqliteConnection _db;
+
+  _SqliteAsyncTransactionDelegate(this._db);
+
+  @override
+  Future<void> startTransaction(Future Function(QueryDelegate p1) run) async {
+    await _db.writeTransaction((context) async {
+      final delegate = _SqliteAsyncQueryDelegate(context, null);
+      return run(delegate);
     });
   }
 }
@@ -139,9 +176,4 @@ class SqliteAsyncQueryExecutor extends DelegatedDatabase {
 
   @override
   bool get isSequential => false;
-
-  @override
-  TransactionExecutor beginTransaction() {
-    return SqliteAsyncTransactionExecutor(db);
-  }
 }
