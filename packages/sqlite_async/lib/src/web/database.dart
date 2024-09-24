@@ -132,6 +132,16 @@ class WebDatabase
 
   @override
   int get numConnections => 0;
+
+  @override
+  int getNumConnections() {
+    return -1;
+  }
+
+  @override
+  List<SqliteConnection> getAllConnections() {
+    throw UnimplementedError();
+  }
 }
 
 class _SharedContext implements SqliteReadContext {

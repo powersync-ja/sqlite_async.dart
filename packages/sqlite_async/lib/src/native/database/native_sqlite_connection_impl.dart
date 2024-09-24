@@ -159,6 +159,11 @@ class SqliteConnectionImpl
       });
     }, timeout: lockTimeout);
   }
+
+  @override
+  int getNumConnections() {
+    return -1;
+  }
 }
 
 int _nextCtxId = 1;

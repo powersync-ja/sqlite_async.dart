@@ -51,6 +51,7 @@ abstract class SqliteDatabase
   static const int defaultMaxReaders = 5;
 
   int get numConnections;
+  List<SqliteConnection> getAllConnections();
 
   /// Open a SqliteDatabase.
   ///
