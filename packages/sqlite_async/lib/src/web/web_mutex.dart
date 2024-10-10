@@ -18,7 +18,7 @@ external Navigator get _navigator;
 class MutexImpl implements Mutex {
   late final mutex.Mutex fallback;
   String? identifier;
-  final String _resolvedIdentifier;
+  final String resolvedIdentifier;
 
   MutexImpl({this.identifier})
 
@@ -29,7 +29,7 @@ class MutexImpl implements Mutex {
       ///    - The uuid package could be added for better uniqueness if required.
       ///      This would add another package dependency to `sqlite_async` which is potentially unnecessary at this point.
       /// An identifier should be supplied for better exclusion.
-      : _resolvedIdentifier = identifier ??
+      : resolvedIdentifier = identifier ??
             "${DateTime.now().microsecondsSinceEpoch}-${Random().nextDouble()}" {
     fallback = mutex.Mutex();
   }
@@ -125,7 +125,7 @@ class MutexImpl implements Mutex {
     final lockOptions = JSObject();
     lockOptions['signal'] = controller.signal;
     final promise = _navigator.locks
-        .request(_resolvedIdentifier, lockOptions, jsCallback.toJS);
+        .request(resolvedIdentifier, lockOptions, jsCallback.toJS);
     // A timeout abort will throw an exception which needs to be handled.
     // There should not be any other unhandled lock errors.
     js_util.promiseToFuture(promise).catchError((error) {});
