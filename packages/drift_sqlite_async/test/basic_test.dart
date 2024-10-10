@@ -129,6 +129,13 @@ void main() {
         // This runs outside the transaction
         expect(await db.get('select count(*) as count from test_data'),
             equals({'count': 0}));
+
+        // This runs in the transaction
+        final countInTransaction = (await dbu
+                .customSelect('select count(*) as count from test_data')
+                .getSingle())
+            .data;
+        expect(countInTransaction, equals({'count': 2}));
       });
 
       expect(await db.get('select count(*) as count from test_data'),
@@ -172,7 +179,7 @@ void main() {
             {'description': 'Test 1'},
             {'description': 'Test 3'}
           ]));
-    });
+    }, skip: 'sqlite_async does not support nested transactions');
 
     test('Concurrent select', () async {
       var completer1 = Completer<void>();

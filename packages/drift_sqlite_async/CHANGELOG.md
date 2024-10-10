@@ -1,3 +1,8 @@
+## 0.2.0-alpha.1
+
+ - Support `drift` version >=2.19 and `web` 1.0.0
+ - BREAKING CHANGE: Nested transactions through drift no longer create SAVEPOINTs. When nesting a drift `transaction`, the transaction is reused. See https://github.com/powersync-ja/sqlite_async.dart/pull/65
+
 ## 0.1.0-alpha.7
 
  - Update a dependency to the latest release.
