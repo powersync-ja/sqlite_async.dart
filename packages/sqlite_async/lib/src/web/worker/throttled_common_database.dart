@@ -111,9 +111,7 @@ class ThrottledCommonDatabase extends CommonDatabase {
 Stream<SqliteUpdate> throttledUpdates(
     CommonDatabase source, Stream transactionStream) {
   StreamController<SqliteUpdate>? controller;
-  Set<String> insertedTables = {};
-  Set<String> updatedTables = {};
-  Set<String> deletedTables = {};
+  Set<SqliteUpdate> pendingUpdates = {};
   var paused = false;
 
   Timer? updateDebouncer;
@@ -132,39 +130,19 @@ Stream<SqliteUpdate> throttledUpdates(
       return;
     }
 
-    if (updatedTables.isNotEmpty) {
-      for (var tableName in updatedTables) {
-        controller!.add(SqliteUpdate(SqliteUpdateKind.update, tableName, 0));
+    if (pendingUpdates.isNotEmpty) {
+      for (var update in pendingUpdates) {
+        controller!.add(update);
       }
 
-      updatedTables.clear();
-    }
-
-    if (insertedTables.isNotEmpty) {
-      for (var tableName in insertedTables) {
-        controller!.add(SqliteUpdate(SqliteUpdateKind.insert, tableName, 0));
-      }
-
-      insertedTables.clear();
-    }
-
-    if (deletedTables.isNotEmpty) {
-      for (var tableName in deletedTables) {
-        controller!.add(SqliteUpdate(SqliteUpdateKind.delete, tableName, 0));
-      }
-
-      deletedTables.clear();
+      pendingUpdates.clear();
     }
   }
 
   void collectUpdate(SqliteUpdate event) {
-    if (event.kind == SqliteUpdateKind.insert) {
-      insertedTables.add(event.tableName);
-    } else if (event.kind == SqliteUpdateKind.update) {
-      updatedTables.add(event.tableName);
-    } else if (event.kind == SqliteUpdateKind.delete) {
-      deletedTables.add(event.tableName);
-    }
+    // We merge updates with the same kind and tableName.
+    // rowId is never used in sqlite_async.
+    pendingUpdates.add(SqliteUpdate(event.kind, event.tableName, 0));
 
     updateDebouncer ??=
         Timer(const Duration(milliseconds: 1), maybeFireUpdates);
