@@ -48,8 +48,15 @@ void main() {
 
     test('watch', () async {
       var stream = dbu.select(dbu.todoItems).watch();
-      var resultsPromise =
-          stream.distinct().skipWhile((e) => e.isEmpty).take(3).toList();
+      var resultsPromise = stream
+          // toString() so that we can use distinct()
+          .map((rows) => rows.toString())
+          // Drift may or may not emit duplicate update notifications.
+          // We use distinct() to ignore those.
+          .distinct()
+          .skipWhile((e) => e.isEmpty)
+          .take(3)
+          .toList();
 
       await dbu.into(dbu.todoItems).insert(
           TodoItemsCompanion.insert(id: Value(1), description: 'Test 1'));
@@ -65,16 +72,20 @@ void main() {
       expect(
           results,
           equals([
-            [TodoItem(id: 1, description: 'Test 1')],
-            [TodoItem(id: 1, description: 'Test 1B')],
-            []
+            '[TodoItem(id: 1, description: Test 1)]',
+            '[TodoItem(id: 1, description: Test 1B)]',
+            '[]'
           ]));
     });
 
     test('watch with external updates', () async {
       var stream = dbu.select(dbu.todoItems).watch();
-      var resultsPromise =
-          stream.distinct().skipWhile((e) => e.isEmpty).take(3).toList();
+      var resultsPromise = stream
+          .map((rows) => rows.toString())
+          .distinct()
+          .skipWhile((e) => e.isEmpty)
+          .take(3)
+          .toList();
 
       await db.execute(
           'INSERT INTO todos(id, description) VALUES(?, ?)', [1, 'Test 1']);
@@ -88,9 +99,9 @@ void main() {
       expect(
           results,
           equals([
-            [TodoItem(id: 1, description: 'Test 1')],
-            [TodoItem(id: 1, description: 'Test 1B')],
-            []
+            '[TodoItem(id: 1, description: Test 1)]',
+            '[TodoItem(id: 1, description: Test 1B)]',
+            '[]'
           ]));
     });
   });
