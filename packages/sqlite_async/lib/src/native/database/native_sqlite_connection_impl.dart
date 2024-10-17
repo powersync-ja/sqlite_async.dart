@@ -299,9 +299,9 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
     if (updatedTables.isNotEmpty && db.autocommit) {
       client.fire(UpdateNotification(updatedTables));
       updatedTables.clear();
-      updateDebouncer?.cancel();
-      updateDebouncer = null;
     }
+    updateDebouncer?.cancel();
+    updateDebouncer = null;
   }
 
   db.updates.listen((event) {
@@ -316,6 +316,7 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
 
   server.open((data) async {
     if (data is _SqliteIsolateClose) {
+      // This is a transaction close message
       if (txId != null) {
         if (!db.autocommit) {
           db.execute('ROLLBACK');
