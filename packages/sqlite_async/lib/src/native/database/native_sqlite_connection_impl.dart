@@ -286,7 +286,17 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
   Object? txError;
 
   void maybeFireUpdates() {
-    if (updatedTables.isNotEmpty) {
+    // We keep buffering the set of updated tables until we are not
+    // in a transaction. Firing transactions inside a transaction
+    // has multiple issues:
+    // 1. Watched queries would detect changes to the underlying tables,
+    //    but the data would not be visible to queries yet.
+    // 2. It would trigger many more notifications than required.
+    //
+    // This still includes updates for transactions that are rolled back.
+    // We could handle those better at a later stage.
+
+    if (updatedTables.isNotEmpty && db.autocommit) {
       client.fire(UpdateNotification(updatedTables));
       updatedTables.clear();
       updateDebouncer?.cancel();
@@ -301,7 +311,7 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
     // 1. Update arrived after _SqliteIsolateClose (not sure if this could happen).
     // 2. Long-running _SqliteIsolateClosure that should fire updates while running.
     updateDebouncer ??=
-        Timer(const Duration(milliseconds: 10), maybeFireUpdates);
+        Timer(const Duration(milliseconds: 1), maybeFireUpdates);
   });
 
   server.open((data) async {
