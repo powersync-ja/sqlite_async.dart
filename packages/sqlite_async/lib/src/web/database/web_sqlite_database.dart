@@ -24,6 +24,9 @@ class SqliteDatabaseImpl
     return _connection.closed;
   }
 
+  @override
+  Future<void> get closedFuture => _connection.closedFuture;
+
   final StreamController<UpdateNotification> updatesController =
       StreamController.broadcast();
 

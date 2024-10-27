@@ -27,6 +27,9 @@ class WebDatabase
   }
 
   @override
+  Future<void> get closedFuture => _database.closed;
+
+  @override
   Future<bool> getAutoCommit() async {
     final response = await _database.customRequest(
         CustomDatabaseMessage(CustomDatabaseMessageKind.getAutoCommit));

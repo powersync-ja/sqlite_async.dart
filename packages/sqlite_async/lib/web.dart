@@ -32,6 +32,13 @@ typedef WebDatabaseEndpoint = ({
 /// opened database across different JavaScript contexts
 /// (e.g. document windows and workers).
 abstract class WebSqliteConnection implements SqliteConnection {
+  /// Returns a future that completes when this connection is closed.
+  ///
+  /// This usually only happens when calling [close], but on the web
+  /// specifically, it can also happen when a remote context closes a database
+  /// accessed via [connectToEndpoint].
+  Future<void> get closedFuture;
+
   /// Returns a [WebDatabaseEndpoint] - a structure that consists only of types
   /// that can be transferred across a [MessagePort] in JavaScript.
   ///
