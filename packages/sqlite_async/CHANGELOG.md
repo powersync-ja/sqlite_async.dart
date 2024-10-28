@@ -1,12 +1,18 @@
+## 0.9.1
+
+- Support version ^0.2.0 of package:sqlite3_web
+- Fix update notifications to only fire outside transactions
+- Fix update notifications to be debounced on web
+
 ## 0.9.0
 
- - Support the latest version of package:web and package:sqlite3_web
+- Support the latest version of package:web and package:sqlite3_web
 
- - Export sqlite3 `open` for packages that depend on `sqlite_async`
+- Export sqlite3 `open` for packages that depend on `sqlite_async`
 
 ## 0.8.3
 
- - Updated web database implementation for get and getOptional. Fixed refreshSchema not working in web.
+- Updated web database implementation for get and getOptional. Fixed refreshSchema not working in web.
 
 ## 0.8.2
 
