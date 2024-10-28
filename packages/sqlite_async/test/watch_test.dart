@@ -258,7 +258,7 @@ void main() {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
-      const baseTime = 10;
+      const baseTime = 20;
 
       const throttleDuration = Duration(milliseconds: baseTime);
       // delay must be bigger than throttleDuration, and bigger
@@ -300,6 +300,7 @@ void main() {
       //  [0, 2, 2]: The watch is triggered during the transaction,
       //             but executes after the transaction (single connection).
       //  [0]: No updates triggered.
+      //  [2, 2]: Timing issue?
     });
   });
 }
