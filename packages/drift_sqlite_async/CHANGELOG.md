@@ -1,3 +1,7 @@
+## 0.2.0-alpha.2
+
+ - Bump `sqlite_async` to v0.10.0
+
 ## 0.2.0-alpha.1
 
  - Support `drift` version >=2.19 and `web` v1.0.0.

@@ -3,6 +3,34 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2024-10-28
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`drift_sqlite_async` - `v0.2.0-alpha.2`](#drift_sqlite_async---v020-alpha2)
+ - [`sqlite_async` - `v0.10.0`](#sqlite_async---v0100)
+
+---
+
+#### `drift_sqlite_async` - `v0.2.0-alpha.2`
+
+ - Bump sqlite_async to v0.10.0
+
+#### `sqlite_async` - `v0.10.0`
+
+ - Add the `exposeEndpoint()` method available on web databases. It returns a serializable
+  description of the database endpoint that can be sent across workers.
+  This allows sharing an opened database connection across workers.
+
+
 ## 2024-09-03
 
 ### Changes
