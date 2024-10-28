@@ -1,3 +1,9 @@
+## 0.10.0
+
+- Add the `exposeEndpoint()` method available on web databases. It returns a serializable
+  description of the database endpoint that can be sent across workers.
+  This allows sharing an opened database connection across workers.
+
 ## 0.9.1
 
 - Support version ^0.2.0 of package:sqlite3_web
