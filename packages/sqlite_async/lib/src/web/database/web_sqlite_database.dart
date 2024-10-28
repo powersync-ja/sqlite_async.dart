@@ -10,16 +10,22 @@ import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
+import 'package:sqlite_async/web.dart';
+
+import '../database.dart';
 
 /// Web implementation of [SqliteDatabase]
 /// Uses a web worker for SQLite connection
 class SqliteDatabaseImpl
     with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase {
+    implements SqliteDatabase, WebSqliteConnection {
   @override
   bool get closed {
     return _connection.closed;
   }
+
+  @override
+  Future<void> get closedFuture => _connection.closedFuture;
 
   final StreamController<UpdateNotification> updatesController =
       StreamController.broadcast();
@@ -38,7 +44,7 @@ class SqliteDatabaseImpl
   AbstractDefaultSqliteOpenFactory openFactory;
 
   late final Mutex mutex;
-  late final SqliteConnection _connection;
+  late final WebDatabase _connection;
 
   /// Open a SqliteDatabase.
   ///
@@ -78,8 +84,8 @@ class SqliteDatabaseImpl
 
   Future<void> _init() async {
     _connection = await openFactory.openConnection(SqliteOpenOptions(
-        primaryConnection: true, readOnly: false, mutex: mutex));
-    _connection.updates!.forEach((update) {
+        primaryConnection: true, readOnly: false, mutex: mutex)) as WebDatabase;
+    _connection.updates.forEach((update) {
       updatesController.add(update);
     });
   }
@@ -138,5 +144,10 @@ class SqliteDatabaseImpl
   Future<bool> getAutoCommit() async {
     await isInitialized;
     return _connection.getAutoCommit();
+  }
+
+  @override
+  Future<WebDatabaseEndpoint> exposeEndpoint() async {
+    return await _connection.exposeEndpoint();
   }
 }

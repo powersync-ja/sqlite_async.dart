@@ -5,11 +5,13 @@ import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
+import 'package:sqlite_async/web.dart';
 import 'protocol.dart';
+import 'web_mutex.dart';
 
 class WebDatabase
     with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase {
+    implements SqliteDatabase, WebSqliteConnection {
   final Database _database;
   final Mutex? _mutex;
 
@@ -23,6 +25,9 @@ class WebDatabase
     await _database.dispose();
     closed = true;
   }
+
+  @override
+  Future<void> get closedFuture => _database.closed;
 
   @override
   Future<bool> getAutoCommit() async {
@@ -55,6 +60,20 @@ class WebDatabase
 
   /// Not relevant for web.
   Never get openFactory => throw UnimplementedError();
+
+  @override
+  Future<WebDatabaseEndpoint> exposeEndpoint() async {
+    final endpoint = await _database.additionalConnection();
+
+    return (
+      connectPort: endpoint.$1,
+      connectName: endpoint.$2,
+      lockName: switch (_mutex) {
+        MutexImpl(:final resolvedIdentifier) => resolvedIdentifier,
+        _ => null,
+      },
+    );
+  }
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
