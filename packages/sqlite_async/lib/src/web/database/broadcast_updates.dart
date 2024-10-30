@@ -8,8 +8,6 @@ import 'package:web/web.dart' as web;
 class BroadcastUpdates {
   final web.BroadcastChannel _channel;
 
-  BroadcastUpdates._(this._channel);
-
   BroadcastUpdates(String name)
       : _channel = web.BroadcastChannel('sqlite3_async_updates/$name');
 
