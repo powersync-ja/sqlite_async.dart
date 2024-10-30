@@ -45,6 +45,7 @@ class SqliteDatabaseImpl
 
   late final Mutex mutex;
   late final WebDatabase _connection;
+  StreamSubscription? _broadcastUpdatesSubscription;
 
   /// Open a SqliteDatabase.
   ///
@@ -93,11 +94,18 @@ class SqliteDatabaseImpl
         updatesController.add(update);
       });
     } else {
-      // Share local updates with other tabs
-      _connection.updates.forEach(broadcastUpdates.send);
+      _connection.updates.forEach((update) {
+        updatesController.add(update);
+
+        // Share local updates with other tabs
+        broadcastUpdates.send(update);
+      });
 
       // Also add updates from other tabs
-      updatesController.addStream(broadcastUpdates.updates);
+      _broadcastUpdatesSubscription =
+          broadcastUpdates.updates.listen((updates) {
+        updatesController.add(updates);
+      });
     }
   }
 
@@ -143,6 +151,7 @@ class SqliteDatabaseImpl
   @override
   Future<void> close() async {
     await isInitialized;
+    _broadcastUpdatesSubscription?.cancel();
     updatesController.close();
     return _connection.close();
   }
