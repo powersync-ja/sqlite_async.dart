@@ -46,7 +46,7 @@ extension type _BroadcastMessage._(JSObject _) implements JSObject {
   factory _BroadcastMessage.notifications(UpdateNotification notification) {
     return _BroadcastMessage(
       a: 0,
-      b: notification.tables.toList().map((e) => e.toJS).toList().toJS,
+      b: notification.tables.map((e) => e.toJS).toList().toJS,
     );
   }
 }
