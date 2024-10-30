@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
 
 import 'database.dart';
@@ -57,7 +58,14 @@ class DefaultSqliteOpenFactory
         ? null
         : MutexImpl(identifier: path); // Use the DB path as a mutex identifier
 
-    return WebDatabase(connection.database, options.mutex ?? mutex);
+    BroadcastUpdates? updates;
+    if (connection.access != AccessMode.throughSharedWorker &&
+        connection.storage != StorageMode.inMemory) {
+      updates = BroadcastUpdates(path);
+    }
+
+    return WebDatabase(connection.database, options.mutex ?? mutex,
+        broadcastUpdates: updates);
   }
 
   @override

@@ -5,6 +5,7 @@ import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
+import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import 'package:sqlite_async/web.dart';
 import 'protocol.dart';
 import 'web_mutex.dart';
@@ -15,10 +16,14 @@ class WebDatabase
   final Database _database;
   final Mutex? _mutex;
 
+  /// For persistent databases that aren't backed by a shared worker, we use
+  /// web broadcast channels to forward local update events to other tabs.
+  final BroadcastUpdates? broadcastUpdates;
+
   @override
   bool closed = false;
 
-  WebDatabase(this._database, this._mutex);
+  WebDatabase(this._database, this._mutex, {this.broadcastUpdates});
 
   @override
   Future<void> close() async {

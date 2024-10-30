@@ -85,9 +85,20 @@ class SqliteDatabaseImpl
   Future<void> _init() async {
     _connection = await openFactory.openConnection(SqliteOpenOptions(
         primaryConnection: true, readOnly: false, mutex: mutex)) as WebDatabase;
-    _connection.updates.forEach((update) {
-      updatesController.add(update);
-    });
+
+    final broadcastUpdates = _connection.broadcastUpdates;
+    if (broadcastUpdates == null) {
+      // We can use updates directly from the database.
+      _connection.updates.forEach((update) {
+        updatesController.add(update);
+      });
+    } else {
+      // Share local updates with other tabs
+      _connection.updates.forEach(broadcastUpdates.send);
+
+      // Also add updates from other tabs
+      updatesController.addStream(broadcastUpdates.updates);
+    }
   }
 
   T _runZoned<T>(T Function() callback, {required String debugContext}) {
@@ -132,6 +143,7 @@ class SqliteDatabaseImpl
   @override
   Future<void> close() async {
     await isInitialized;
+    updatesController.close();
     return _connection.close();
   }
 
