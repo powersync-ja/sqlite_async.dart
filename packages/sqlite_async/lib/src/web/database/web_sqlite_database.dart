@@ -101,7 +101,8 @@ class SqliteDatabaseImpl
         broadcastUpdates.send(update);
       });
 
-      // Also add updates from other tabs
+      // Also add updates from other tabs, note that things we send aren't
+      // received by our tab.
       _broadcastUpdatesSubscription =
           broadcastUpdates.updates.listen((updates) {
         updatesController.add(updates);
