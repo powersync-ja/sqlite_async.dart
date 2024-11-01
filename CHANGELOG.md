@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2024-11-01
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.10.1`](#sqlite_async---v0101)
+ - [`drift_sqlite_async` - `v0.2.0-alpha.3`](#drift_sqlite_async---v020-alpha3)
+
+---
+
+#### `sqlite_async` - `v0.10.1`
+
+ - For database setups not using a shared worker, use a `BroadcastChannel` to share updates across different tabs.
+
+#### `drift_sqlite_async` - `v0.2.0-alpha.3`
+
+ - Bump `sqlite_async` to v0.10.1
+
+
 ## 2024-10-28
 
 ### Changes

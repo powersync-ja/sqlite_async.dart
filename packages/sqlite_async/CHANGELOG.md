@@ -1,3 +1,7 @@
+## 0.10.1
+
+- For database setups not using a shared worker, use a `BroadcastChannel` to share updates across different tabs.
+
 ## 0.10.0
 
 - Add the `exposeEndpoint()` method available on web databases. It returns a serializable
