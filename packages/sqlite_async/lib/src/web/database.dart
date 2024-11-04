@@ -137,6 +137,7 @@ class WebDatabase
           return await callback(context);
         } finally {
           context.markClosed();
+          await _database.fileSystem.flush();
         }
       });
     } else {
@@ -148,6 +149,7 @@ class WebDatabase
         return await callback(context);
       } finally {
         context.markClosed();
+        await _database.fileSystem.flush();
         await _database.customRequest(
             CustomDatabaseMessage(CustomDatabaseMessageKind.releaseLock));
       }
