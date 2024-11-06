@@ -65,4 +65,34 @@ abstract class WebSqliteConnection implements SqliteConnection {
     );
     return database;
   }
+
+  /// Same as [SqliteConnection.writeLock].
+  ///
+  /// Has an additional [flush] (defaults to true). This can be set to false
+  /// to delay flushing changes to the database file, losing durability guarantees.
+  /// This only has an effect when IndexedDB storage is used.
+  ///
+  /// See [flush] for details.
+  Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout, String? debugContext, bool? flush});
+
+  /// Same as [SqliteConnection.writeTransaction].
+  ///
+  /// Has an additional [flush] (defaults to true). This can be set to false
+  /// to delay flushing changes to the database file, losing durability guarantees.
+  /// This only has an effect when IndexedDB storage is used.
+  ///
+  /// See [flush] for details.
+  Future<T> writeTransaction<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Duration? lockTimeout,
+      bool? flush});
+
+  /// Flush changes to the underlying storage.
+  ///
+  /// When this returns, all changes previously written will be persisted
+  /// to storage.
+  ///
+  /// This only has an effect when IndexedDB storage is used.
+  Future<void> flush();
 }

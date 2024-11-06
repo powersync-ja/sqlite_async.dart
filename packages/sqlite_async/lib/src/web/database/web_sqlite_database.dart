@@ -131,22 +131,30 @@ class SqliteDatabaseImpl
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+      {Duration? lockTimeout, String? debugContext, bool? flush}) async {
     await isInitialized;
     return _runZoned(() {
       return _connection.writeLock(callback,
-          lockTimeout: lockTimeout, debugContext: debugContext);
+          lockTimeout: lockTimeout, debugContext: debugContext, flush: flush);
     }, debugContext: debugContext ?? 'execute()');
   }
 
   @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout}) async {
+      {Duration? lockTimeout,
+      bool? flush}) async {
     await isInitialized;
     return _runZoned(
-        () => _connection.writeTransaction(callback, lockTimeout: lockTimeout),
+        () => _connection.writeTransaction(callback,
+            lockTimeout: lockTimeout, flush: flush),
         debugContext: 'writeTransaction()');
+  }
+
+  @override
+  Future<void> flush() async {
+    await isInitialized;
+    return _connection.flush();
   }
 
   @override

@@ -1,3 +1,7 @@
+## 0.11.0
+
+ - Automatically flush IndexedDB storage to fix durability issues
+
 ## 0.10.1
 
 - For database setups not using a shared worker, use a `BroadcastChannel` to share updates across different tabs.

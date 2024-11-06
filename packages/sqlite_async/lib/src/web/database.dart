@@ -113,7 +113,8 @@ class WebDatabase
   @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout}) {
+      {Duration? lockTimeout,
+      bool? flush}) {
     return writeLock(
         (writeContext) =>
             internalWriteTransaction(writeContext, (context) async {
@@ -122,14 +123,15 @@ class WebDatabase
               return callback(_ExclusiveTransactionContext(this, writeContext));
             }),
         debugContext: 'writeTransaction()',
-        lockTimeout: lockTimeout);
+        lockTimeout: lockTimeout,
+        flush: flush);
   }
 
   @override
 
   /// Internal writeLock which intercepts transaction context's to verify auto commit is not active
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+      {Duration? lockTimeout, String? debugContext, bool? flush}) async {
     if (_mutex case var mutex?) {
       return await mutex.lock(() async {
         final context = _ExclusiveContext(this);
@@ -137,6 +139,9 @@ class WebDatabase
           return await callback(context);
         } finally {
           context.markClosed();
+          if (flush != false) {
+            await this.flush();
+          }
         }
       });
     } else {
@@ -148,10 +153,19 @@ class WebDatabase
         return await callback(context);
       } finally {
         context.markClosed();
+        if (flush != false) {
+          await this.flush();
+        }
         await _database.customRequest(
             CustomDatabaseMessage(CustomDatabaseMessageKind.releaseLock));
       }
     }
+  }
+
+  @override
+  Future<void> flush() async {
+    await isInitialized;
+    return _database.fileSystem.flush();
   }
 }
 
