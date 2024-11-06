@@ -54,7 +54,7 @@ void main() {
           // Drift may or may not emit duplicate update notifications.
           // We use distinct() to ignore those.
           .distinct()
-          .skipWhile((e) => e.isEmpty)
+          .skipWhile((e) => e == '[]')
           .take(3)
           .toList();
 
@@ -83,7 +83,7 @@ void main() {
       var resultsPromise = stream
           .map((rows) => rows.toString())
           .distinct()
-          .skipWhile((e) => e.isEmpty)
+          .skipWhile((e) => e == '[]')
           .take(3)
           .toList();
 
