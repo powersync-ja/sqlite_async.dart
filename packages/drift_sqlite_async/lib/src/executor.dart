@@ -15,6 +15,7 @@ class _SqliteAsyncDelegate extends _SqliteAsyncQueryDelegate
     implements DatabaseDelegate {
   final SqliteConnection db;
   bool _closed = false;
+  bool _calledOpen = false;
 
   _SqliteAsyncDelegate(this.db) : super(db, db.writeLock);
 
@@ -30,12 +31,15 @@ class _SqliteAsyncDelegate extends _SqliteAsyncQueryDelegate
       _SqliteAsyncTransactionDelegate(db);
 
   @override
-  bool get isOpen => !db.closed && !_closed;
+  bool get isOpen => !db.closed && !_closed && _calledOpen;
 
   @override
   Future<void> open(QueryExecutorUser user) async {
     // Workaround - this ensures the db is open
     await db.get('SELECT 1');
+    // We need to delay this until open() has been called, otherwise
+    // migrations don't run.
+    _calledOpen = true;
   }
 
   @override
