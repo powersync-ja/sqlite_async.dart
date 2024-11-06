@@ -15,6 +15,27 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`drift_sqlite_async` - `v0.2.0`](#drift_sqlite_async---v020)
+
+---
+
+#### `drift_sqlite_async` - `v0.2.0`
+
+ - Automatically run Drift migrations
+
+
+## 2024-11-06
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
  - [`sqlite_async` - `v0.11.0`](#sqlite_async---v0110)
  - [`drift_sqlite_async` - `v0.2.0-alpha.4`](#drift_sqlite_async---v020-alpha4)
 

@@ -1,3 +1,7 @@
+## 0.2.0
+
+ - Automatically run Drift migrations
+
 ## 0.2.0-alpha.4
 
  - Update a dependency to the latest release.
