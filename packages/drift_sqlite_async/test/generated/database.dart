@@ -19,3 +19,16 @@ class TodoDatabase extends _$TodoDatabase {
   @override
   int get schemaVersion => 1;
 }
+
+class TodosMigrationDatabase extends TodoDatabase {
+  TodosMigrationDatabase(SqliteConnection db) : super(db);
+
+  @override
+  MigrationStrategy get migration {
+    return MigrationStrategy(
+      onCreate: (m) async {
+        await m.createAll();
+      },
+    );
+  }
+}

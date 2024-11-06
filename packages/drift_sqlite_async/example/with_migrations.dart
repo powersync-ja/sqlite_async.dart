@@ -21,20 +21,17 @@ class AppDatabase extends _$AppDatabase {
 
   @override
   MigrationStrategy get migration {
-    return MigrationStrategy(
-      onCreate: (m) async {
-        // In this example, the schema is managed by Drift
-        await m.createAll();
-      },
-    );
+    return MigrationStrategy(onCreate: (m) async {
+      // In this example, the schema is managed by Drift.
+      // For more options, see:
+      // https://drift.simonbinder.eu/migrations/#usage
+      await m.createAll();
+    });
   }
 }
 
 Future<void> main() async {
   final db = SqliteDatabase(path: 'with_migrations.db');
-
-  await db.execute(
-      'CREATE TABLE IF NOT EXISTS todos(id integer primary key, description text)');
 
   final appdb = AppDatabase(db);
 
