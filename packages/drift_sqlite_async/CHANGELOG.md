@@ -1,3 +1,7 @@
+## 0.2.0-alpha.4
+
+ - Update a dependency to the latest release.
+
 ## 0.2.0-alpha.3
 
  - Bump `sqlite_async` to v0.10.1
