@@ -1,3 +1,8 @@
+## 0.11.1
+
+- Remove remaining `dart:js_util` imports in favor of new interop APIs.
+- Add `WebSqliteOpenFactory` with web-specific behavior for open factories.
+
 ## 0.11.0
 
  - Automatically flush IndexedDB storage to fix durability issues
