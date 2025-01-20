@@ -1,3 +1,7 @@
+## 0.11.1
+
+- Fix compiling workers with version `2.7.0` of `package:sqlite3`.
+
 ## 0.11.0
 
  - Automatically flush IndexedDB storage to fix durability issues
