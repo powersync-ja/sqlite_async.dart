@@ -103,6 +103,17 @@ class ThrottledCommonDatabase extends CommonDatabase {
   Stream<SqliteUpdate> get updates {
     return throttledUpdates(_db, _transactionController.stream);
   }
+
+  @override
+  VoidPredicate? get commitFilter => _db.commitFilter;
+
+  set commitFilter(VoidPredicate? filter) => _db.commitFilter = filter;
+
+  @override
+  Stream<void> get commits => _db.commits;
+
+  @override
+  Stream<void> get rollbacks => _db.rollbacks;
 }
 
 /// This throttles the database update stream to:
