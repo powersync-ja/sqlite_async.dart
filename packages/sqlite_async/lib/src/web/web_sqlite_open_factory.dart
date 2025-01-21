@@ -5,33 +5,45 @@ import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
+import 'package:sqlite_async/web.dart';
 
 import 'database.dart';
+import 'worker/worker_utils.dart';
 
 Map<String, FutureOr<WebSqlite>> webSQLiteImplementations = {};
 
 /// Web implementation of [AbstractDefaultSqliteOpenFactory]
 class DefaultSqliteOpenFactory
-    extends AbstractDefaultSqliteOpenFactory<CommonDatabase> {
-  final Future<WebSqlite> _initialized;
+    extends AbstractDefaultSqliteOpenFactory<CommonDatabase>
+    implements WebSqliteOpenFactory {
+  late final Future<WebSqlite> _initialized = Future.sync(() {
+    final cacheKey = sqliteOptions.webSqliteOptions.wasmUri +
+        sqliteOptions.webSqliteOptions.workerUri;
+
+    if (webSQLiteImplementations.containsKey(cacheKey)) {
+      return webSQLiteImplementations[cacheKey]!;
+    }
+
+    webSQLiteImplementations[cacheKey] =
+        openWebSqlite(sqliteOptions.webSqliteOptions);
+    return webSQLiteImplementations[cacheKey]!;
+  });
 
   DefaultSqliteOpenFactory(
       {required super.path,
-      super.sqliteOptions = const SqliteOptions.defaults()})
-      : _initialized = Future.sync(() {
-          final cacheKey = sqliteOptions.webSqliteOptions.wasmUri +
-              sqliteOptions.webSqliteOptions.workerUri;
+      super.sqliteOptions = const SqliteOptions.defaults()}) {
+    // Make sure initializer starts running immediately
+    _initialized;
+  }
 
-          if (webSQLiteImplementations.containsKey(cacheKey)) {
-            return webSQLiteImplementations[cacheKey]!;
-          }
-
-          webSQLiteImplementations[cacheKey] = WebSqlite.open(
-            wasmModule: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
-            worker: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
-          );
-          return webSQLiteImplementations[cacheKey]!;
-        });
+  @override
+  Future<WebSqlite> openWebSqlite(WebSqliteOptions options) async {
+    return WebSqlite.open(
+      wasmModule: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
+      worker: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
+      controller: AsyncSqliteController(),
+    );
+  }
 
   @override
 

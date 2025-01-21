@@ -1,5 +1,4 @@
 import 'dart:js_interop';
-import 'dart:js_util' as js_util;
 
 import 'package:mutex/mutex.dart';
 import 'package:sqlite3/wasm.dart';
@@ -73,7 +72,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
 
         var dartMap = resultSetToMap(res);
 
-        var jsObject = js_util.jsify(dartMap);
+        var jsObject = dartMap.jsify();
 
         return jsObject;
       case CustomDatabaseMessageKind.executeBatchInTransaction:

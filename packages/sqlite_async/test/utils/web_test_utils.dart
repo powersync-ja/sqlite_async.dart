@@ -1,9 +1,9 @@
 import 'dart:async';
-import 'dart:html';
+import 'dart:js_interop';
 
-import 'package:js/js.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
+import 'package:web/web.dart' show Blob, BlobPart, BlobPropertyBag;
 import 'abstract_test_utils.dart';
 
 @JS('URL.createObjectURL')
@@ -24,8 +24,8 @@ class TestUtils extends AbstractTestUtils {
     // Cross origin workers are not supported, but we can supply a Blob
     var sqliteUri = 'http://localhost:$port/db_worker.js';
 
-    final blob = Blob(
-        <String>['importScripts("$sqliteUri");'], 'application/javascript');
+    final blob = Blob(<BlobPart>['importScripts("$sqliteUri");'.toJS].toJS,
+        BlobPropertyBag(type: 'application/javascript'));
     sqliteUri = _createObjectURL(blob);
 
     webOptions = SqliteOptions(

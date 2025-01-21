@@ -6,6 +6,8 @@ library sqlite_async.web;
 
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:web/web.dart';
+
+import 'sqlite3_common.dart';
 import 'sqlite_async.dart';
 import 'src/web/database.dart';
 
@@ -23,6 +25,22 @@ typedef WebDatabaseEndpoint = ({
   String connectName,
   String? lockName,
 });
+
+/// An additional interface for [SqliteOpenFactory] exposing additional
+/// functionality that is only relevant when compiling to the web.
+///
+/// The [DefaultSqliteOpenFactory] class implements this interface only when
+/// compiling for the web.
+abstract interface class WebSqliteOpenFactory
+    implements SqliteOpenFactory<CommonDatabase> {
+  /// Opens a [WebSqlite] instance for the given [options].
+  ///
+  /// This method can be overriden in scenarios where the way [WebSqlite] is
+  /// opened needs to be customized. Implementers should be aware that the
+  /// result of this method is cached and will be re-used by the open factory
+  /// when provided with the same [options] again.
+  Future<WebSqlite> openWebSqlite(WebSqliteOptions options);
+}
 
 /// A [SqliteConnection] interface implemented by opened connections when
 /// running on the web.
