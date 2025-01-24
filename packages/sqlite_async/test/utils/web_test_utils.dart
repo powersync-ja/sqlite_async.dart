@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:math';
 
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
@@ -8,6 +9,8 @@ import 'abstract_test_utils.dart';
 
 @JS('URL.createObjectURL')
 external String _createObjectURL(Blob blob);
+
+String? _dbPath;
 
 class TestUtils extends AbstractTestUtils {
   late Future<void> _isInitialized;
@@ -31,6 +34,21 @@ class TestUtils extends AbstractTestUtils {
     webOptions = SqliteOptions(
         webSqliteOptions: WebSqliteOptions(
             wasmUri: sqliteWasmUri.toString(), workerUri: sqliteUri));
+  }
+
+  @override
+  String dbPath() {
+    if (_dbPath case final path?) {
+      return path;
+    }
+
+    final created = _dbPath = 'test-db/${Random().nextInt(1 << 31)}/test.db';
+    addTearDown(() {
+      // Pick a new path for the next test.
+      _dbPath = null;
+    });
+
+    return created;
   }
 
   @override
