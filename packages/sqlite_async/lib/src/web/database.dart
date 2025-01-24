@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
+import 'package:sqlite3_web/protocol_utils.dart' as proto;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
@@ -256,9 +258,15 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
     // JavaScript object. This is the converted into a Dart ResultSet.
     return await wrapSqliteException(() async {
       var res = await _database._database.customRequest(CustomDatabaseMessage(
-          CustomDatabaseMessageKind.executeInTransaction, sql, parameters));
-      var result =
-          Map<String, dynamic>.from((res as JSObject).dartify() as Map);
+              CustomDatabaseMessageKind.executeInTransaction, sql, parameters))
+          as JSObject;
+
+      if (res.has('format') && (res['format'] as JSNumber).toDartInt == 2) {
+        // Newer workers use a serialization format more efficient than dartify().
+        return proto.deserializeResultSet(res['r'] as JSObject);
+      }
+
+      var result = Map<String, dynamic>.from(res.dartify() as Map);
       final columnNames = [
         for (final entry in result['columnNames']) entry as String
       ];

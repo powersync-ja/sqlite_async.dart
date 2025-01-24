@@ -21,7 +21,7 @@ class TodoDatabase extends _$TodoDatabase {
 }
 
 class TodosMigrationDatabase extends TodoDatabase {
-  TodosMigrationDatabase(SqliteConnection db) : super(db);
+  TodosMigrationDatabase(super.db);
 
   @override
   MigrationStrategy get migration {

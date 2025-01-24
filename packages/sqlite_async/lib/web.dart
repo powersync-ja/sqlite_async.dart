@@ -2,7 +2,7 @@
 ///
 /// These expose methods allowing database instances to be shared across web
 /// workers.
-library sqlite_async.web;
+library;
 
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:web/web.dart';
@@ -31,7 +31,7 @@ typedef WebDatabaseEndpoint = ({
 ///
 /// The [DefaultSqliteOpenFactory] class implements this interface only when
 /// compiling for the web.
-abstract interface class WebSqliteOpenFactory
+abstract mixin class WebSqliteOpenFactory
     implements SqliteOpenFactory<CommonDatabase> {
   /// Opens a [WebSqlite] instance for the given [options].
   ///
@@ -39,7 +39,21 @@ abstract interface class WebSqliteOpenFactory
   /// opened needs to be customized. Implementers should be aware that the
   /// result of this method is cached and will be re-used by the open factory
   /// when provided with the same [options] again.
-  Future<WebSqlite> openWebSqlite(WebSqliteOptions options);
+  Future<WebSqlite> openWebSqlite(WebSqliteOptions options) async {
+    return WebSqlite.open(
+      worker: Uri.parse(options.workerUri),
+      wasmModule: Uri.parse(options.wasmUri),
+    );
+  }
+
+  /// Uses [WebSqlite] to connects to the recommended database setup for [name].
+  ///
+  /// This typically just calls [WebSqlite.connectToRecommended], but subclasses
+  /// can customize the behavior where needed.
+  Future<ConnectToRecommendedResult> connectToWorker(
+      WebSqlite sqlite, String name) {
+    return sqlite.connectToRecommended(name);
+  }
 }
 
 /// A [SqliteConnection] interface implemented by opened connections when
@@ -91,6 +105,7 @@ abstract class WebSqliteConnection implements SqliteConnection {
   /// This only has an effect when IndexedDB storage is used.
   ///
   /// See [flush] for details.
+  @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext, bool? flush});
 
@@ -101,6 +116,7 @@ abstract class WebSqliteConnection implements SqliteConnection {
   /// This only has an effect when IndexedDB storage is used.
   ///
   /// See [flush] for details.
+  @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout,

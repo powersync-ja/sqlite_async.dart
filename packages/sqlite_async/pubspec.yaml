@@ -13,7 +13,7 @@ topics:
 
 dependencies:
   sqlite3: ^2.7.2
-  sqlite3_web: ^0.2.2
+  sqlite3_web: ^0.3.0
   async: ^2.10.0
   collection: ^1.17.0
   mutex: ^3.1.0
@@ -21,8 +21,7 @@ dependencies:
   web: ^1.0.0
 
 dev_dependencies:
-  dcli: ^4.0.0
-  lints: ^3.0.0
+  lints: ^5.1.1
   test: ^1.21.0
   test_api: ^0.7.0
   glob: ^2.1.1
@@ -31,6 +30,11 @@ dev_dependencies:
   shelf_static: ^1.1.2
   stream_channel: ^2.1.2
   path: ^1.9.0
+  test_descriptor: ^2.0.2
+
+dependency_overrides:
+  sqlite3_web:
+    path: /Users/simon/src/sqlite3.dart/sqlite3_web
 
 platforms:
   android:

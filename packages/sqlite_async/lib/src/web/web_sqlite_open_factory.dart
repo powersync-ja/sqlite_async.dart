@@ -15,7 +15,7 @@ Map<String, FutureOr<WebSqlite>> webSQLiteImplementations = {};
 /// Web implementation of [AbstractDefaultSqliteOpenFactory]
 class DefaultSqliteOpenFactory
     extends AbstractDefaultSqliteOpenFactory<CommonDatabase>
-    implements WebSqliteOpenFactory {
+    with WebSqliteOpenFactory {
   late final Future<WebSqlite> _initialized = Future.sync(() {
     final cacheKey = sqliteOptions.webSqliteOptions.wasmUri +
         sqliteOptions.webSqliteOptions.workerUri;
@@ -45,9 +45,8 @@ class DefaultSqliteOpenFactory
     );
   }
 
-  @override
-
   /// This is currently not supported on web
+  @override
   CommonDatabase openDB(SqliteOpenOptions options) {
     throw UnimplementedError(
         'Direct access to CommonDatabase is not available on web.');
@@ -61,7 +60,7 @@ class DefaultSqliteOpenFactory
   /// Due to being asynchronous, the under laying CommonDatabase is not accessible
   Future<SqliteConnection> openConnection(SqliteOpenOptions options) async {
     final workers = await _initialized;
-    final connection = await workers.connectToRecommended(path);
+    final connection = await connectToWorker(workers, path);
 
     // When the database is accessed through a shared worker, we implement
     // mutexes over custom messages sent through the shared worker. In other

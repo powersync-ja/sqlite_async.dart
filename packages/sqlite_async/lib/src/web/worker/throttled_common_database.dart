@@ -107,6 +107,7 @@ class ThrottledCommonDatabase extends CommonDatabase {
   @override
   VoidPredicate? get commitFilter => _db.commitFilter;
 
+  @override
   set commitFilter(VoidPredicate? filter) => _db.commitFilter = filter;
 
   @override

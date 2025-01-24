@@ -1,7 +1,7 @@
 import 'dart:async';
 
 import 'package:drift/backends.dart';
-import 'package:drift/src/runtime/query_builder/query_builder.dart';
+import 'package:drift/drift.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
@@ -19,6 +19,7 @@ class _SqliteAsyncDelegate extends _SqliteAsyncQueryDelegate
 
   _SqliteAsyncDelegate(this.db) : super(db, db.writeLock);
 
+  @override
   bool isInTransaction = false; // unused
 
   @override
