@@ -26,10 +26,6 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
     sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
       return DynamicLibrary.open(sqlitePath);
     });
-    sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.macOS, () {
-      return DynamicLibrary.open(
-          '/Users/simon/src/sqlite_async.dart/sqlite-autoconf-3480000/.libs/libsqlite3.dylib');
-    });
     final db = super.open(options);
 
     db.createFunction(
