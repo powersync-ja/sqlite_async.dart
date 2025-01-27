@@ -311,9 +311,14 @@ Future<T> wrapSqliteException<T>(Future<T> Function() callback) async {
   try {
     return await callback();
   } on RemoteException catch (ex) {
+    if (ex.exception case final serializedCause?) {
+      throw serializedCause;
+    }
+
+    // Older versions of package:sqlite_web reported SqliteExceptions as strings
+    // only.
     if (ex.toString().contains('SqliteException')) {
       RegExp regExp = RegExp(r'SqliteException\((\d+)\)');
-      // The SQLite Web package wraps these in remote errors
       throw SqliteException(
           int.parse(regExp.firstMatch(ex.message)?.group(1) ?? '0'),
           ex.message);

@@ -175,6 +175,19 @@ void main() {
           ? 'Fails due to compiler bug, https://dartbug.com/59981'
           : null,
     );
+
+    test('reports exceptions as SqliteExceptions', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await expectLater(
+        db.get('SELECT invalid_statement;'),
+        throwsA(
+          isA<SqliteException>()
+              .having((e) => e.causingStatement, 'causingStatement',
+                  'SELECT invalid_statement;')
+              .having((e) => e.extendedResultCode, 'extendedResultCode', 1),
+        ),
+      );
+    });
   });
 }
 
