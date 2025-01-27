@@ -1,3 +1,7 @@
+## 0.2.1
+
+- Fix lints.
+
 ## 0.2.0
 
  - Automatically run Drift migrations

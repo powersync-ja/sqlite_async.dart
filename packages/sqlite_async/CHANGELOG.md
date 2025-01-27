@@ -1,3 +1,8 @@
+## 0.11.2
+
+- Support latest version of `package:sqlite3_web`.
+- Support `dart2wasm`.
+
 ## 0.11.1
 
 - Remove remaining `dart:js_util` imports in favor of new interop APIs.

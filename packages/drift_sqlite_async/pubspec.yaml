@@ -1,5 +1,5 @@
 name: drift_sqlite_async
-version: 0.2.0
+version: 0.2.1
 homepage: https://github.com/powersync-ja/sqlite_async.dart
 repository: https://github.com/powersync-ja/sqlite_async.dart
 description: Use Drift with a sqlite_async database, allowing both to be used in the same application.
