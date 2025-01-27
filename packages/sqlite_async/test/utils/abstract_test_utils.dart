@@ -1,5 +1,4 @@
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:test_api/src/backend/invoker.dart';
 
 class TestDefaultSqliteOpenFactory extends DefaultSqliteOpenFactory {
   final String sqlitePath;
@@ -9,14 +8,7 @@ class TestDefaultSqliteOpenFactory extends DefaultSqliteOpenFactory {
 }
 
 abstract class AbstractTestUtils {
-  String dbPath() {
-    final test = Invoker.current!.liveTest;
-    var testName = test.test.name;
-    var testShortName =
-        testName.replaceAll(RegExp(r'[\s\./]'), '_').toLowerCase();
-    var dbName = "test-db/$testShortName.db";
-    return dbName;
-  }
+  String dbPath();
 
   /// Generates a test open factory
   Future<TestDefaultSqliteOpenFactory> testFactory(

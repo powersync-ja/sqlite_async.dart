@@ -1,4 +1,6 @@
 @TestOn('!browser')
+library;
+
 import 'dart:io';
 
 import 'package:sqlite_async/sqlite_async.dart';

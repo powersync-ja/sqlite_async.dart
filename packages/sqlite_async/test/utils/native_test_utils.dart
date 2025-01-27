@@ -8,6 +8,7 @@ import 'package:glob/list_local_fs.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite3/open.dart' as sqlite_open;
+import 'package:test_descriptor/test_descriptor.dart' as d;
 
 import 'abstract_test_utils.dart';
 
@@ -52,8 +53,7 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
 class TestUtils extends AbstractTestUtils {
   @override
   String dbPath() {
-    Directory("test-db").createSync(recursive: false);
-    return super.dbPath();
+    return d.path('test.db');
   }
 
   @override

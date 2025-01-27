@@ -1,4 +1,6 @@
 /// Downloads sqlite3.wasm
+library;
+
 import 'dart:io';
 
 final sqliteUrl =
