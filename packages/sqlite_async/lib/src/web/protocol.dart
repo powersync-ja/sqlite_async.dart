@@ -26,7 +26,7 @@ extension type CustomDatabaseMessage._raw(JSObject _) implements JSObject {
   factory CustomDatabaseMessage(CustomDatabaseMessageKind kind,
       [String? sql, List<Object?> parameters = const []]) {
     final rawSql = (sql ?? '').toJS;
-    // Serializing parameters this was is backwards-compatible with dartify()
+    // Serializing parameters this way is backwards-compatible with dartify()
     // on the other end, but a bit more efficient while also suppporting sound
     // communcation between dart2js workers and dart2wasm clients.
     // Older workers ignore the typeInfo, but that's not a problem.
