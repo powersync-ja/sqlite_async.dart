@@ -51,6 +51,7 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
 }
 
 class TestUtils extends AbstractTestUtils {
+  @override
   String dbPath() {
     return d.path('test.db');
   }
