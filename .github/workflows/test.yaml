@@ -68,3 +68,4 @@ jobs:
         run: |
           export LD_LIBRARY_PATH=$(pwd)/sqlite-autoconf-${{ matrix.sqlite_version }}/.libs
           melos test
+          melos test_build
