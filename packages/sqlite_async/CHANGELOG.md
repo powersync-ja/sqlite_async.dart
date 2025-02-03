@@ -1,3 +1,7 @@
+## 0.11.3
+
+- Support being compiled with `package:build_web_compilers`.
+
 ## 0.11.2
 
 - Support latest version of `package:sqlite3_web`.
