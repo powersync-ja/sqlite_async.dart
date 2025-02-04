@@ -1,3 +1,10 @@
+## 0.11.4
+
+- Add `SqliteConnection.synchronousWrapper` and `SqliteDatabase.singleConnection`.
+  Together, these can be used to wrap raw `CommonDatabase` instances from `package:sqlite3`
+  as a `Database` (without an automated worker or isolate setup). This can be useful in tests
+  where synchronous access to the underlying database is convenient.
+
 ## 0.11.3
 
 - Support being compiled with `package:build_web_compilers`.

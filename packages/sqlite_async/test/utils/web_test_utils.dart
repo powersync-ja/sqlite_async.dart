@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:math';
 
+import 'package:sqlite_async/sqlite3_wasm.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 import 'package:web/web.dart' show Blob, BlobPart, BlobPropertyBag;
@@ -11,6 +12,20 @@ import 'abstract_test_utils.dart';
 external String _createObjectURL(Blob blob);
 
 String? _dbPath;
+
+class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
+  TestSqliteOpenFactory(
+      {required super.path, super.sqliteOptions, super.sqlitePath = ''});
+
+  @override
+  Future<CommonDatabase> openDatabaseForSingleConnection() async {
+    final sqlite = await WasmSqlite3.loadFromUrl(
+        Uri.parse(sqliteOptions.webSqliteOptions.wasmUri));
+    sqlite.registerVirtualFileSystem(InMemoryFileSystem(), makeDefault: true);
+
+    return sqlite.openInMemory();
+  }
+}
 
 class TestUtils extends AbstractTestUtils {
   late Future<void> _isInitialized;
@@ -57,12 +72,15 @@ class TestUtils extends AbstractTestUtils {
   @override
   Future<TestDefaultSqliteOpenFactory> testFactory(
       {String? path,
-      String? sqlitePath,
+      String sqlitePath = '',
       List<String> initStatements = const [],
       SqliteOptions options = const SqliteOptions.defaults()}) async {
     await _isInitialized;
-    return super.testFactory(
-        path: path, options: webOptions, initStatements: initStatements);
+    return TestSqliteOpenFactory(
+      path: path ?? dbPath(),
+      sqlitePath: sqlitePath,
+      sqliteOptions: webOptions,
+    );
   }
 
   @override

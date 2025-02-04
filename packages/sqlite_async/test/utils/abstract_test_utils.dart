@@ -1,3 +1,4 @@
+import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
 class TestDefaultSqliteOpenFactory extends DefaultSqliteOpenFactory {
@@ -5,6 +6,10 @@ class TestDefaultSqliteOpenFactory extends DefaultSqliteOpenFactory {
 
   TestDefaultSqliteOpenFactory(
       {required super.path, super.sqliteOptions, this.sqlitePath = ''});
+
+  Future<CommonDatabase> openDatabaseForSingleConnection() async {
+    return openDB(SqliteOpenOptions(primaryConnection: true, readOnly: false));
+  }
 }
 
 abstract class AbstractTestUtils {
