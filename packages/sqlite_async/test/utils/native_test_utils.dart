@@ -5,6 +5,7 @@ import 'dart:isolate';
 
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
+import 'package:sqlite_async/sqlite3.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite3/open.dart' as sqlite_open;
@@ -21,11 +22,15 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
       super.sqlitePath = defaultSqlitePath,
       initStatements});
 
-  @override
-  CommonDatabase open(SqliteOpenOptions options) {
+  void _applyOpenOverrides() {
     sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
       return DynamicLibrary.open(sqlitePath);
     });
+  }
+
+  @override
+  CommonDatabase open(SqliteOpenOptions options) {
+    _applyOpenOverrides();
     final db = super.open(options);
 
     db.createFunction(
@@ -47,6 +52,12 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
     );
 
     return db;
+  }
+
+  @override
+  Future<CommonDatabase> openDatabaseForSingleConnection() async {
+    _applyOpenOverrides();
+    return sqlite3.openInMemory();
   }
 }
 

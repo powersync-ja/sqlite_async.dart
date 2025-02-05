@@ -188,6 +188,27 @@ void main() {
         ),
       );
     });
+
+    test('can use raw database instance', () async {
+      final factory = await testUtils.testFactory();
+      final raw = await factory.openDatabaseForSingleConnection();
+      // Creating a fuction ensures that this database is actually used - if
+      // a connection were set up in a background isolate, it wouldn't have this
+      // function.
+      raw.createFunction(
+          functionName: 'my_function', function: (args) => 'test');
+
+      final db = SqliteDatabase.singleConnection(
+          SqliteConnection.synchronousWrapper(raw));
+      await createTables(db);
+
+      expect(db.updates, emits(UpdateNotification({'test_data'})));
+      await db
+          .execute('INSERT INTO test_data(description) VALUES (my_function())');
+
+      expect(await db.get('SELECT description FROM test_data'),
+          {'description': 'test'});
+    });
   });
 }
 
