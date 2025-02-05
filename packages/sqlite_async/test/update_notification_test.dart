@@ -112,6 +112,26 @@ void main() {
           expect(control.pendingTimers, isEmpty);
         });
       });
+
+      test('closes when source closes after delay', () {
+        fakeAsync((control) {
+          final source = StreamController<UpdateNotification>(sync: true)
+            ..onCancel = () => Future.value();
+          final events = <UpdateNotification>[];
+          var done = false;
+
+          UpdateNotification.throttleStream(source.stream, timeout)
+              .listen(events.add, onDone: () => done = true);
+
+          control.elapse(const Duration(hours: 1));
+          source.close();
+
+          control.flushTimers();
+          expect(events, isEmpty);
+          expect(done, isTrue);
+          expect(control.pendingTimers, isEmpty);
+        });
+      });
     });
 
     test('filter tables', () async {

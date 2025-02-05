@@ -88,7 +88,13 @@ Stream<T> _throttleStream<T extends Object>(Stream<T> input, Duration timeout,
     if (!nextPing.isCompleted) {
       nextPing.complete();
     }
-  }, onDone: () => done = true);
+  }, onDone: () {
+    if (!nextPing.isCompleted) {
+      nextPing.complete();
+    }
+
+    done = true;
+  });
 
   try {
     if (addOne != null) {
@@ -101,6 +107,8 @@ Stream<T> _throttleStream<T extends Object>(Stream<T> input, Duration timeout,
       // If a value is available now, we'll use it immediately.
       // If not, this waits for it.
       await nextPing.future;
+      if (done) break;
+
       // Capture any new values coming in while we wait.
       nextPing = Completer<void>();
       T data = lastData as T;
