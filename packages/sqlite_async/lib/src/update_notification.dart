@@ -62,12 +62,8 @@ class UpdateNotification {
   static StreamTransformer<UpdateNotification, UpdateNotification>
       filterTablesTransformer(Iterable<String> tables) {
     Set<String> normalized = {for (var table in tables) table.toLowerCase()};
-    return StreamTransformer<UpdateNotification,
-        UpdateNotification>.fromHandlers(handleData: (data, sink) {
-      if (data.containsAny(normalized)) {
-        sink.add(data);
-      }
-    });
+    return StreamTransformer.fromBind(
+        (source) => source.where((data) => data.containsAny(normalized)));
   }
 }
 
@@ -77,20 +73,27 @@ class UpdateNotification {
 /// Behaviour:
 ///   If there was no event in "timeout", and one comes in, it is pushed immediately.
 ///   Otherwise, we wait until the timeout is over.
-Stream<T> _throttleStream<T>(Stream<T> input, Duration timeout,
+Stream<T> _throttleStream<T extends Object>(Stream<T> input, Duration timeout,
     {bool throttleFirst = false, T Function(T, T)? add, T? addOne}) async* {
   var nextPing = Completer<void>();
+  var done = false;
   T? lastData;
 
   var listener = input.listen((data) {
-    if (lastData is T && add != null) {
-      lastData = add(lastData as T, data);
+    if (lastData != null && add != null) {
+      lastData = add(lastData!, data);
     } else {
       lastData = data;
     }
     if (!nextPing.isCompleted) {
       nextPing.complete();
     }
+  }, onDone: () {
+    if (!nextPing.isCompleted) {
+      nextPing.complete();
+    }
+
+    done = true;
   });
 
   try {
@@ -100,10 +103,12 @@ Stream<T> _throttleStream<T>(Stream<T> input, Duration timeout,
     if (throttleFirst) {
       await Future.delayed(timeout);
     }
-    while (true) {
+    while (!done) {
       // If a value is available now, we'll use it immediately.
       // If not, this waits for it.
       await nextPing.future;
+      if (done) break;
+
       // Capture any new values coming in while we wait.
       nextPing = Completer<void>();
       T data = lastData as T;
@@ -114,6 +119,10 @@ Stream<T> _throttleStream<T>(Stream<T> input, Duration timeout,
       await Future.delayed(timeout);
     }
   } finally {
-    listener.cancel();
+    if (lastData case final data?) {
+      yield data;
+    }
+
+    await listener.cancel();
   }
 }
