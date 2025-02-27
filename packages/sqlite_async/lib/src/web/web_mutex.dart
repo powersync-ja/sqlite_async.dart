@@ -114,10 +114,17 @@ class MutexImpl implements Mutex {
     JSPromise jsCallback(JSAny lock) {
       timer?.cancel();
 
+      final trace = StackTrace.current;
+      final heldSuspiciouslyLongTimer = Timer(const Duration(seconds: 10), () {
+        print('Warning: Database lock held for 10s: $trace');
+      });
+
       // Give the Held lock something to mark this Navigator lock as completed
       final jsCompleter = Completer.sync();
       gotLock.complete(HeldLock._(jsCompleter));
-      return jsCompleter.future.toJS;
+      return jsCompleter.future
+          .whenComplete(heldSuspiciouslyLongTimer.cancel)
+          .toJS;
     }
 
     final lockOptions = JSObject();
