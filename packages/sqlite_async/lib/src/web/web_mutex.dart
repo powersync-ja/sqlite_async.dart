@@ -16,10 +16,9 @@ external Navigator get _navigator;
 /// Web implementation of [Mutex]
 class MutexImpl implements Mutex {
   late final mutex.Mutex fallback;
-  String? identifier;
   final String resolvedIdentifier;
 
-  MutexImpl({this.identifier})
+  MutexImpl({String? identifier})
 
       /// On web a lock name is required for Navigator locks.
       /// Having exclusive Mutex instances requires a somewhat unique lock name.
@@ -40,7 +39,7 @@ class MutexImpl implements Mutex {
 
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) {
-    if ((_navigator as JSObject).hasProperty('locks'.toJS).toDart) {
+    if (_navigator.has('locks')) {
       return _webLock(callback, timeout: timeout);
     } else {
       return _fallbackLock(callback, timeout: timeout);
