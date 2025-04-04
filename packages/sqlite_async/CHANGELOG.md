@@ -1,6 +1,53 @@
+## 0.11.4
+
+- Add `SqliteConnection.synchronousWrapper` and `SqliteDatabase.singleConnection`.
+  Together, these can be used to wrap raw `CommonDatabase` instances from `package:sqlite3`
+  as a `Database` (without an automated worker or isolate setup). This can be useful in tests
+  where synchronous access to the underlying database is convenient.
+
+## 0.11.3
+
+- Support being compiled with `package:build_web_compilers`.
+
+## 0.11.2
+
+- Support latest version of `package:sqlite3_web`.
+- Support `dart2wasm`.
+
+## 0.11.1
+
+- Remove remaining `dart:js_util` imports in favor of new interop APIs.
+- Add `WebSqliteOpenFactory` with web-specific behavior for open factories.
+
+## 0.11.0
+
+ - Automatically flush IndexedDB storage to fix durability issues
+
+## 0.10.1
+
+- For database setups not using a shared worker, use a `BroadcastChannel` to share updates across different tabs.
+
+## 0.10.0
+
+- Add the `exposeEndpoint()` method available on web databases. It returns a serializable
+  description of the database endpoint that can be sent across workers.
+  This allows sharing an opened database connection across workers.
+
+## 0.9.1
+
+- Support version ^0.2.0 of package:sqlite3_web
+- Fix update notifications to only fire outside transactions
+- Fix update notifications to be debounced on web
+
+## 0.9.0
+
+- Support the latest version of package:web and package:sqlite3_web
+
+- Export sqlite3 `open` for packages that depend on `sqlite_async`
+
 ## 0.8.3
 
- - Updated web database implementation for get and getOptional. Fixed refreshSchema not working in web.
+- Updated web database implementation for get and getOptional. Fixed refreshSchema not working in web.
 
 ## 0.8.2
 

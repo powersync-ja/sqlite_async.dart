@@ -1,28 +1,40 @@
 import 'dart:async';
 import 'dart:js_interop';
+import 'dart:js_interop_unsafe';
 
 import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
+import 'package:sqlite3_web/protocol_utils.dart' as proto;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
+import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
+import 'package:sqlite_async/web.dart';
 import 'protocol.dart';
+import 'web_mutex.dart';
 
 class WebDatabase
     with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase {
+    implements SqliteDatabase, WebSqliteConnection {
   final Database _database;
   final Mutex? _mutex;
+
+  /// For persistent databases that aren't backed by a shared worker, we use
+  /// web broadcast channels to forward local update events to other tabs.
+  final BroadcastUpdates? broadcastUpdates;
 
   @override
   bool closed = false;
 
-  WebDatabase(this._database, this._mutex);
+  WebDatabase(this._database, this._mutex, {this.broadcastUpdates});
 
   @override
   Future<void> close() async {
     await _database.dispose();
     closed = true;
   }
+
+  @override
+  Future<void> get closedFuture => _database.closed;
 
   @override
   Future<bool> getAutoCommit() async {
@@ -57,6 +69,20 @@ class WebDatabase
   Never get openFactory => throw UnimplementedError();
 
   @override
+  Future<WebDatabaseEndpoint> exposeEndpoint() async {
+    final endpoint = await _database.additionalConnection();
+
+    return (
+      connectPort: endpoint.$1,
+      connectName: endpoint.$2,
+      lockName: switch (_mutex) {
+        MutexImpl(:final resolvedIdentifier) => resolvedIdentifier,
+        _ => null,
+      },
+    );
+  }
+
+  @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     if (_mutex case var mutex?) {
@@ -89,7 +115,8 @@ class WebDatabase
   @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout}) {
+      {Duration? lockTimeout,
+      bool? flush}) {
     return writeLock(
         (writeContext) =>
             internalWriteTransaction(writeContext, (context) async {
@@ -98,14 +125,15 @@ class WebDatabase
               return callback(_ExclusiveTransactionContext(this, writeContext));
             }),
         debugContext: 'writeTransaction()',
-        lockTimeout: lockTimeout);
+        lockTimeout: lockTimeout,
+        flush: flush);
   }
 
   @override
 
   /// Internal writeLock which intercepts transaction context's to verify auto commit is not active
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+      {Duration? lockTimeout, String? debugContext, bool? flush}) async {
     if (_mutex case var mutex?) {
       return await mutex.lock(() async {
         final context = _ExclusiveContext(this);
@@ -113,6 +141,9 @@ class WebDatabase
           return await callback(context);
         } finally {
           context.markClosed();
+          if (flush != false) {
+            await this.flush();
+          }
         }
       });
     } else {
@@ -124,12 +155,20 @@ class WebDatabase
         return await callback(context);
       } finally {
         context.markClosed();
+        if (flush != false) {
+          await this.flush();
+        }
         await _database.customRequest(
             CustomDatabaseMessage(CustomDatabaseMessageKind.releaseLock));
       }
     }
   }
 
+  @override
+  Future<void> flush() async {
+    await isInitialized;
+    return _database.fileSystem.flush();
+  }
   @override
   int get numConnections => 0;
 
@@ -142,6 +181,7 @@ class WebDatabase
   List<SqliteConnection> getAllConnections() {
     throw UnimplementedError();
   }
+
 }
 
 class _SharedContext implements SqliteReadContext {
@@ -231,9 +271,15 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
     // JavaScript object. This is the converted into a Dart ResultSet.
     return await wrapSqliteException(() async {
       var res = await _database._database.customRequest(CustomDatabaseMessage(
-          CustomDatabaseMessageKind.executeInTransaction, sql, parameters));
-      var result =
-          Map<String, dynamic>.from((res as JSObject).dartify() as Map);
+              CustomDatabaseMessageKind.executeInTransaction, sql, parameters))
+          as JSObject;
+
+      if (res.has('format') && (res['format'] as JSNumber).toDartInt == 2) {
+        // Newer workers use a serialization format more efficient than dartify().
+        return proto.deserializeResultSet(res['r'] as JSObject);
+      }
+
+      var result = Map<String, dynamic>.from(res.dartify() as Map);
       final columnNames = [
         for (final entry in result['columnNames']) entry as String
       ];
@@ -278,9 +324,14 @@ Future<T> wrapSqliteException<T>(Future<T> Function() callback) async {
   try {
     return await callback();
   } on RemoteException catch (ex) {
+    if (ex.exception case final serializedCause?) {
+      throw serializedCause;
+    }
+
+    // Older versions of package:sqlite_web reported SqliteExceptions as strings
+    // only.
     if (ex.toString().contains('SqliteException')) {
       RegExp regExp = RegExp(r'SqliteException\((\d+)\)');
-      // The SQLite Web package wraps these in remote errors
       throw SqliteException(
           int.parse(regExp.firstMatch(ex.message)?.group(1) ?? '0'),
           ex.message);

@@ -6,6 +6,7 @@ import 'package:test/test.dart';
 import 'utils/test_utils_impl.dart';
 
 final testUtils = TestUtils();
+const _isDart2Wasm = bool.fromEnvironment('dart.tool.dart2wasm');
 
 void main() {
   group('Shared Basic Tests', () {
@@ -125,48 +126,88 @@ void main() {
       expect(savedTx!.closed, equals(true));
     });
 
-    test('should properly report errors in transactions', () async {
-      final db = await testUtils.setupDatabase(path: path);
-      await createTables(db);
+    test(
+      'should properly report errors in transactions',
+      () async {
+        final db = await testUtils.setupDatabase(path: path);
+        await createTables(db);
 
-      var tp = db.writeTransaction((tx) async {
-        await tx.execute(
-            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-            [1, 'test1']);
-        await tx.execute(
-            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-            [2, 'test2']);
-        expect(await tx.getAutoCommit(), equals(false));
-        try {
+        var tp = db.writeTransaction((tx) async {
           await tx.execute(
               'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-              [2, 'test3']);
-        } catch (e) {
-          // Ignore
-        }
+              [1, 'test1']);
+          await tx.execute(
+              'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+              [2, 'test2']);
+          expect(await tx.getAutoCommit(), equals(false));
+          try {
+            await tx.execute(
+                'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+                [2, 'test3']);
+          } catch (e) {
+            // Ignore
+          }
 
-        expect(await tx.getAutoCommit(), equals(true));
-        expect(tx.closed, equals(false));
+          expect(await tx.getAutoCommit(), equals(true));
+          expect(tx.closed, equals(false));
 
-        // Will not be executed because of the above rollback
-        await tx.execute(
-            'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
-            [4, 'test4']);
-      });
+          // Will not be executed because of the above rollback
+          await tx.execute(
+              'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+              [4, 'test4']);
+        });
 
-      // The error propagates up to the transaction
+        // The error propagates up to the transaction
+        await expectLater(
+            tp,
+            throwsA((e) =>
+                e is SqliteException &&
+                e.message
+                    .contains('Transaction rolled back by earlier statement')));
+
+        expect(await db.get('SELECT count() count FROM test_data'),
+            equals({'count': 0}));
+
+        // Check that we can open another transaction afterwards
+        await db.writeTransaction((tx) async {});
+      },
+      skip: _isDart2Wasm
+          ? 'Fails due to compiler bug, https://dartbug.com/59981'
+          : null,
+    );
+
+    test('reports exceptions as SqliteExceptions', () async {
+      final db = await testUtils.setupDatabase(path: path);
       await expectLater(
-          tp,
-          throwsA((e) =>
-              e is SqliteException &&
-              e.message
-                  .contains('Transaction rolled back by earlier statement')));
+        db.get('SELECT invalid_statement;'),
+        throwsA(
+          isA<SqliteException>()
+              .having((e) => e.causingStatement, 'causingStatement',
+                  'SELECT invalid_statement;')
+              .having((e) => e.extendedResultCode, 'extendedResultCode', 1),
+        ),
+      );
+    });
 
-      expect(await db.get('SELECT count() count FROM test_data'),
-          equals({'count': 0}));
+    test('can use raw database instance', () async {
+      final factory = await testUtils.testFactory();
+      final raw = await factory.openDatabaseForSingleConnection();
+      // Creating a fuction ensures that this database is actually used - if
+      // a connection were set up in a background isolate, it wouldn't have this
+      // function.
+      raw.createFunction(
+          functionName: 'my_function', function: (args) => 'test');
 
-      // Check that we can open another transaction afterwards
-      await db.writeTransaction((tx) async {});
+      final db = SqliteDatabase.singleConnection(
+          SqliteConnection.synchronousWrapper(raw));
+      await createTables(db);
+
+      expect(db.updates, emits(UpdateNotification({'test_data'})));
+      await db
+          .execute('INSERT INTO test_data(description) VALUES (my_function())');
+
+      expect(await db.get('SELECT description FROM test_data'),
+          {'description': 'test'});
     });
   });
 }

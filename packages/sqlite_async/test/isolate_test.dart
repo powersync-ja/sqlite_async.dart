@@ -1,4 +1,6 @@
 @TestOn('!browser')
+library;
+
 import 'dart:isolate';
 
 import 'package:test/test.dart';

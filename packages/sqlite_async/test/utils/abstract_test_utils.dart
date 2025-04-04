@@ -1,22 +1,19 @@
+import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:test_api/src/backend/invoker.dart';
 
 class TestDefaultSqliteOpenFactory extends DefaultSqliteOpenFactory {
   final String sqlitePath;
 
   TestDefaultSqliteOpenFactory(
       {required super.path, super.sqliteOptions, this.sqlitePath = ''});
+
+  Future<CommonDatabase> openDatabaseForSingleConnection() async {
+    return openDB(SqliteOpenOptions(primaryConnection: true, readOnly: false));
+  }
 }
 
 abstract class AbstractTestUtils {
-  String dbPath() {
-    final test = Invoker.current!.liveTest;
-    var testName = test.test.name;
-    var testShortName =
-        testName.replaceAll(RegExp(r'[\s\./]'), '_').toLowerCase();
-    var dbName = "test-db/$testShortName.db";
-    return dbName;
-  }
+  String dbPath();
 
   /// Generates a test open factory
   Future<TestDefaultSqliteOpenFactory> testFactory(

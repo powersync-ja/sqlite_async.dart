@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
+import 'package:sqlite_async/src/impl/single_connection_database.dart';
 import 'package:sqlite_async/src/impl/sqlite_database_impl.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
@@ -84,5 +85,25 @@ abstract class SqliteDatabase
       AbstractDefaultSqliteOpenFactory openFactory,
       {int maxReaders = SqliteDatabase.defaultMaxReaders}) {
     return SqliteDatabaseImpl.withFactory(openFactory, maxReaders: maxReaders);
+  }
+
+  /// Opens a [SqliteDatabase] that only wraps an underlying connection.
+  ///
+  /// This function may be useful in some instances like tests, but should not
+  /// typically be used by applications. Compared to the other ways to open
+  /// databases, it has the following downsides:
+  ///
+  ///  1. No connection pool / concurrent readers for native databases.
+  ///  2. No reliable update notifications on the web.
+  ///  3. There is no reliable transaction management in Dart, and opening the
+  ///     same database with [SqliteDatabase.singleConnection] multiple times
+  ///     may cause "database is locked" errors.
+  ///
+  /// Together with [SqliteConnection.synchronousWrapper], this can be used to
+  /// open in-memory databases (e.g. via [SqliteOpenFactory.open]). That
+  /// bypasses most convenience features, but may still be useful for
+  /// short-lived databases used in tests.
+  factory SqliteDatabase.singleConnection(SqliteConnection connection) {
+    return SingleConnectionDatabase(connection);
   }
 }

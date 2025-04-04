@@ -32,16 +32,16 @@ scripts:
     description: Analyze Dart code in packages.
     run: dart analyze packages --fatal-infos
 
-  # TODO: Temporarily setting the exit-code-threshold to 10 until drift_sqlite_async dependencies are updated.
+  # TODO: Temporarily setting the exit-code-threshold to 20 until drift_sqlite_async dependencies are updated.
   analyze:packages:pana:
     description: Analyze Dart packages with Pana
-    exec: dart pub global run pana --no-warning --exit-code-threshold 10
+    exec: dart pub global run pana --no-warning --exit-code-threshold 20
     packageFilters:
       noPrivate: true
 
   test:
     description: Run tests in a specific package.
-    run: dart test -p chrome,vm
+    run: dart test -p chrome,vm --compiler dart2js,dart2wasm
     exec:
       concurrency: 1
     packageFilters:
@@ -51,3 +51,11 @@ scripts:
     # as they could change the behaviour of how tests filter packages.
     env:
       MELOS_TEST: true
+  
+  test_build:
+    description: Runs tests with build_test
+    run: dart run build_runner test -- -p chrome
+    exec:
+      concurrency: 1
+    packageFilters:
+      dependsOn: build_test

@@ -1,7 +1,11 @@
 import 'dart:async';
 
 import 'package:sqlite3/common.dart' as sqlite;
+import 'package:sqlite_async/mutex.dart';
+import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/update_notification.dart';
+
+import 'common/connection/sync_sqlite_connection.dart';
 
 /// Abstract class representing calls available in a read-only or read-write context.
 abstract class SqliteReadContext {
@@ -74,7 +78,26 @@ abstract class SqliteWriteContext extends SqliteReadContext {
 }
 
 /// Abstract class representing a connection to the SQLite database.
+///
+/// This package typically pools multiple [SqliteConnection] instances into a
+/// managed [SqliteDatabase] automatically.
 abstract class SqliteConnection extends SqliteWriteContext {
+  /// Default constructor for subclasses.
+  SqliteConnection();
+
+  /// Creates a [SqliteConnection] instance that wraps a raw [CommonDatabase]
+  /// from the `sqlite3` package.
+  ///
+  /// Users should not typically create connections manually at all. Instead,
+  /// open a [SqliteDatabase] through a factory. In special scenarios where it
+  /// may be easier to wrap a [raw] databases (like unit tests), this method
+  /// may be used as an escape hatch for the asynchronous wrappers provided by
+  /// this package.
+  factory SqliteConnection.synchronousWrapper(CommonDatabase raw,
+      {Mutex? mutex}) {
+    return SyncSqliteConnection(raw, mutex ?? Mutex());
+  }
+
   /// Reports table change update notifications
   Stream<UpdateNotification>? get updates;
 

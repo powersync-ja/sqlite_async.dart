@@ -8,6 +8,7 @@ Supported functionality:
 2. Transactions and nested transactions.
 3. Table updates are propagated between sqlite_async and Drift - watching queries works using either API.
 4. Select queries can run concurrently with writes and other select statements.
+5. Drift migrations are supported (optional).
 
 ## Usage
 

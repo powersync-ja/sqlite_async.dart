@@ -253,5 +253,54 @@ void main() {
         done = true;
       }
     });
+
+    test('watch with transaction', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+
+      const baseTime = 20;
+
+      const throttleDuration = Duration(milliseconds: baseTime);
+      // delay must be bigger than throttleDuration, and bigger
+      // than any internal throttles.
+      const delay = Duration(milliseconds: baseTime * 3);
+
+      final stream = db.watch('SELECT count() AS count FROM assets',
+          throttle: throttleDuration);
+
+      List<int> counts = [];
+
+      final subscription = stream.listen((e) {
+        counts.add(e.first['count']);
+      });
+      await Future.delayed(delay);
+
+      await db.writeTransaction((tx) async {
+        await tx.execute('INSERT INTO assets(make) VALUES (?)', ['test1']);
+        await Future.delayed(delay);
+        await tx.execute('INSERT INTO assets(make) VALUES (?)', ['test2']);
+        await Future.delayed(delay);
+      });
+      await Future.delayed(delay);
+
+      subscription.cancel();
+
+      expect(
+          counts,
+          equals([
+            // one event when starting the subscription
+            0,
+            // one event after the transaction
+            2
+          ]));
+
+      // Other observed results (failure scenarios):
+      //  [0, 0, 0]: The watch is triggered during the transaction
+      //             and executes concurrently with the transaction.
+      //  [0, 2, 2]: The watch is triggered during the transaction,
+      //             but executes after the transaction (single connection).
+      //  [0]: No updates triggered.
+      //  [2, 2]: Timing issue?
+    });
   });
 }

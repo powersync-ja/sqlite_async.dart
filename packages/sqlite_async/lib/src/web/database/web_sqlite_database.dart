@@ -10,16 +10,22 @@ import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
+import 'package:sqlite_async/web.dart';
+
+import '../database.dart';
 
 /// Web implementation of [SqliteDatabase]
 /// Uses a web worker for SQLite connection
 class SqliteDatabaseImpl
     with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase {
+    implements SqliteDatabase, WebSqliteConnection {
   @override
   bool get closed {
     return _connection.closed;
   }
+
+  @override
+  Future<void> get closedFuture => _connection.closedFuture;
 
   final StreamController<UpdateNotification> updatesController =
       StreamController.broadcast();
@@ -38,7 +44,8 @@ class SqliteDatabaseImpl
   AbstractDefaultSqliteOpenFactory openFactory;
 
   late final Mutex mutex;
-  late final SqliteConnection _connection;
+  late final WebDatabase _connection;
+  StreamSubscription? _broadcastUpdatesSubscription;
 
   /// Open a SqliteDatabase.
   ///
@@ -78,10 +85,29 @@ class SqliteDatabaseImpl
 
   Future<void> _init() async {
     _connection = await openFactory.openConnection(SqliteOpenOptions(
-        primaryConnection: true, readOnly: false, mutex: mutex));
-    _connection.updates!.forEach((update) {
-      updatesController.add(update);
-    });
+        primaryConnection: true, readOnly: false, mutex: mutex)) as WebDatabase;
+
+    final broadcastUpdates = _connection.broadcastUpdates;
+    if (broadcastUpdates == null) {
+      // We can use updates directly from the database.
+      _connection.updates.forEach((update) {
+        updatesController.add(update);
+      });
+    } else {
+      _connection.updates.forEach((update) {
+        updatesController.add(update);
+
+        // Share local updates with other tabs
+        broadcastUpdates.send(update);
+      });
+
+      // Also add updates from other tabs, note that things we send aren't
+      // received by our tab.
+      _broadcastUpdatesSubscription =
+          broadcastUpdates.updates.listen((updates) {
+        updatesController.add(updates);
+      });
+    }
   }
 
   T _runZoned<T>(T Function() callback, {required String debugContext}) {
@@ -105,27 +131,37 @@ class SqliteDatabaseImpl
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+      {Duration? lockTimeout, String? debugContext, bool? flush}) async {
     await isInitialized;
     return _runZoned(() {
       return _connection.writeLock(callback,
-          lockTimeout: lockTimeout, debugContext: debugContext);
+          lockTimeout: lockTimeout, debugContext: debugContext, flush: flush);
     }, debugContext: debugContext ?? 'execute()');
   }
 
   @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout}) async {
+      {Duration? lockTimeout,
+      bool? flush}) async {
     await isInitialized;
     return _runZoned(
-        () => _connection.writeTransaction(callback, lockTimeout: lockTimeout),
+        () => _connection.writeTransaction(callback,
+            lockTimeout: lockTimeout, flush: flush),
         debugContext: 'writeTransaction()');
+  }
+
+  @override
+  Future<void> flush() async {
+    await isInitialized;
+    return _connection.flush();
   }
 
   @override
   Future<void> close() async {
     await isInitialized;
+    _broadcastUpdatesSubscription?.cancel();
+    updatesController.close();
     return _connection.close();
   }
 
@@ -141,6 +177,10 @@ class SqliteDatabaseImpl
   }
 
   @override
+  Future<WebDatabaseEndpoint> exposeEndpoint() async {
+    return await _connection.exposeEndpoint();
+  }
+  @override
   int get numConnections => 0;
 
   @override
@@ -152,4 +192,6 @@ class SqliteDatabaseImpl
   List<SqliteConnection> getAllConnections() {
     throw UnimplementedError();
   }
+
+
 }

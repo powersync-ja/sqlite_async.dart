@@ -1,9 +1,13 @@
 import 'dart:js_interop';
-import 'dart:js_util' as js_util;
+import 'dart:js_interop_unsafe';
 
+import 'package:meta/meta.dart';
 import 'package:mutex/mutex.dart';
 import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
+import 'package:sqlite3_web/protocol_utils.dart' as proto;
+
+import 'throttled_common_database.dart';
 
 import '../protocol.dart';
 
@@ -12,13 +16,27 @@ import '../protocol.dart';
 /// can be extended to perform custom requests.
 base class AsyncSqliteController extends DatabaseController {
   @override
-  Future<WorkerDatabase> openDatabase(
-      WasmSqlite3 sqlite3, String path, String vfs) async {
-    final db = sqlite3.open(path, vfs: vfs);
+  Future<WorkerDatabase> openDatabase(WasmSqlite3 sqlite3, String path,
+      String vfs, JSAny? additionalData) async {
+    final db = openUnderlying(sqlite3, path, vfs, additionalData);
 
     // Register any custom functions here if needed
 
-    return AsyncSqliteDatabase(database: db);
+    final throttled = ThrottledCommonDatabase(db);
+
+    return AsyncSqliteDatabase(database: throttled);
+  }
+
+  /// Opens a database with the `sqlite3` package that will be wrapped in a
+  /// [ThrottledCommonDatabase] for [openDatabase].
+  @visibleForOverriding
+  CommonDatabase openUnderlying(
+    WasmSqlite3 sqlite3,
+    String path,
+    String vfs,
+    JSAny? additionalData,
+  ) {
+    return sqlite3.open(path, vfs: vfs);
   }
 
   @override
@@ -59,25 +77,32 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         return database.autocommit.toJS;
       case CustomDatabaseMessageKind.executeInTransaction:
         final sql = message.rawSql.toDart;
-        final parameters = [
-          for (final raw in (message.rawParameters).toDart) raw.dartify()
-        ];
+        final hasTypeInfo = message.typeInfo.isDefinedAndNotNull;
+        final parameters = proto.deserializeParameters(
+            message.rawParameters, message.typeInfo);
         if (database.autocommit) {
           throw SqliteException(0,
               "Transaction rolled back by earlier statement. Cannot execute: $sql");
         }
+
         var res = database.select(sql, parameters);
+        if (hasTypeInfo) {
+          // If the client is sending a request that has parameters with type
+          // information, it will also support a newer serialization format for
+          // result sets.
+          return JSObject()
+            ..['format'] = 2.toJS
+            ..['r'] = proto.serializeResultSet(res);
+        } else {
+          var dartMap = resultSetToMap(res);
+          var jsObject = dartMap.jsify();
+          return jsObject;
+        }
 
-        var dartMap = resultSetToMap(res);
-
-        var jsObject = js_util.jsify(dartMap);
-
-        return jsObject;
       case CustomDatabaseMessageKind.executeBatchInTransaction:
         final sql = message.rawSql.toDart;
-        final parameters = [
-          for (final raw in (message.rawParameters).toDart) raw.dartify()
-        ];
+        final parameters = proto.deserializeParameters(
+            message.rawParameters, message.typeInfo);
         if (database.autocommit) {
           throw SqliteException(0,
               "Transaction rolled back by earlier statement. Cannot execute: $sql");

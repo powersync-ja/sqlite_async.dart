@@ -1,4 +1,6 @@
 @TestOn('!browser')
+library;
+
 import 'dart:async';
 import 'dart:isolate';
 import 'dart:math';

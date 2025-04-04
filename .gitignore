@@ -22,3 +22,5 @@ doc
 *.iml
 
 build
+
+.DS_store
