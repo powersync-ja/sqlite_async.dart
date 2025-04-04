@@ -243,8 +243,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
   }
 
   int getNumConnections() {
-    print(
-        "TESTING READ: ${_allReadConnections.length} WRITE: ${_writeConnection == null ? 0 : 1}");
+    // print(
+    //     "TESTING READ: ${_allReadConnections.length} WRITE: ${_writeConnection == null ? 0 : 1}");
     return _allReadConnections.length + (_writeConnection == null ? 0 : 1);
   }
 }

@@ -64,10 +64,5 @@ final class SingleConnectionDatabase
   }
 
   @override
-  int getNumConnections() {
-    return 1;
-  }
-
-  @override
   int get numConnections => 1;
 }

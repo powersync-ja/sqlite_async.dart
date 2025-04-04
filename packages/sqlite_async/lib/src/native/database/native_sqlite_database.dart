@@ -40,9 +40,6 @@ class SqliteDatabaseImpl
   late final SqliteConnectionImpl _internalConnection;
   late final SqliteConnectionPool _pool;
 
-  @override
-  int get numConnections => _pool.getNumConnections();
-
   final StreamController<UpdateNotification> updatesController =
       StreamController.broadcast();
 
@@ -176,9 +173,7 @@ class SqliteDatabaseImpl
   }
 
   @override
-  int getNumConnections() {
-    return -1;
-  }
+  int get numConnections => _pool.getNumConnections();
 
   @override
   List<SqliteConnection> getAllConnections() {

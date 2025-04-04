@@ -50,11 +50,6 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   Future<bool> getAutoCommit() async {
     return db.autocommit;
   }
-
-  @override
-  int getNumConnections() {
-    return -1;
-  }
 }
 
 class SyncReadContext implements SqliteReadContext {

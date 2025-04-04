@@ -170,12 +170,8 @@ class WebDatabase
     return _database.fileSystem.flush();
   }
   @override
-  int get numConnections => 0;
+  int get numConnections => throw UnimplementedError();
 
-  @override
-  int getNumConnections() {
-    return -1;
-  }
 
   @override
   List<SqliteConnection> getAllConnections() {

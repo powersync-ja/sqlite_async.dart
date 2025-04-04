@@ -181,16 +181,11 @@ class SqliteDatabaseImpl
     return await _connection.exposeEndpoint();
   }
   @override
-  int get numConnections => 0;
-
-  @override
-  int getNumConnections() {
-    return -1;
-  }
+  int get numConnections => 1;
 
   @override
   List<SqliteConnection> getAllConnections() {
-    throw UnimplementedError();
+    return [_connection];
   }
 
 
