@@ -1,3 +1,7 @@
+## 0.2.2
+
+- Fix write detection when using UPDATE/INSERT/DELETE with RETURNING in raw queries.
+
 ## 0.2.1
 
 - Fix lints.
