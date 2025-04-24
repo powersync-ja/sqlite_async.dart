@@ -8,7 +8,8 @@ import 'package:sqlite_async/sqlite_async.dart';
 // Ends with " RETURNING *", or starts with insert/update/delete.
 // Drift-generated queries will always have the RETURNING *.
 // The INSERT/UPDATE/DELETE check is for custom queries, and is not exhaustive.
-final _returningCheck = RegExp(r'( RETURNING \*;?$)|(^(INSERT|UPDATE|DELETE))',
+final _returningCheck = RegExp(
+    r'( RETURNING \*;?\s*$)|(^\s*(INSERT|UPDATE|DELETE))',
     caseSensitive: false);
 
 class _SqliteAsyncDelegate extends _SqliteAsyncQueryDelegate
