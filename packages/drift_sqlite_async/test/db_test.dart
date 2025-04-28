@@ -107,7 +107,7 @@ void main() {
           ]));
     });
 
-    test('delete', () async {
+    test('delete returns affected rows', () async {
       for (var i = 0; i < 10; i++) {
         await dbu
             .into(dbu.todoItems)
