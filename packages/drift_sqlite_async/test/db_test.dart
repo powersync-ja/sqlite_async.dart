@@ -106,5 +106,16 @@ void main() {
             '[]'
           ]));
     });
+
+    test('delete returns affected rows', () async {
+      for (var i = 0; i < 10; i++) {
+        await dbu
+            .into(dbu.todoItems)
+            .insert(TodoItemsCompanion.insert(description: 'desc $i'));
+      }
+
+      final deleted = await dbu.delete(dbu.todoItems).go();
+      expect(deleted, 10);
+    });
   });
 }
