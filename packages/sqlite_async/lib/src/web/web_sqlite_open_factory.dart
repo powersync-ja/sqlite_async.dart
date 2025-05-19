@@ -89,7 +89,8 @@ class DefaultSqliteOpenFactory
     }
 
     return WebDatabase(connection.database, options.mutex ?? mutex,
-        broadcastUpdates: updates);
+        broadcastUpdates: updates,
+        profileQueries: sqliteOptions.profileQueries);
   }
 
   @override

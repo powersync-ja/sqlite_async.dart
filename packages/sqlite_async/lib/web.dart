@@ -94,6 +94,7 @@ abstract class WebSqliteConnection implements SqliteConnection {
         var lock? => Mutex(identifier: lock),
         null => null,
       },
+      profileQueries: false,
     );
     return database;
   }

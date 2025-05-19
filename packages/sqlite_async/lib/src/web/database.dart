@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
@@ -6,6 +7,7 @@ import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite3_web/protocol_utils.dart' as proto;
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/utils/profiler.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import 'package:sqlite_async/web.dart';
@@ -17,6 +19,7 @@ class WebDatabase
     implements SqliteDatabase, WebSqliteConnection {
   final Database _database;
   final Mutex? _mutex;
+  final bool profileQueries;
 
   /// For persistent databases that aren't backed by a shared worker, we use
   /// web broadcast channels to forward local update events to other tabs.
@@ -25,7 +28,12 @@ class WebDatabase
   @override
   bool closed = false;
 
-  WebDatabase(this._database, this._mutex, {this.broadcastUpdates});
+  WebDatabase(
+    this._database,
+    this._mutex, {
+    required this.profileQueries,
+    this.broadcastUpdates,
+  });
 
   @override
   Future<void> close() async {
@@ -175,7 +183,10 @@ class _SharedContext implements SqliteReadContext {
   final WebDatabase _database;
   bool _contextClosed = false;
 
-  _SharedContext(this._database);
+  final TimelineTask? _task;
+
+  _SharedContext(this._database)
+      : _task = _database.profileQueries ? TimelineTask() : null;
 
   @override
   bool get closed => _contextClosed || _database.closed;
@@ -196,8 +207,13 @@ class _SharedContext implements SqliteReadContext {
   @override
   Future<ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]) async {
-    return await wrapSqliteException(
-        () => _database._database.select(sql, parameters));
+    try {
+      _task?.start('getAll', arguments: timelineArgs(sql, parameters));
+      return await wrapSqliteException(
+          () => _database._database.select(sql, parameters));
+    } finally {
+      _task?.finish();
+    }
   }
 
   @override
@@ -248,9 +264,8 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
   @override
   bool get closed => baseContext.closed;
 
-  @override
-  Future<ResultSet> execute(String sql,
-      [List<Object?> parameters = const []]) async {
+  Future<ResultSet> _executeInternal(
+      String sql, List<Object?> parameters) async {
     // Operations inside transactions are executed with custom requests
     // in order to verify that the connection does not have autocommit enabled.
     // The worker will check if autocommit = true before executing the SQL.
@@ -292,6 +307,17 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
       final resultSet = ResultSet(columnNames, tableNames, rows);
       return resultSet;
     });
+  }
+
+  @override
+  Future<ResultSet> execute(String sql,
+      [List<Object?> parameters = const []]) async {
+    try {
+      _task?.start('execute', arguments: timelineArgs(sql, parameters));
+      return await _executeInternal(sql, parameters);
+    } finally {
+      _task?.finish();
+    }
   }
 
   @override
