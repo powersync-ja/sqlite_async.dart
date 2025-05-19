@@ -242,6 +242,7 @@ class _ExclusiveContext extends _SharedContext implements SqliteWriteContext {
 
 class _ExclusiveTransactionContext extends _ExclusiveContext {
   SqliteWriteContext baseContext;
+
   _ExclusiveTransactionContext(super.database, this.baseContext);
 
   @override

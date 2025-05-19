@@ -30,19 +30,22 @@ class SqliteOptions {
   /// Set to null or [Duration.zero] to fail immediately when the database is locked.
   final Duration? lockTimeout;
 
-  const SqliteOptions.defaults()
-      : journalMode = SqliteJournalMode.wal,
-        journalSizeLimit = 6 * 1024 * 1024, // 1.5x the default checkpoint size
-        synchronous = SqliteSynchronous.normal,
-        webSqliteOptions = const WebSqliteOptions.defaults(),
-        lockTimeout = const Duration(seconds: 30);
+  /// Whether queries should be added to the `dart:developer` timeline.
+  ///
+  /// This is disabled by default, but can be enabled to identify long-running
+  /// queries.
+  final bool profileQueries;
 
-  const SqliteOptions(
-      {this.journalMode = SqliteJournalMode.wal,
-      this.journalSizeLimit = 6 * 1024 * 1024,
-      this.synchronous = SqliteSynchronous.normal,
-      this.webSqliteOptions = const WebSqliteOptions.defaults(),
-      this.lockTimeout = const Duration(seconds: 30)});
+  const factory SqliteOptions.defaults() = SqliteOptions;
+
+  const SqliteOptions({
+    this.journalMode = SqliteJournalMode.wal,
+    this.journalSizeLimit = 6 * 1024 * 1024,
+    this.synchronous = SqliteSynchronous.normal,
+    this.webSqliteOptions = const WebSqliteOptions.defaults(),
+    this.lockTimeout = const Duration(seconds: 30),
+    this.profileQueries = false,
+  });
 }
 
 /// SQLite journal mode. Set on the primary connection.
