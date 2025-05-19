@@ -55,7 +55,7 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
     return mutex.lock(
       () {
         task?.finish();
-        return callback(SyncWriteContext(db));
+        return callback(SyncWriteContext(db, parent: task));
       },
       timeout: lockTimeout,
     );
