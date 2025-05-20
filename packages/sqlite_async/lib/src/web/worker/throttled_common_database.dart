@@ -1,8 +1,6 @@
 import 'dart:async';
-import 'dart:developer';
 
 import 'package:sqlite_async/sqlite3_wasm.dart';
-import 'package:sqlite_async/src/utils/profiler.dart';
 
 /// Wrap a CommonDatabase to throttle its updates stream.
 /// This is so that we can throttle the updates _within_
@@ -10,28 +8,10 @@ import 'package:sqlite_async/src/utils/profiler.dart';
 /// the MessagePort.
 class ThrottledCommonDatabase extends CommonDatabase {
   final CommonDatabase _db;
-  final bool profileQueries;
-
   final StreamController<bool> _transactionController =
       StreamController.broadcast();
 
-  ThrottledCommonDatabase(this._db, this.profileQueries);
-
-  T _maybeSync<T>(
-    T Function() function, {
-    required String name,
-    required String sql,
-    required List<Object?> parameters,
-  }) {
-    if (profileQueries) {
-      final (resolvedName, args) =
-          profilerNameAndArgs(name, sql: sql, parameters: parameters);
-
-      return Timeline.timeSync(resolvedName, function, arguments: args);
-    } else {
-      return function();
-    }
-  }
+  ThrottledCommonDatabase(this._db);
 
   @override
   int get userVersion => _db.userVersion;
@@ -80,12 +60,7 @@ class ThrottledCommonDatabase extends CommonDatabase {
 
   @override
   void execute(String sql, [List<Object?> parameters = const []]) {
-    _maybeSync(
-      name: 'execute',
-      sql: sql,
-      parameters: parameters,
-      () => _db.execute(sql, parameters),
-    );
+    _db.execute(sql, parameters);
   }
 
   @override
@@ -112,20 +87,13 @@ class ThrottledCommonDatabase extends CommonDatabase {
 
   @override
   ResultSet select(String sql, [List<Object?> parameters = const []]) {
-    return _maybeSync(
-      name: 'select',
-      sql: sql,
-      parameters: parameters,
-      () {
-        bool preAutocommit = _db.autocommit;
-        final result = _db.select(sql, parameters);
-        bool postAutocommit = _db.autocommit;
-        if (!preAutocommit && postAutocommit) {
-          _transactionController.add(true);
-        }
-        return result;
-      },
-    );
+    bool preAutocommit = _db.autocommit;
+    final result = _db.select(sql, parameters);
+    bool postAutocommit = _db.autocommit;
+    if (!preAutocommit && postAutocommit) {
+      _transactionController.add(true);
+    }
+    return result;
   }
 
   @override

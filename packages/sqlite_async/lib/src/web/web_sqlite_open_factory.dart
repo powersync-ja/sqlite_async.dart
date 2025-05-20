@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:js_interop';
 
 import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
@@ -9,7 +8,6 @@ import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:sqlite_async/web.dart';
 
 import 'database.dart';
-import 'protocol.dart';
 import 'worker/worker_utils.dart';
 
 Map<String, FutureOr<WebSqlite>> webSQLiteImplementations = {};
@@ -44,17 +42,6 @@ class DefaultSqliteOpenFactory
       wasmModule: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
       worker: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
       controller: AsyncSqliteController(),
-    );
-  }
-
-  @override
-  Future<ConnectToRecommendedResult> connectToWorker(
-      WebSqlite sqlite, String name) {
-    return sqlite.connectToRecommended(
-      name,
-      additionalOptions: CustomOpenOptions(
-        profileQueries: sqliteOptions.profileQueries.toJS,
-      ),
     );
   }
 

@@ -5,16 +5,6 @@ library;
 import 'dart:js_interop';
 import 'package:sqlite3_web/protocol_utils.dart' as proto;
 
-@JS()
-@anonymous
-extension type CustomOpenOptions._(JSObject _) implements JSObject {
-  external factory CustomOpenOptions({
-    required JSBoolean? profileQueries,
-  });
-
-  external JSBoolean? get profileQueries;
-}
-
 enum CustomDatabaseMessageKind {
   requestSharedLock,
   requestExclusiveLock,

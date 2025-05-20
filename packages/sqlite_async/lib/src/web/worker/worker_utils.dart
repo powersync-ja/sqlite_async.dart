@@ -21,10 +21,8 @@ base class AsyncSqliteController extends DatabaseController {
     final db = openUnderlying(sqlite3, path, vfs, additionalData);
 
     // Register any custom functions here if needed
-    final profile = additionalData != null &&
-        (additionalData as CustomOpenOptions).profileQueries?.toDart == true;
 
-    final throttled = ThrottledCommonDatabase(db, profile);
+    final throttled = ThrottledCommonDatabase(db);
 
     return AsyncSqliteDatabase(database: throttled);
   }
