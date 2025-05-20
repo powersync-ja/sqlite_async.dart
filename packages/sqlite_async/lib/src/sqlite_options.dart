@@ -32,8 +32,9 @@ class SqliteOptions {
 
   /// Whether queries should be added to the `dart:developer` timeline.
   ///
-  /// This is disabled by default, but can be enabled to identify long-running
-  /// queries.
+  /// By default, this is enabled if the `dart.vm.product` compile-time variable
+  /// is not set to `true`. For Flutter apps, this means that [profileQueries]
+  /// is enabled by default in debug and profile mode.
   final bool profileQueries;
 
   const factory SqliteOptions.defaults() = SqliteOptions;
@@ -44,8 +45,12 @@ class SqliteOptions {
     this.synchronous = SqliteSynchronous.normal,
     this.webSqliteOptions = const WebSqliteOptions.defaults(),
     this.lockTimeout = const Duration(seconds: 30),
-    this.profileQueries = false,
+    this.profileQueries = _profileQueriesByDefault,
   });
+
+  // https://api.flutter.dev/flutter/foundation/kReleaseMode-constant.html
+  static const _profileQueriesByDefault =
+      !bool.fromEnvironment('dart.vm.product');
 }
 
 /// SQLite journal mode. Set on the primary connection.
