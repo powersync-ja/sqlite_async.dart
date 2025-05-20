@@ -45,7 +45,7 @@ extension TimeSync on TimelineTask? {
   const isWeb = bool.fromEnvironment('dart.library.js_interop');
   var resolvedName = '$profilerPrefix$name';
   if (isWeb && sql != null) {
-    resolvedName = ' $sql';
+    resolvedName = '$resolvedName $sql';
   }
 
   return (
