@@ -24,11 +24,10 @@ class ThrottledCommonDatabase extends CommonDatabase {
     required List<Object?> parameters,
   }) {
     if (profileQueries) {
-      return Timeline.timeSync(
-        name,
-        function,
-        arguments: timelineArgs(sql, parameters),
-      );
+      final (resolvedName, args) =
+          profilerNameAndArgs(name, sql: sql, parameters: parameters);
+
+      return Timeline.timeSync(resolvedName, function, arguments: args);
     } else {
       return function();
     }

@@ -3,6 +3,7 @@ import 'dart:developer';
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
@@ -19,10 +20,13 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
 
   /// Whether queries should be added to the `dart:developer` timeline.
   ///
-  /// This is disabled by default.
+  /// This is enabled by default outside of release builds, see
+  /// [SqliteOptions.profileQueries] for details.
   final bool profileQueries;
 
-  SyncSqliteConnection(this.db, Mutex m, {this.profileQueries = false}) {
+  SyncSqliteConnection(this.db, Mutex m, {bool? profileQueries})
+      : profileQueries =
+            profileQueries ?? const SqliteOptions().profileQueries {
     mutex = m.open();
     updates = db.updates.map(
       (event) {
@@ -35,7 +39,7 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) {
     final task = profileQueries ? TimelineTask() : null;
-    task?.start('mutex_lock');
+    task?.start('${profilerPrefix}mutex_lock');
 
     return mutex.lock(
       () {
@@ -50,7 +54,7 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) {
     final task = profileQueries ? TimelineTask() : null;
-    task?.start('mutex_lock');
+    task?.start('${profilerPrefix}mutex_lock');
 
     return mutex.lock(
       () {
@@ -95,7 +99,8 @@ class SyncReadContext implements SqliteReadContext {
     return task.timeSync(
       'get',
       () => db.select(sql, parameters).first,
-      arguments: timelineArgs(sql, parameters),
+      sql: sql,
+      parameters: parameters,
     );
   }
 
@@ -105,7 +110,8 @@ class SyncReadContext implements SqliteReadContext {
     return task.timeSync(
       'getAll',
       () => db.select(sql, parameters),
-      arguments: timelineArgs(sql, parameters),
+      sql: sql,
+      parameters: parameters,
     );
   }
 
@@ -134,7 +140,8 @@ class SyncWriteContext extends SyncReadContext implements SqliteWriteContext {
     return task.timeSync(
       'execute',
       () => db.select(sql, parameters),
-      arguments: timelineArgs(sql, parameters),
+      sql: sql,
+      parameters: parameters,
     );
   }
 
@@ -146,11 +153,11 @@ class SyncWriteContext extends SyncReadContext implements SqliteWriteContext {
       try {
         for (var parameters in parameterSets) {
           task.timeSync('iteration', () => statement.execute(parameters),
-              arguments: parameterArgs(parameters));
+              parameters: parameters);
         }
       } finally {
         statement.dispose();
       }
-    }, arguments: {'sql': sql});
+    }, sql: sql);
   }
 }

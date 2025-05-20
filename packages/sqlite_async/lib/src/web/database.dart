@@ -207,13 +207,15 @@ class _SharedContext implements SqliteReadContext {
   @override
   Future<ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]) async {
-    try {
-      _task?.start('getAll', arguments: timelineArgs(sql, parameters));
-      return await wrapSqliteException(
-          () => _database._database.select(sql, parameters));
-    } finally {
-      _task?.finish();
-    }
+    return _task.timeAsync(
+      'getAll',
+      sql: sql,
+      parameters: parameters,
+      () async {
+        return await wrapSqliteException(
+            () => _database._database.select(sql, parameters));
+      },
+    );
   }
 
   @override
@@ -237,21 +239,23 @@ class _ExclusiveContext extends _SharedContext implements SqliteWriteContext {
   _ExclusiveContext(super.database);
 
   @override
-  Future<ResultSet> execute(String sql,
-      [List<Object?> parameters = const []]) async {
-    return wrapSqliteException(
-        () => _database._database.select(sql, parameters));
+  Future<ResultSet> execute(String sql, [List<Object?> parameters = const []]) {
+    return _task.timeAsync('execute', sql: sql, parameters: parameters, () {
+      return wrapSqliteException(
+          () => _database._database.select(sql, parameters));
+    });
   }
 
   @override
-  Future<void> executeBatch(
-      String sql, List<List<Object?>> parameterSets) async {
-    return wrapSqliteException(() async {
-      for (final set in parameterSets) {
-        // use execute instead of select to avoid transferring rows from the
-        // worker to this context.
-        await _database._database.execute(sql, set);
-      }
+  Future<void> executeBatch(String sql, List<List<Object?>> parameterSets) {
+    return _task.timeAsync('executeBatch', sql: sql, () {
+      return wrapSqliteException(() async {
+        for (final set in parameterSets) {
+          // use execute instead of select to avoid transferring rows from the
+          // worker to this context.
+          await _database._database.execute(sql, set);
+        }
+      });
     });
   }
 }
@@ -312,23 +316,19 @@ class _ExclusiveTransactionContext extends _ExclusiveContext {
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    try {
-      _task?.start('execute', arguments: timelineArgs(sql, parameters));
-      return await _executeInternal(sql, parameters);
-    } finally {
-      _task?.finish();
-    }
+    return _task.timeAsync('execute', sql: sql, parameters: parameters, () {
+      return _executeInternal(sql, parameters);
+    });
   }
 
   @override
   Future<void> executeBatch(
       String sql, List<List<Object?>> parameterSets) async {
-    return await wrapSqliteException(() async {
+    return _task.timeAsync('executeBatch', sql: sql, () async {
       for (final set in parameterSets) {
         await _database._database.customRequest(CustomDatabaseMessage(
             CustomDatabaseMessageKind.executeBatchInTransaction, sql, set));
       }
-      return;
     });
   }
 }

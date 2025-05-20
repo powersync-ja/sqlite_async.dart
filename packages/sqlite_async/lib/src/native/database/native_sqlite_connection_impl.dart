@@ -386,8 +386,12 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
         maybeFireUpdates();
         return null;
       case _SqliteIsolateStatement():
-        return task.timeSync('execute_remote', () => runStatement(data),
-            arguments: timelineArgs(data.sql, data.args));
+        return task.timeSync(
+          'execute_remote',
+          () => runStatement(data),
+          sql: data.sql,
+          parameters: data.args,
+        );
       case _SqliteIsolateClosure():
         try {
           return await data.cb(db);

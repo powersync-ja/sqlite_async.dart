@@ -1,33 +1,64 @@
 import 'dart:developer';
 
-/// Turns the [parameters] for an SQL query into a [Map] that can be serialized
-/// to JSON (as a requirement for using it as a timeline argument).
-Map parameterArgs(List<Object?> parameters) {
-  return {
-    'parameters': [
-      for (final parameter in parameters)
-        if (parameter is List) '<blob>' else parameter
-    ],
-  };
-}
-
-Map timelineArgs(String sql, List<Object?> parameters) {
-  return parameterArgs(parameters)..['sql'] = sql;
-}
-
 extension TimeSync on TimelineTask? {
   T timeSync<T>(String name, TimelineSyncFunction<T> function,
-      {Map? arguments}) {
+      {String? sql, List<Object?>? parameters}) {
     final currentTask = this;
     if (currentTask == null) {
       return function();
     }
 
+    final (resolvedName, args) =
+        profilerNameAndArgs(name, sql: sql, parameters: parameters);
+    currentTask.start(resolvedName, arguments: args);
+
     try {
-      currentTask.start(name, arguments: arguments);
       return function();
     } finally {
       currentTask.finish();
     }
   }
+
+  Future<T> timeAsync<T>(String name, TimelineSyncFunction<Future<T>> function,
+      {String? sql, List<Object?>? parameters}) {
+    final currentTask = this;
+    if (currentTask == null) {
+      return function();
+    }
+
+    final (resolvedName, args) =
+        profilerNameAndArgs(name, sql: sql, parameters: parameters);
+    currentTask.start(resolvedName, arguments: args);
+
+    return Future.sync(function).whenComplete(() {
+      currentTask.finish();
+    });
+  }
 }
+
+(String, Map) profilerNameAndArgs(String name,
+    {String? sql, List<Object?>? parameters}) {
+  // On native platforms, we want static names for tasks because every
+  // unique key here shows up in a separate line in Perfetto: https://github.com/dart-lang/sdk/issues/56274
+  // On the web however, the names are embedded in the timeline slices and
+  // it's convenient to include the SQL there.
+  const isWeb = bool.fromEnvironment('dart.library.js_interop');
+  var resolvedName = '$profilerPrefix$name';
+  if (isWeb && sql != null) {
+    resolvedName = ' $sql';
+  }
+
+  return (
+    resolvedName,
+    {
+      if (sql != null) 'sql': sql,
+      if (parameters != null)
+        'parameters': [
+          for (final parameter in parameters)
+            if (parameter is List) '<blob>' else parameter
+        ],
+    }
+  );
+}
+
+const profilerPrefix = 'sqlite_async:';

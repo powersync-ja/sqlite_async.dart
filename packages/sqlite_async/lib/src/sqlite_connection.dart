@@ -94,10 +94,10 @@ abstract class SqliteConnection extends SqliteWriteContext {
   /// may be used as an escape hatch for the asynchronous wrappers provided by
   /// this package.
   ///
-  /// When [profileQueries] is enabled (it's disabled by default, queries are
-  /// posted to the `dart:developer` timeline).
+  /// When [profileQueries] is enabled (it's enabled by default outside of
+  /// release builds, queries are posted to the `dart:developer` timeline).
   factory SqliteConnection.synchronousWrapper(CommonDatabase raw,
-      {Mutex? mutex, bool profileQueries = false}) {
+      {Mutex? mutex, bool? profileQueries}) {
     return SyncSqliteConnection(raw, mutex ?? Mutex(),
         profileQueries: profileQueries);
   }
