@@ -94,7 +94,7 @@ class WebDatabase
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     if (_mutex case var mutex?) {
-      return await mutex.lock(() async {
+      return await mutex.lock(timeout: lockTimeout, () async {
         final context = _SharedContext(this);
         try {
           return await callback(context);
@@ -143,7 +143,7 @@ class WebDatabase
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext, bool? flush}) async {
     if (_mutex case var mutex?) {
-      return await mutex.lock(() async {
+      return await mutex.lock(timeout: lockTimeout, () async {
         final context = _ExclusiveContext(this);
         try {
           return await callback(context);
