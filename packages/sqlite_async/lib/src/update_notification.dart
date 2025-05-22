@@ -114,30 +114,32 @@ Stream<T> _throttleStream<T extends Object>({
       }
     }
 
+    late void Function() setTimeout;
+
     /// Emits [pendingData] if no timeout window is active, and then starts a
     /// timeout window if necessary.
     void maybeEmit() {
       if (activeTimeoutWindow == null && !listener.isPaused) {
         final didAdd = addPendingEvents();
         if (didAdd) {
+          // Schedule a pause after resume if the subscription was paused
+          // directly in response to receiving the event. Otherwise, begin the
+          // timeout window immediately.
           if (listener.isPaused) {
             needsTimeoutWindowAfterResume = true;
           } else {
-            activeTimeoutWindow = Timer(timeout, () {
-              activeTimeoutWindow = null;
-              maybeEmit();
-            });
+            setTimeout();
           }
         }
       }
     }
 
-    void setTimeout() {
+    setTimeout = () {
       activeTimeoutWindow = Timer(timeout, () {
         activeTimeoutWindow = null;
         maybeEmit();
       });
-    }
+    };
 
     void onData(T data) {
       pendingData = switch (pendingData) {
