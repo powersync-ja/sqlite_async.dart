@@ -44,25 +44,23 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   Stream<sqlite.ResultSet> watch(String sql,
       {List<Object?> parameters = const [],
       Duration throttle = const Duration(milliseconds: 30),
-      Iterable<String>? triggerOnTables}) async* {
+      Iterable<String>? triggerOnTables}) {
     assert(updates != null,
         'updates stream must be provided to allow query watching');
-    final tables =
-        triggerOnTables ?? await getSourceTables(this, sql, parameters);
-    final filteredStream =
-        updates!.transform(UpdateNotification.filterTablesTransformer(tables));
-    final throttledStream = UpdateNotification.throttleStream(
-        filteredStream, throttle,
-        addOne: UpdateNotification.empty());
 
-    // FIXME:
-    // When the subscription is cancelled, this performs a final query on the next
-    // update.
-    // The loop only stops once the "yield" is reached.
-    // Using asyncMap instead of a generator would solve it, but then the body
-    // here can't be async for getSourceTables().
-    await for (var _ in throttledStream) {
-      yield await getAll(sql, parameters);
+    Stream<sqlite.ResultSet> watchInner(Iterable<String> trigger) {
+      return onChange(
+        trigger,
+        throttle: throttle,
+        triggerImmediately: true,
+      ).asyncMap((_) => getAll(sql, parameters));
+    }
+
+    if (triggerOnTables case final knownTrigger?) {
+      return watchInner(knownTrigger);
+    } else {
+      return Stream.fromFuture(getSourceTables(this, sql, parameters))
+          .asyncExpand(watchInner);
     }
   }
 

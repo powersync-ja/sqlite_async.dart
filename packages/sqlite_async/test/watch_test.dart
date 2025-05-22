@@ -113,8 +113,10 @@ void main() {
           lastCount = count;
         }
 
-        // The number of read queries must not be greater than the number of writes overall.
-        expect(numberOfQueries, lessThanOrEqualTo(results.last.first['count']));
+        // The number of read queries must not be greater than the number of
+        // writes overall, plus one for the initial stream emission.
+        expect(numberOfQueries,
+            lessThanOrEqualTo(results.last.first['count'] + 1));
 
         DateTime? lastTime;
         for (var r in times) {
@@ -283,7 +285,7 @@ void main() {
       });
       await Future.delayed(delay);
 
-      subscription.cancel();
+      await subscription.cancel();
 
       expect(
           counts,
