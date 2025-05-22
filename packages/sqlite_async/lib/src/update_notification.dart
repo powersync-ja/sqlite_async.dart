@@ -97,6 +97,7 @@ Stream<T> _throttleStream<T extends Object>({
   return Stream.multi((listener) {
     T? pendingData;
     Timer? activeTimeoutWindow;
+    var needsTimeoutWindowAfterResume = false;
 
     /// Add pending data, bypassing the active timeout window.
     ///
@@ -106,6 +107,7 @@ Stream<T> _throttleStream<T extends Object>({
         pendingData = null;
         listener.addSync(data);
         activeTimeoutWindow?.cancel();
+        activeTimeoutWindow = null;
         return true;
       } else {
         return false;
@@ -118,10 +120,14 @@ Stream<T> _throttleStream<T extends Object>({
       if (activeTimeoutWindow == null && !listener.isPaused) {
         final didAdd = addPendingEvents();
         if (didAdd) {
-          activeTimeoutWindow = Timer(timeout, () {
-            activeTimeoutWindow = null;
-            maybeEmit();
-          });
+          if (listener.isPaused) {
+            needsTimeoutWindowAfterResume = true;
+          } else {
+            activeTimeoutWindow = Timer(timeout, () {
+              activeTimeoutWindow = null;
+              maybeEmit();
+            });
+          }
         }
       }
     }
@@ -152,11 +158,11 @@ Stream<T> _throttleStream<T extends Object>({
     }
 
     final subscription = input.listen(onData, onError: onError, onDone: onDone);
-    var needsTimeoutWindowAfterResume = false;
 
     listener.onPause = () {
       needsTimeoutWindowAfterResume = activeTimeoutWindow != null;
       activeTimeoutWindow?.cancel();
+      activeTimeoutWindow = null;
     };
     listener.onResume = () {
       if (needsTimeoutWindowAfterResume) {
