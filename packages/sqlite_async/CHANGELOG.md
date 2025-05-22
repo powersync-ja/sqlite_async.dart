@@ -1,6 +1,9 @@
 ## 0.11.5
 
- - Allow profiling queries.
+- Allow profiling queries. Queries are profiled by default in debug and profile builds, the runtime
+  for queries is added to profiling timelines under the `sqlite_async` tag.
+- Fix cancelling `watch()` queries sometimes taking longer than necessary. 
+- Fix web databases not respecting lock timeouts.
 
 ## 0.11.4
 
