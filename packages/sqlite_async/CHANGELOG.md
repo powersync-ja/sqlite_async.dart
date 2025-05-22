@@ -1,3 +1,7 @@
+## 0.11.5
+
+ - Allow profiling queries.
+
 ## 0.11.4
 
 - Add `SqliteConnection.synchronousWrapper` and `SqliteDatabase.singleConnection`.

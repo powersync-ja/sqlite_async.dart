@@ -93,9 +93,13 @@ abstract class SqliteConnection extends SqliteWriteContext {
   /// may be easier to wrap a [raw] databases (like unit tests), this method
   /// may be used as an escape hatch for the asynchronous wrappers provided by
   /// this package.
+  ///
+  /// When [profileQueries] is enabled (it's enabled by default outside of
+  /// release builds, queries are posted to the `dart:developer` timeline).
   factory SqliteConnection.synchronousWrapper(CommonDatabase raw,
-      {Mutex? mutex}) {
-    return SyncSqliteConnection(raw, mutex ?? Mutex());
+      {Mutex? mutex, bool? profileQueries}) {
+    return SyncSqliteConnection(raw, mutex ?? Mutex(),
+        profileQueries: profileQueries);
   }
 
   /// Reports table change update notifications

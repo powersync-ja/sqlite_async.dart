@@ -1,8 +1,12 @@
+import 'dart:developer';
+
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
+import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/profiler.dart';
 
 /// A simple "synchronous" connection which provides the async SqliteConnection
 /// implementation using a synchronous SQLite connection
@@ -14,7 +18,15 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
 
   bool _closed = false;
 
-  SyncSqliteConnection(this.db, Mutex m) {
+  /// Whether queries should be added to the `dart:developer` timeline.
+  ///
+  /// This is enabled by default outside of release builds, see
+  /// [SqliteOptions.profileQueries] for details.
+  final bool profileQueries;
+
+  SyncSqliteConnection(this.db, Mutex m, {bool? profileQueries})
+      : profileQueries =
+            profileQueries ?? const SqliteOptions().profileQueries {
     mutex = m.open();
     updates = db.updates.map(
       (event) {
@@ -26,15 +38,31 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) {
-    return mutex.lock(() => callback(SyncReadContext(db)),
-        timeout: lockTimeout);
+    final task = profileQueries ? TimelineTask() : null;
+    task?.start('${profilerPrefix}mutex_lock');
+
+    return mutex.lock(
+      () {
+        task?.finish();
+        return callback(SyncReadContext(db, parent: task));
+      },
+      timeout: lockTimeout,
+    );
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) {
-    return mutex.lock(() => callback(SyncWriteContext(db)),
-        timeout: lockTimeout);
+    final task = profileQueries ? TimelineTask() : null;
+    task?.start('${profilerPrefix}mutex_lock');
+
+    return mutex.lock(
+      () {
+        task?.finish();
+        return callback(SyncWriteContext(db, parent: task));
+      },
+      timeout: lockTimeout,
+    );
   }
 
   @override
@@ -53,9 +81,12 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
 }
 
 class SyncReadContext implements SqliteReadContext {
+  final TimelineTask? task;
+
   CommonDatabase db;
 
-  SyncReadContext(this.db);
+  SyncReadContext(this.db, {TimelineTask? parent})
+      : task = TimelineTask(parent: parent);
 
   @override
   Future<T> computeWithDatabase<T>(
@@ -65,13 +96,23 @@ class SyncReadContext implements SqliteReadContext {
 
   @override
   Future<Row> get(String sql, [List<Object?> parameters = const []]) async {
-    return db.select(sql, parameters).first;
+    return task.timeSync(
+      'get',
+      () => db.select(sql, parameters).first,
+      sql: sql,
+      parameters: parameters,
+    );
   }
 
   @override
   Future<ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]) async {
-    return db.select(sql, parameters);
+    return task.timeSync(
+      'getAll',
+      () => db.select(sql, parameters),
+      sql: sql,
+      parameters: parameters,
+    );
   }
 
   @override
@@ -91,26 +132,32 @@ class SyncReadContext implements SqliteReadContext {
 }
 
 class SyncWriteContext extends SyncReadContext implements SqliteWriteContext {
-  SyncWriteContext(super.db);
+  SyncWriteContext(super.db, {super.parent});
 
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    return db.select(sql, parameters);
+    return task.timeSync(
+      'execute',
+      () => db.select(sql, parameters),
+      sql: sql,
+      parameters: parameters,
+    );
   }
 
   @override
   Future<void> executeBatch(
       String sql, List<List<Object?>> parameterSets) async {
-    return computeWithDatabase((db) async {
+    task.timeSync('executeBatch', () {
       final statement = db.prepare(sql, checkNoTail: true);
       try {
         for (var parameters in parameterSets) {
-          statement.execute(parameters);
+          task.timeSync('iteration', () => statement.execute(parameters),
+              parameters: parameters);
         }
       } finally {
         statement.dispose();
       }
-    });
+    }, sql: sql);
   }
 }
