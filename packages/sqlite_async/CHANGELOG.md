@@ -1,6 +1,6 @@
 ## 0.11.5
 
- - **FEAT**: Allow profiling queries.
+ - Allow profiling queries.
 
 ## 0.11.4
 
