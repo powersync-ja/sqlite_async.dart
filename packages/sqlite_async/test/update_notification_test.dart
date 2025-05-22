@@ -47,6 +47,61 @@ void main() {
         });
       });
 
+      test('increases delay after pause', () {
+        fakeAsync((control) {
+          final source = StreamController<UpdateNotification>(sync: true);
+          final events = <UpdateNotification>[];
+
+          final sub = UpdateNotification.throttleStream(source.stream, timeout)
+              .listen(null);
+          sub.onData((event) {
+            events.add(event);
+            sub.pause();
+          });
+
+          source.add(UpdateNotification({'a'}));
+          control.elapse(timeout);
+          expect(events, hasLength(1));
+
+          // Assume the stream stays paused for the timeout window that would
+          // be created after emitting the notification.
+          control.elapse(timeout * 2);
+          source.add(UpdateNotification({'b'}));
+          control.elapse(timeout * 2);
+
+          // A full timeout needs to pass after resuming before a new item is
+          // emitted.
+          sub.resume();
+          expect(events, hasLength(1));
+
+          control.elapse(halfTimeout);
+          expect(events, hasLength(1));
+          control.elapse(halfTimeout);
+          expect(events, hasLength(2));
+        });
+      });
+
+      test('does not introduce artificial delay in pause', () {
+        fakeAsync((control) {
+          final source = StreamController<UpdateNotification>(sync: true);
+          final events = <UpdateNotification>[];
+
+          final sub = UpdateNotification.throttleStream(source.stream, timeout)
+              .listen(events.add);
+
+          // Await the initial delay
+          control.elapse(timeout);
+
+          sub.pause();
+          source.add(UpdateNotification({'a'}));
+          // Resuming should not introduce a timeout window because no window
+          // was active when the stream was paused.
+          sub.resume();
+          control.flushMicrotasks();
+          expect(events, hasLength(1));
+        });
+      });
+
       test('merges events', () {
         fakeAsync((control) {
           final source = StreamController<UpdateNotification>(sync: true);
