@@ -34,8 +34,8 @@ class SqliteDatabaseImpl
 
   @override
   @protected
-  // Native doesn't require any asynchronous initialization
-  late Future<void> isInitialized = Future.value();
+  // ignore: invalid_use_of_protected_member
+  late Future<void> isInitialized = _internalConnection.isInitialized;
 
   late final SqliteConnectionImpl _internalConnection;
   late final SqliteConnectionPool _pool;

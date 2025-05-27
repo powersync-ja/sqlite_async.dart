@@ -30,12 +30,10 @@ class ParentPortClient implements PortClient {
   ParentPortClient() {
     final initCompleter = Completer<SendPort>.sync();
     sendPortFuture = initCompleter.future;
-    sendPortFuture.then((value) {
-      sendPort = value;
-    });
     _receivePort.listen((message) {
       if (message is _InitMessage) {
         assert(!initCompleter.isCompleted);
+        sendPort = message.port;
         initCompleter.complete(message.port);
       } else if (message is _PortChannelResult) {
         final handler = handlers.remove(message.requestId);
