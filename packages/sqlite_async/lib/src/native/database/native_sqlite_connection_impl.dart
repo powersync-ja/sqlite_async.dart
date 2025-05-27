@@ -36,6 +36,7 @@ class SqliteConnectionImpl
   final bool readOnly;
 
   final bool profileQueries;
+  bool _didOpenSuccessfully = false;
 
   SqliteConnectionImpl({
     required AbstractDefaultSqliteOpenFactory openFactory,
@@ -47,11 +48,11 @@ class SqliteConnectionImpl
     bool primary = false,
   })  : _writeMutex = mutex,
         profileQueries = openFactory.sqliteOptions.profileQueries {
-    isInitialized = _isolateClient.ready;
     this.upstreamPort = upstreamPort ?? listenForEvents();
     // Accept an incoming stream of updates, or expose one if not given.
     this.updates = updates ?? updatesController.stream;
-    _open(openFactory, primary: primary, upstreamPort: this.upstreamPort);
+    isInitialized =
+        _open(openFactory, primary: primary, upstreamPort: this.upstreamPort);
   }
 
   Future<void> get ready async {
@@ -100,6 +101,7 @@ class SqliteConnectionImpl
       _isolateClient.tieToIsolate(_isolate);
       _isolate.resume(_isolate.pauseCapability!);
       await _isolateClient.ready;
+      _didOpenSuccessfully = true;
     });
   }
 
@@ -107,15 +109,18 @@ class SqliteConnectionImpl
   Future<void> close() async {
     eventsPort?.close();
     await _connectionMutex.lock(() async {
-      if (readOnly) {
-        await _isolateClient.post(const _SqliteIsolateConnectionClose());
-      } else {
-        // In some cases, disposing a write connection lock the database.
-        // We use the lock here to avoid "database is locked" errors.
-        await _writeMutex.lock(() async {
+      if (_didOpenSuccessfully) {
+        if (readOnly) {
           await _isolateClient.post(const _SqliteIsolateConnectionClose());
-        });
+        } else {
+          // In some cases, disposing a write connection lock the database.
+          // We use the lock here to avoid "database is locked" errors.
+          await _writeMutex.lock(() async {
+            await _isolateClient.post(const _SqliteIsolateConnectionClose());
+          });
+        }
       }
+
       _isolate.kill();
     });
   }
