@@ -8,7 +8,6 @@ import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/update_notification.dart';
-import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
 import 'package:sqlite_async/web.dart';
 
@@ -43,7 +42,6 @@ class SqliteDatabaseImpl
   @override
   AbstractDefaultSqliteOpenFactory openFactory;
 
-  late final Mutex mutex;
   late final WebDatabase _connection;
   StreamSubscription? _broadcastUpdatesSubscription;
 
@@ -77,15 +75,15 @@ class SqliteDatabaseImpl
   ///  4. Creating temporary views or triggers.
   SqliteDatabaseImpl.withFactory(this.openFactory,
       {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
-    mutex = MutexImpl();
     // This way the `updates` member is available synchronously
     updates = updatesController.stream;
     isInitialized = _init();
   }
 
   Future<void> _init() async {
-    _connection = await openFactory.openConnection(SqliteOpenOptions(
-        primaryConnection: true, readOnly: false, mutex: mutex)) as WebDatabase;
+    _connection = await openFactory.openConnection(
+            SqliteOpenOptions(primaryConnection: true, readOnly: false))
+        as WebDatabase;
 
     final broadcastUpdates = _connection.broadcastUpdates;
     if (broadcastUpdates == null) {
