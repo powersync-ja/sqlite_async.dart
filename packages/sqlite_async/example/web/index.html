@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+
+<html>
+<head>
+    <meta charset="utf-8">
+    <title>sqlite_async web demo</title>
+    <script defer src="main.dart.js"></script>
+</head>
+
+<body>
+
+<h1>sqlite_async demo</h1>
+
+<main>
+This page is used to test the sqlite_async package on the web.
+Use the console to open and interact with databases.
+
+<pre>
+<code>
+const db = await open('test.db');
+const lock = await write_lock(db);
+release_lock(lock);
+</code>
+</pre>
+</main>
+
+
+</body>
+</html>
