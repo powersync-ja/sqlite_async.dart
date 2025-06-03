@@ -5,5 +5,3 @@ targets:
         options:
           # Workers can't be compiled with dartdevc, so use dart2js for the example
           compiler: dart2js
-        generate_for:
-          - example/web/**
