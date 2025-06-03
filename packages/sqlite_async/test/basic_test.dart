@@ -229,6 +229,10 @@ void main() {
       );
 
       await completion;
+    }, onPlatform: {
+      'browser': Skip(
+        'Web locks are managed with a shared worker, which does not support timeouts',
+      )
     });
   });
 }
