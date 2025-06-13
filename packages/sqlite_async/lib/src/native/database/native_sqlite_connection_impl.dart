@@ -14,6 +14,7 @@ import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 
+import '../../impl/context.dart';
 import 'upstream_updates.dart';
 
 typedef TxCallback<T> = Future<T> Function(CommonDatabase db);
@@ -64,8 +65,8 @@ class SqliteConnectionImpl
     return _isolateClient.closed;
   }
 
-  _TransactionContext _context() {
-    return _TransactionContext(
+  _UnsafeContext _context() {
+    return _UnsafeContext(
         _isolateClient, profileQueries ? TimelineTask() : null);
   }
 
@@ -137,7 +138,7 @@ class SqliteConnectionImpl
     return _connectionMutex.lock(() async {
       final ctx = _context();
       try {
-        return await callback(ctx);
+        return ScopedReadContext.assumeReadLock(ctx, callback);
       } finally {
         await ctx.close();
       }
@@ -160,7 +161,7 @@ class SqliteConnectionImpl
       return await _writeMutex.lock(() async {
         final ctx = _context();
         try {
-          return await callback(ctx);
+          return ScopedWriteContext.assumeWriteLock(ctx, callback);
         } finally {
           await ctx.close();
         }
@@ -177,14 +178,14 @@ class SqliteConnectionImpl
 
 int _nextCtxId = 1;
 
-class _TransactionContext implements SqliteWriteContext {
+final class _UnsafeContext extends UnscopedContext {
   final PortClient _sendPort;
   bool _closed = false;
   final int ctxId = _nextCtxId++;
 
   final TimelineTask? task;
 
-  _TransactionContext(this._sendPort, this.task);
+  _UnsafeContext(this._sendPort, this.task);
 
   @override
   bool get closed {

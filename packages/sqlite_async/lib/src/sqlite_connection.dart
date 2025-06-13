@@ -8,7 +8,7 @@ import 'package:sqlite_async/src/update_notification.dart';
 import 'common/connection/sync_sqlite_connection.dart';
 
 /// Abstract class representing calls available in a read-only or read-write context.
-abstract class SqliteReadContext {
+abstract interface class SqliteReadContext {
   /// Execute a read-only (SELECT) query and return the results.
   Future<sqlite.ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]);
@@ -66,7 +66,7 @@ abstract class SqliteReadContext {
 }
 
 /// Abstract class representing calls available in a read-write context.
-abstract class SqliteWriteContext extends SqliteReadContext {
+abstract interface class SqliteWriteContext extends SqliteReadContext {
   /// Execute a write query (INSERT, UPDATE, DELETE) and return the results (if any).
   Future<sqlite.ResultSet> execute(String sql,
       [List<Object?> parameters = const []]);
@@ -75,13 +75,28 @@ abstract class SqliteWriteContext extends SqliteReadContext {
   /// parameter set. This is faster than executing separately with each
   /// parameter set.
   Future<void> executeBatch(String sql, List<List<Object?>> parameterSets);
+
+  /// Open a read-write transaction on this write context.
+  ///
+  /// When called on a [SqliteConnection], this takes a global lock - only one
+  /// write write transaction can execute against the database at a time. This
+  /// applies even when constructing separate [SqliteDatabase] instances for the
+  /// same database file.
+  ///
+  /// Statements within the transaction must be done on the provided
+  /// [SqliteWriteContext] - attempting statements on the [SqliteConnection]
+  /// instance will error.
+  /// It is forbidden to use the [SqliteWriteContext] after the [callback]
+  /// completes.
+  Future<T> writeTransaction<T>(
+      Future<T> Function(SqliteWriteContext tx) callback);
 }
 
 /// Abstract class representing a connection to the SQLite database.
 ///
 /// This package typically pools multiple [SqliteConnection] instances into a
 /// managed [SqliteDatabase] automatically.
-abstract class SqliteConnection extends SqliteWriteContext {
+abstract interface class SqliteConnection extends SqliteWriteContext {
   /// Default constructor for subclasses.
   SqliteConnection();
 
@@ -123,6 +138,7 @@ abstract class SqliteConnection extends SqliteWriteContext {
   /// Statements within the transaction must be done on the provided
   /// [SqliteWriteContext] - attempting statements on the [SqliteConnection]
   /// instance will error.
+  @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout});

@@ -8,9 +8,11 @@ import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 
+import '../../impl/context.dart';
+
 /// A simple "synchronous" connection which provides the async SqliteConnection
 /// implementation using a synchronous SQLite connection
-class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
+class SyncSqliteConnection with SqliteQueries implements SqliteConnection {
   final CommonDatabase db;
   late Mutex mutex;
   @override
@@ -44,7 +46,10 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
     return mutex.lock(
       () {
         task?.finish();
-        return callback(SyncReadContext(db, parent: task));
+        return ScopedReadContext.assumeReadLock(
+          _UnsafeSyncContext(db, parent: task),
+          callback,
+        );
       },
       timeout: lockTimeout,
     );
@@ -59,7 +64,10 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
     return mutex.lock(
       () {
         task?.finish();
-        return callback(SyncWriteContext(db, parent: task));
+        return ScopedWriteContext.assumeWriteLock(
+          _UnsafeSyncContext(db, parent: task),
+          callback,
+        );
       },
       timeout: lockTimeout,
     );
@@ -80,12 +88,12 @@ class SyncSqliteConnection extends SqliteConnection with SqliteQueries {
   }
 }
 
-class SyncReadContext implements SqliteReadContext {
+final class _UnsafeSyncContext extends UnscopedContext {
   final TimelineTask? task;
 
   CommonDatabase db;
 
-  SyncReadContext(this.db, {TimelineTask? parent})
+  _UnsafeSyncContext(this.db, {TimelineTask? parent})
       : task = TimelineTask(parent: parent);
 
   @override
@@ -129,10 +137,6 @@ class SyncReadContext implements SqliteReadContext {
   Future<bool> getAutoCommit() async {
     return db.autocommit;
   }
-}
-
-class SyncWriteContext extends SyncReadContext implements SqliteWriteContext {
-  SyncWriteContext(super.db, {super.parent});
 
   @override
   Future<ResultSet> execute(String sql,
