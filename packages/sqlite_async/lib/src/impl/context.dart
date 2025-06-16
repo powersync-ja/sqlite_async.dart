@@ -72,8 +72,7 @@ final class ScopedReadContext implements SqliteReadContext {
   @override
   Future<Row> get(String sql, [List<Object?> parameters = const []]) async {
     _checkNotLocked();
-    final rows = await getAll(sql, parameters);
-    return rows.first;
+    return _context.get(sql, parameters);
   }
 
   @override
@@ -93,8 +92,7 @@ final class ScopedReadContext implements SqliteReadContext {
   Future<Row?> getOptional(String sql,
       [List<Object?> parameters = const []]) async {
     _checkNotLocked();
-    final rows = await getAll(sql, parameters);
-    return rows.firstOrNull;
+    return _context.getOptional(sql, parameters);
   }
 
   void invalidate() => _closed = true;
