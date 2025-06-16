@@ -94,7 +94,7 @@ class WebDatabase
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     if (_mutex case var mutex?) {
-      return await mutex.lock(timeout: lockTimeout, () async {
+      return await mutex.lock(timeout: lockTimeout, () {
         return ScopedReadContext.assumeReadLock(
             _UnscopedContext(this), callback);
       });
@@ -104,7 +104,7 @@ class WebDatabase
           CustomDatabaseMessage(CustomDatabaseMessageKind.requestSharedLock));
 
       try {
-        return ScopedReadContext.assumeReadLock(
+        return await ScopedReadContext.assumeReadLock(
             _UnscopedContext(this), callback);
       } finally {
         await _database.customRequest(
@@ -124,7 +124,11 @@ class WebDatabase
       bool? flush}) {
     return writeLock((writeContext) {
       return ScopedWriteContext.assumeWriteLock(
-          _UnscopedContext(this), callback);
+        _UnscopedContext(this),
+        (ctx) async {
+          return await ctx.writeTransaction(callback);
+        },
+      );
     },
         debugContext: 'writeTransaction()',
         lockTimeout: lockTimeout,

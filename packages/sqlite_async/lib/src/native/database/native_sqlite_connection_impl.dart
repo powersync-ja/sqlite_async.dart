@@ -138,7 +138,7 @@ class SqliteConnectionImpl
     return _connectionMutex.lock(() async {
       final ctx = _context();
       try {
-        return ScopedReadContext.assumeReadLock(ctx, callback);
+        return await ScopedReadContext.assumeReadLock(ctx, callback);
       } finally {
         await ctx.close();
       }
@@ -161,7 +161,7 @@ class SqliteConnectionImpl
       return await _writeMutex.lock(() async {
         final ctx = _context();
         try {
-          return ScopedWriteContext.assumeWriteLock(ctx, callback);
+          return await ScopedWriteContext.assumeWriteLock(ctx, callback);
         } finally {
           await ctx.close();
         }

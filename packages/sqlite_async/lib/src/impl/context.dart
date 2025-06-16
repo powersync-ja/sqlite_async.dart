@@ -139,18 +139,23 @@ final class ScopedWriteContext extends ScopedReadContext
     final (begin, commit, rollback) = _beginCommitRollback(transactionDepth);
     ScopedWriteContext? inner;
 
+    final innerContext = transactionDepth == 0
+        ? _context.interceptOutermostTransaction()
+        : _context;
+
     try {
       _isLocked = true;
 
       await _context.execute(begin, const []);
-      inner =
-          ScopedWriteContext(_context, transactionDepth: transactionDepth + 1);
+
+      inner = ScopedWriteContext(innerContext,
+          transactionDepth: transactionDepth + 1);
       final result = await callback(inner);
-      await _context.execute(commit, const []);
+      await innerContext.execute(commit, const []);
       return result;
     } catch (e) {
       try {
-        await _context.execute(rollback, const []);
+        await innerContext.execute(rollback, const []);
       } catch (e) {
         // In rare cases, a ROLLBACK may fail.
         // Safe to ignore.

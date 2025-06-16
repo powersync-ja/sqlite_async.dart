@@ -122,7 +122,7 @@ void main() {
             ['Test Data']);
         expect(rs.rows[0], equals(['Test Data']));
       });
-      expect(await savedTx!.getAutoCommit(), equals(true));
+      expect(await db.getAutoCommit(), equals(true));
       expect(savedTx!.closed, equals(true));
     });
 
