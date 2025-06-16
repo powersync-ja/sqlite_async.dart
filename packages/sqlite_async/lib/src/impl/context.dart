@@ -2,6 +2,13 @@ import 'package:sqlite3/common.dart';
 
 import '../sqlite_connection.dart';
 
+/// A context that can be used to run both reading and writing queries -
+/// basically a [SqliteWriteContext] without the ability to start transactions.
+///
+/// Instances of this are not given out to clients - instead, they are wrapped
+/// with [ScopedReadContext] and [ScopedWriteContext] after obtaining a lock.
+/// Those wrapped views have a shorter lifetime (they can be closed
+/// independently, and verify that they're not being used after being closed).
 abstract base class UnscopedContext implements SqliteReadContext {
   Future<ResultSet> execute(String sql, List<Object?> parameters);
   Future<void> executeBatch(String sql, List<List<Object?>> parameterSets);
@@ -17,6 +24,7 @@ abstract base class UnscopedContext implements SqliteReadContext {
   }
 }
 
+/// A view over an [UnscopedContext] implementing [SqliteReadContext].
 final class ScopedReadContext implements SqliteReadContext {
   final UnscopedContext _context;
 
@@ -91,6 +99,11 @@ final class ScopedReadContext implements SqliteReadContext {
 
   void invalidate() => _closed = true;
 
+  /// Creates a short-lived wrapper around the [unsafe] context to safely give
+  /// [callback] read-access to the database.
+  ///
+  /// Assumes that a read lock providing sound access to the inner
+  /// [UnscopedContext] is held until this future returns.
   static Future<T> assumeReadLock<T>(
     UnscopedContext unsafe,
     Future<T> Function(SqliteReadContext) callback,
@@ -178,6 +191,11 @@ final class ScopedWriteContext extends ScopedReadContext
     };
   }
 
+  /// Creates a short-lived wrapper around the [unsafe] context to safely give
+  /// [callback] access to the database.
+  ///
+  /// Assumes that a write lock providing sound access to the inner
+  /// [UnscopedContext] is held until this future returns.
   static Future<T> assumeWriteLock<T>(
     UnscopedContext unsafe,
     Future<T> Function(SqliteWriteContext) callback,
