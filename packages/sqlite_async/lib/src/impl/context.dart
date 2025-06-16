@@ -162,6 +162,7 @@ final class ScopedWriteContext extends ScopedReadContext
       }
       rethrow;
     } finally {
+      _isLocked = false;
       inner?.invalidate();
     }
   }
