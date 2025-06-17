@@ -21,24 +21,6 @@ Future<T> internalReadTransaction<T>(SqliteReadContext ctx,
   }
 }
 
-Future<T> internalWriteTransaction<T>(SqliteWriteContext ctx,
-    Future<T> Function(SqliteWriteContext tx) callback) async {
-  try {
-    await ctx.execute('BEGIN IMMEDIATE');
-    final result = await callback(ctx);
-    await ctx.execute('COMMIT');
-    return result;
-  } catch (e) {
-    try {
-      await ctx.execute('ROLLBACK');
-    } catch (e) {
-      // In rare cases, a ROLLBACK may fail.
-      // Safe to ignore.
-    }
-    rethrow;
-  }
-}
-
 /// Given a SELECT query, return the tables that the query depends on.
 Future<Set<String>> getSourceTablesText(
     SqliteReadContext ctx, String sql) async {
