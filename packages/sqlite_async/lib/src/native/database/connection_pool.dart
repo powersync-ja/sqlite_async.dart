@@ -241,12 +241,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     connections.addAll(_allReadConnections);
     return connections;
   }
-
-  int getNumConnections() {
-    // print(
-    //     "TESTING READ: ${_allReadConnections.length} WRITE: ${_writeConnection == null ? 0 : 1}");
-    return _allReadConnections.length + (_writeConnection == null ? 0 : 1);
-  }
 }
 
 typedef ReadCallback<T> = Future<T> Function(SqliteReadContext tx);
