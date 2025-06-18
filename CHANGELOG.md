@@ -3,6 +3,45 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-06-03
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.11.7`](#sqlite_async---v0117)
+
+---
+
+#### `sqlite_async` - `v0.11.7`
+
+- Shared worker: Release locks owned by connected client tab when it closes.
+- Fix web concurrency issues: Consistently apply a shared mutex or let a shared
+  worker coordinate access.
+
+## 2025-05-28
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.11.6`](#sqlite_async---v0116)
+
+---
+
+#### `sqlite_async` - `v0.11.6`
+
+- Native: Consistently report errors when opening the database instead of
+  causing unhandled exceptions.
+
 ## 2025-05-22
 
 ---

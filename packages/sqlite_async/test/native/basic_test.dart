@@ -344,10 +344,38 @@ void main() {
 
       await Future.wait([f1, f2]);
     });
+
+    test('reports open error', () async {
+      // Ensure that a db that fails to open doesn't report any unhandled
+      // exceptions. This could happen when e.g. SQLCipher is used and the open
+      // factory supplies a wrong key pragma (because a subsequent pragma to
+      // change the journal mode then fails with a "not a database" error).
+      final db =
+          SqliteDatabase.withFactory(_InvalidPragmaOnOpenFactory(path: path));
+      await expectLater(
+        db.initialize(),
+        throwsA(
+          isA<Object>().having(
+              (e) => e.toString(), 'toString()', contains('syntax error')),
+        ),
+      );
+    });
   });
 }
 
 // For some reason, future.ignore() doesn't actually ignore errors in these tests.
 void ignore(Future future) {
   future.then((_) {}, onError: (_) {});
+}
+
+class _InvalidPragmaOnOpenFactory extends DefaultSqliteOpenFactory {
+  const _InvalidPragmaOnOpenFactory({required super.path});
+
+  @override
+  List<String> pragmaStatements(SqliteOpenOptions options) {
+    return [
+      'invalid syntax to fail open in test',
+      ...super.pragmaStatements(options),
+    ];
+  }
 }

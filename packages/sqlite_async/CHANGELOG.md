@@ -1,3 +1,14 @@
+## 0.11.7
+
+- Shared worker: Release locks owned by connected client tab when it closes.
+- Fix web concurrency issues: Consistently apply a shared mutex or let a shared
+  worker coordinate access.
+
+## 0.11.6
+
+- Native: Consistently report errors when opening the database instead of
+  causing unhandled exceptions.
+
 ## 0.11.5
 
 - Allow profiling queries. Queries are profiled by default in debug and profile builds, the runtime

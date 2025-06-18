@@ -8,9 +8,9 @@ import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite3_web/protocol_utils.dart' as proto;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
-import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import 'package:sqlite_async/web.dart';
+import '../impl/context.dart';
 import 'protocol.dart';
 import 'web_mutex.dart';
 
@@ -94,13 +94,9 @@ class WebDatabase
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     if (_mutex case var mutex?) {
-      return await mutex.lock(timeout: lockTimeout, () async {
-        final context = _SharedContext(this);
-        try {
-          return await callback(context);
-        } finally {
-          context.markClosed();
-        }
+      return await mutex.lock(timeout: lockTimeout, () {
+        return ScopedReadContext.assumeReadLock(
+            _UnscopedContext(this), callback);
       });
     } else {
       // No custom mutex, coordinate locks through shared worker.
@@ -108,7 +104,8 @@ class WebDatabase
           CustomDatabaseMessage(CustomDatabaseMessageKind.requestSharedLock));
 
       try {
-        return await callback(_SharedContext(this));
+        return await ScopedReadContext.assumeReadLock(
+            _UnscopedContext(this), callback);
       } finally {
         await _database.customRequest(
             CustomDatabaseMessage(CustomDatabaseMessageKind.releaseLock));
@@ -125,30 +122,28 @@ class WebDatabase
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout,
       bool? flush}) {
-    return writeLock(
-        (writeContext) =>
-            internalWriteTransaction(writeContext, (context) async {
-              // All execute calls done in the callback will be checked for the
-              // autocommit state
-              return callback(_ExclusiveTransactionContext(this, writeContext));
-            }),
+    return writeLock((writeContext) {
+      return ScopedWriteContext.assumeWriteLock(
+        _UnscopedContext(this),
+        (ctx) async {
+          return await ctx.writeTransaction(callback);
+        },
+      );
+    },
         debugContext: 'writeTransaction()',
         lockTimeout: lockTimeout,
         flush: flush);
   }
 
   @override
-
-  /// Internal writeLock which intercepts transaction context's to verify auto commit is not active
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext, bool? flush}) async {
     if (_mutex case var mutex?) {
       return await mutex.lock(timeout: lockTimeout, () async {
-        final context = _ExclusiveContext(this);
+        final context = _UnscopedContext(this);
         try {
-          return await callback(context);
+          return await ScopedWriteContext.assumeWriteLock(context, callback);
         } finally {
-          context.markClosed();
           if (flush != false) {
             await this.flush();
           }
@@ -158,11 +153,10 @@ class WebDatabase
       // No custom mutex, coordinate locks through shared worker.
       await _database.customRequest(CustomDatabaseMessage(
           CustomDatabaseMessageKind.requestExclusiveLock));
-      final context = _ExclusiveContext(this);
+      final context = _UnscopedContext(this);
       try {
-        return await callback(context);
+        return await ScopedWriteContext.assumeWriteLock(context, callback);
       } finally {
-        context.markClosed();
         if (flush != false) {
           await this.flush();
         }
@@ -184,17 +178,16 @@ class WebDatabase
   }
 }
 
-class _SharedContext implements SqliteReadContext {
+final class _UnscopedContext extends UnscopedContext {
   final WebDatabase _database;
-  bool _contextClosed = false;
 
   final TimelineTask? _task;
 
-  _SharedContext(this._database)
+  _UnscopedContext(this._database)
       : _task = _database.profileQueries ? TimelineTask() : null;
 
   @override
-  bool get closed => _contextClosed || _database.closed;
+  bool get closed => _database.closed;
 
   @override
   Future<T> computeWithDatabase<T>(
@@ -235,14 +228,6 @@ class _SharedContext implements SqliteReadContext {
     return results.firstOrNull;
   }
 
-  void markClosed() {
-    _contextClosed = true;
-  }
-}
-
-class _ExclusiveContext extends _SharedContext implements SqliteWriteContext {
-  _ExclusiveContext(super.database);
-
   @override
   Future<ResultSet> execute(String sql, [List<Object?> parameters = const []]) {
     return _task.timeAsync('execute', sql: sql, parameters: parameters, () {
@@ -263,15 +248,17 @@ class _ExclusiveContext extends _SharedContext implements SqliteWriteContext {
       });
     });
   }
-}
-
-class _ExclusiveTransactionContext extends _ExclusiveContext {
-  SqliteWriteContext baseContext;
-
-  _ExclusiveTransactionContext(super.database, this.baseContext);
 
   @override
-  bool get closed => baseContext.closed;
+  UnscopedContext interceptOutermostTransaction() {
+    // All execute calls done in the callback will be checked for the
+    // autocommit state
+    return _ExclusiveTransactionContext(_database);
+  }
+}
+
+final class _ExclusiveTransactionContext extends _UnscopedContext {
+  _ExclusiveTransactionContext(super._database);
 
   Future<ResultSet> _executeInternal(
       String sql, List<Object?> parameters) async {

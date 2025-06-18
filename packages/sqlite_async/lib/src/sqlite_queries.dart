@@ -107,7 +107,7 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout}) async {
     return writeLock((ctx) async {
-      return await internalWriteTransaction(ctx, callback);
+      return ctx.writeTransaction(callback);
     }, lockTimeout: lockTimeout, debugContext: 'writeTransaction()');
   }
 

@@ -56,8 +56,26 @@ class AsyncSqliteDatabase extends WorkerDatabase {
   // these requests for shared workers, so we can assume each database is only
   // opened once and we don't need web locks here.
   final mutex = ReadWriteMutex();
+  final Map<ClientConnection, _ConnectionState> _state = {};
 
   AsyncSqliteDatabase({required this.database});
+
+  _ConnectionState _findState(ClientConnection connection) {
+    return _state.putIfAbsent(connection, _ConnectionState.new);
+  }
+
+  void _markHoldsMutex(ClientConnection connection) {
+    final state = _findState(connection);
+    state.holdsMutex = true;
+    if (!state.hasOnCloseListener) {
+      state.hasOnCloseListener = true;
+      connection.closed.then((_) {
+        if (state.holdsMutex) {
+          mutex.release();
+        }
+      });
+    }
+  }
 
   @override
   Future<JSAny?> handleCustomRequest(
@@ -67,9 +85,12 @@ class AsyncSqliteDatabase extends WorkerDatabase {
     switch (message.kind) {
       case CustomDatabaseMessageKind.requestSharedLock:
         await mutex.acquireRead();
+        _markHoldsMutex(connection);
       case CustomDatabaseMessageKind.requestExclusiveLock:
         await mutex.acquireWrite();
+        _markHoldsMutex(connection);
       case CustomDatabaseMessageKind.releaseLock:
+        _findState(connection).holdsMutex = false;
         mutex.release();
       case CustomDatabaseMessageKind.lockObtained:
         throw UnsupportedError('This is a response, not a request');
@@ -122,4 +143,9 @@ class AsyncSqliteDatabase extends WorkerDatabase {
 
     return resultSetMap;
   }
+}
+
+final class _ConnectionState {
+  bool hasOnCloseListener = false;
+  bool holdsMutex = false;
 }

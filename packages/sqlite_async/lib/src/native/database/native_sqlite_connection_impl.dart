@@ -14,6 +14,7 @@ import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 
+import '../../impl/context.dart';
 import 'upstream_updates.dart';
 
 typedef TxCallback<T> = Future<T> Function(CommonDatabase db);
@@ -36,6 +37,7 @@ class SqliteConnectionImpl
   final bool readOnly;
 
   final bool profileQueries;
+  bool _didOpenSuccessfully = false;
 
   SqliteConnectionImpl({
     required AbstractDefaultSqliteOpenFactory openFactory,
@@ -47,11 +49,11 @@ class SqliteConnectionImpl
     bool primary = false,
   })  : _writeMutex = mutex,
         profileQueries = openFactory.sqliteOptions.profileQueries {
-    isInitialized = _isolateClient.ready;
     this.upstreamPort = upstreamPort ?? listenForEvents();
     // Accept an incoming stream of updates, or expose one if not given.
     this.updates = updates ?? updatesController.stream;
-    _open(openFactory, primary: primary, upstreamPort: this.upstreamPort);
+    isInitialized =
+        _open(openFactory, primary: primary, upstreamPort: this.upstreamPort);
   }
 
   Future<void> get ready async {
@@ -63,8 +65,8 @@ class SqliteConnectionImpl
     return _isolateClient.closed;
   }
 
-  _TransactionContext _context() {
-    return _TransactionContext(
+  _UnsafeContext _context() {
+    return _UnsafeContext(
         _isolateClient, profileQueries ? TimelineTask() : null);
   }
 
@@ -100,6 +102,7 @@ class SqliteConnectionImpl
       _isolateClient.tieToIsolate(_isolate);
       _isolate.resume(_isolate.pauseCapability!);
       await _isolateClient.ready;
+      _didOpenSuccessfully = true;
     });
   }
 
@@ -108,15 +111,18 @@ class SqliteConnectionImpl
     // print("Closing native sqlite Connection ${StackTrace.current}");
     eventsPort?.close();
     await _connectionMutex.lock(() async {
-      if (readOnly) {
-        await _isolateClient.post(const _SqliteIsolateConnectionClose());
-      } else {
-        // In some cases, disposing a write connection lock the database.
-        // We use the lock here to avoid "database is locked" errors.
-        await _writeMutex.lock(() async {
+      if (_didOpenSuccessfully) {
+        if (readOnly) {
           await _isolateClient.post(const _SqliteIsolateConnectionClose());
-        });
+        } else {
+          // In some cases, disposing a write connection lock the database.
+          // We use the lock here to avoid "database is locked" errors.
+          await _writeMutex.lock(() async {
+            await _isolateClient.post(const _SqliteIsolateConnectionClose());
+          });
+        }
       }
+
       _isolate.kill();
     });
   }
@@ -133,7 +139,7 @@ class SqliteConnectionImpl
     return _connectionMutex.lock(() async {
       final ctx = _context();
       try {
-        return await callback(ctx);
+        return await ScopedReadContext.assumeReadLock(ctx, callback);
       } finally {
         await ctx.close();
       }
@@ -156,7 +162,7 @@ class SqliteConnectionImpl
       return await _writeMutex.lock(() async {
         final ctx = _context();
         try {
-          return await callback(ctx);
+          return await ScopedWriteContext.assumeWriteLock(ctx, callback);
         } finally {
           await ctx.close();
         }
@@ -173,14 +179,14 @@ class SqliteConnectionImpl
 
 int _nextCtxId = 1;
 
-class _TransactionContext implements SqliteWriteContext {
+final class _UnsafeContext extends UnscopedContext {
   final PortClient _sendPort;
   bool _closed = false;
   final int ctxId = _nextCtxId++;
 
   final TimelineTask? task;
 
-  _TransactionContext(this._sendPort, this.task);
+  _UnsafeContext(this._sendPort, this.task);
 
   @override
   bool get closed {

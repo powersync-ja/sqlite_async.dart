@@ -122,7 +122,7 @@ void main() {
             ['Test Data']);
         expect(rs.rows[0], equals(['Test Data']));
       });
-      expect(await savedTx!.getAutoCommit(), equals(true));
+      expect(await db.getAutoCommit(), equals(true));
       expect(savedTx!.closed, equals(true));
     });
 
@@ -189,6 +189,73 @@ void main() {
       );
     });
 
+    group('nested transaction', () {
+      const insert = 'INSERT INTO test_data (description) VALUES(?);';
+      late SqliteDatabase db;
+
+      setUp(() async {
+        db = await testUtils.setupDatabase(path: path);
+        await createTables(db);
+      });
+
+      tearDown(() => db.close());
+
+      test('run in outer transaction', () async {
+        await db.writeTransaction((tx) async {
+          await tx.execute(insert, ['first']);
+
+          await tx.writeTransaction((tx) async {
+            await tx.execute(insert, ['second']);
+          });
+
+          expect(await tx.getAll('SELECT * FROM test_data'), hasLength(2));
+        });
+
+        expect(await db.getAll('SELECT * FROM test_data'), hasLength(2));
+      });
+
+      test('can rollback inner transaction', () async {
+        await db.writeTransaction((tx) async {
+          await tx.execute(insert, ['first']);
+
+          await tx.writeTransaction((tx) async {
+            await tx.execute(insert, ['second']);
+          });
+
+          await expectLater(() async {
+            await tx.writeTransaction((tx) async {
+              await tx.execute(insert, ['third']);
+              expect(await tx.getAll('SELECT * FROM test_data'), hasLength(3));
+              throw 'rollback please';
+            });
+          }, throwsA(anything));
+
+          expect(await tx.getAll('SELECT * FROM test_data'), hasLength(2));
+        });
+
+        expect(await db.getAll('SELECT * FROM test_data'), hasLength(2));
+      });
+
+      test('cannot use outer transaction while inner is active', () async {
+        await db.writeTransaction((outer) async {
+          await outer.writeTransaction((inner) async {
+            await expectLater(outer.execute('SELECT 1'), throwsStateError);
+          });
+        });
+      });
+
+      test('cannot use inner after leaving scope', () async {
+        await db.writeTransaction((tx) async {
+          late SqliteWriteContext inner;
+          await tx.writeTransaction((tx) async {
+            inner = tx;
+          });
+
+          await expectLater(inner.execute('SELECT 1'), throwsStateError);
+        });
+      });
+    });
+
     test('can use raw database instance', () async {
       final factory = await testUtils.testFactory();
       final raw = await factory.openDatabaseForSingleConnection();
@@ -229,6 +296,10 @@ void main() {
       );
 
       await completion;
+    }, onPlatform: {
+      'browser': Skip(
+        'Web locks are managed with a shared worker, which does not support timeouts',
+      )
     });
   });
 }
