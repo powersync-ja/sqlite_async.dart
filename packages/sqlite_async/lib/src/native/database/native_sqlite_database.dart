@@ -173,7 +173,7 @@ class SqliteDatabaseImpl
   }
   
   @override
-  List<SqliteConnection> getAllConnections() {
-    return _pool.getAllConnections();
+  List<SqliteConnection> get allConnections {
+    return _pool.allConnections;
   }
 }

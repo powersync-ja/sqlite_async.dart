@@ -107,5 +107,5 @@ abstract class SqliteDatabase
   /// Returns a list of all the connections (read and write) managed by this database.
   /// This can be useful to run the same statement on all connections. For instance,
   /// ATTACHing a database, that is expected to be available in all connections.
-  List<SqliteConnection> getAllConnections();
+  List<SqliteConnection> get allConnections;
 }

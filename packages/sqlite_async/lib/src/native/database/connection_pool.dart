@@ -233,7 +233,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     }
   }
 
-  List<SqliteConnection> getAllConnections() {
+  List<SqliteConnection> get allConnections {
     final connections = <SqliteConnection>[];
     if (_writeConnection != null) {
       connections.add(_writeConnection!);

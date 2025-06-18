@@ -66,7 +66,7 @@ class SqliteDatabaseImpl
   }
 
   @override
-  List<SqliteConnection> getAllConnections() {
+  List<SqliteConnection> get allConnections {
     throw UnimplementedError();
   }
 }

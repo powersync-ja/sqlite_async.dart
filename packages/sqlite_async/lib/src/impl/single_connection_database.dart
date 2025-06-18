@@ -59,7 +59,7 @@ final class SingleConnectionDatabase
   }
 
   @override
-  List<SqliteConnection> getAllConnections() {
+  List<SqliteConnection> get allConnections {
     return [connection];
   }
 }
