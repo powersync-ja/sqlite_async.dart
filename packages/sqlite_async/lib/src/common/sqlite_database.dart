@@ -51,9 +51,6 @@ abstract class SqliteDatabase
   /// The maximum number of concurrent read transactions if not explicitly specified.
   static const int defaultMaxReaders = 5;
 
-  int get numConnections;
-  List<SqliteConnection> getAllConnections();
-
   /// Open a SqliteDatabase.
   ///
   /// Only a single SqliteDatabase per [path] should be opened at a time.
@@ -106,4 +103,9 @@ abstract class SqliteDatabase
   factory SqliteDatabase.singleConnection(SqliteConnection connection) {
     return SingleConnectionDatabase(connection);
   }
+
+  /// Returns a list of all the connections (read and write) managed by this database.
+  /// This can be useful to run the same statement on all connections. For instance,
+  /// ATTACHing a database, that is expected to be available in all connections.
+  List<SqliteConnection> getAllConnections();
 }

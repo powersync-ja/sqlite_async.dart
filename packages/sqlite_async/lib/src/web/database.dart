@@ -177,15 +177,11 @@ class WebDatabase
     await isInitialized;
     return _database.fileSystem.flush();
   }
-  @override
-  int get numConnections => throw UnimplementedError();
-
 
   @override
   List<SqliteConnection> getAllConnections() {
-    throw UnimplementedError();
+    return [this];
   }
-
 }
 
 class _SharedContext implements SqliteReadContext {

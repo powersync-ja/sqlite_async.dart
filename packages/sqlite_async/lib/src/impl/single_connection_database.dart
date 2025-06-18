@@ -62,7 +62,4 @@ final class SingleConnectionDatabase
   List<SqliteConnection> getAllConnections() {
     return [connection];
   }
-
-  @override
-  int get numConnections => 1;
 }
