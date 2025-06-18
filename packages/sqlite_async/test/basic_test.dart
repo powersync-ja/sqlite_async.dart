@@ -209,6 +209,27 @@ void main() {
       expect(await db.get('SELECT description FROM test_data'),
           {'description': 'test'});
     });
+
+    test('respects lock timeouts', () async {
+      // Unfortunately this test can't use fakeAsync because it uses actual
+      // lock APIs on the web.
+      final db = await testUtils.setupDatabase(path: path);
+      final lockAcquired = Completer();
+
+      final completion = db.writeLock((context) async {
+        lockAcquired.complete();
+        await Future.delayed(const Duration(seconds: 1));
+      });
+
+      await lockAcquired.future;
+      await expectLater(
+        () => db.writeLock(
+            lockTimeout: Duration(milliseconds: 200), (_) async => {}),
+        throwsA(isA<TimeoutException>()),
+      );
+
+      await completion;
+    });
   });
 }
 

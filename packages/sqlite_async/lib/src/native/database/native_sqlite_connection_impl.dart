@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'dart:developer';
 import 'dart:isolate';
 
 import 'package:sqlite3/sqlite3.dart' as sqlite;
@@ -10,6 +11,7 @@ import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
+import 'package:sqlite_async/src/utils/profiler.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 
 import 'upstream_updates.dart';
@@ -33,15 +35,18 @@ class SqliteConnectionImpl
   final String? debugName;
   final bool readOnly;
 
-  SqliteConnectionImpl(
-      {required openFactory,
-      required Mutex mutex,
-      SerializedPortClient? upstreamPort,
-      Stream<UpdateNotification>? updates,
-      this.debugName,
-      this.readOnly = false,
-      bool primary = false})
-      : _writeMutex = mutex {
+  final bool profileQueries;
+
+  SqliteConnectionImpl({
+    required AbstractDefaultSqliteOpenFactory openFactory,
+    required Mutex mutex,
+    SerializedPortClient? upstreamPort,
+    Stream<UpdateNotification>? updates,
+    this.debugName,
+    this.readOnly = false,
+    bool primary = false,
+  })  : _writeMutex = mutex,
+        profileQueries = openFactory.sqliteOptions.profileQueries {
     isInitialized = _isolateClient.ready;
     this.upstreamPort = upstreamPort ?? listenForEvents();
     // Accept an incoming stream of updates, or expose one if not given.
@@ -58,6 +63,11 @@ class SqliteConnectionImpl
     return _isolateClient.closed;
   }
 
+  _TransactionContext _context() {
+    return _TransactionContext(
+        _isolateClient, profileQueries ? TimelineTask() : null);
+  }
+
   @override
   Future<bool> getAutoCommit() async {
     if (closed) {
@@ -65,7 +75,7 @@ class SqliteConnectionImpl
     }
     // We use a _TransactionContext without a lock here.
     // It is safe to call this in the middle of another transaction.
-    final ctx = _TransactionContext(_isolateClient);
+    final ctx = _context();
     try {
       return await ctx.getAutoCommit();
     } finally {
@@ -121,7 +131,7 @@ class SqliteConnectionImpl
     // Private lock to synchronize this with other statements on the same connection,
     // to ensure that transactions aren't interleaved.
     return _connectionMutex.lock(() async {
-      final ctx = _TransactionContext(_isolateClient);
+      final ctx = _context();
       try {
         return await callback(ctx);
       } finally {
@@ -144,7 +154,7 @@ class SqliteConnectionImpl
       }
       // DB lock so that only one write happens at a time
       return await _writeMutex.lock(() async {
-        final ctx = _TransactionContext(_isolateClient);
+        final ctx = _context();
         try {
           return await callback(ctx);
         } finally {
@@ -168,7 +178,9 @@ class _TransactionContext implements SqliteWriteContext {
   bool _closed = false;
   final int ctxId = _nextCtxId++;
 
-  _TransactionContext(this._sendPort);
+  final TimelineTask? task;
+
+  _TransactionContext(this._sendPort, this.task);
 
   @override
   bool get closed {
@@ -188,8 +200,13 @@ class _TransactionContext implements SqliteWriteContext {
       throw sqlite.SqliteException(0, 'Transaction closed', null, sql);
     }
     try {
-      var future = _sendPort.post<sqlite.ResultSet>(
-          _SqliteIsolateStatement(ctxId, sql, parameters, readOnly: false));
+      var future = _sendPort.post<sqlite.ResultSet>(_SqliteIsolateStatement(
+        ctxId,
+        sql,
+        parameters,
+        readOnly: false,
+        timelineTask: task?.pass(),
+      ));
 
       return await future;
     } on sqlite.SqliteException catch (e) {
@@ -315,72 +332,99 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
         Timer(const Duration(milliseconds: 1), maybeFireUpdates);
   });
 
-  server.open((data) async {
-    if (data is _SqliteIsolateClose) {
-      // This is a transaction close message
+  ResultSet runStatement(_SqliteIsolateStatement data) {
+    if (data.sql == 'BEGIN' || data.sql == 'BEGIN IMMEDIATE') {
       if (txId != null) {
-        if (!db.autocommit) {
-          db.execute('ROLLBACK');
-        }
-        txId = null;
-        txError = null;
-        throw sqlite.SqliteException(
-            0, 'Transaction must be closed within the read or write lock');
+        // This will error on db.select
       }
-      // We would likely have received updates by this point - fire now.
-      maybeFireUpdates();
-      return null;
-    } else if (data is _SqliteIsolateStatement) {
-      if (data.sql == 'BEGIN' || data.sql == 'BEGIN IMMEDIATE') {
-        if (txId != null) {
-          // This will error on db.select
+      txId = data.ctxId;
+    } else if (txId != null && txId != data.ctxId) {
+      // Locks should prevent this from happening
+      throw sqlite.SqliteException(
+          0, 'Mixed transactions: $txId and ${data.ctxId}');
+    } else if (data.sql == 'ROLLBACK') {
+      // This is the only valid way to clear an error
+      txError = null;
+      txId = null;
+    } else if (txError != null) {
+      // Any statement (including COMMIT) after the first error will also error, until the
+      // transaction is aborted.
+      throw txError!;
+    } else if (data.sql == 'COMMIT' || data.sql == 'END TRANSACTION') {
+      txId = null;
+    }
+    try {
+      final result = db.select(data.sql, mapParameters(data.args));
+      return result;
+    } catch (err) {
+      if (txId != null) {
+        if (db.autocommit) {
+          // Transaction rolled back
+          txError = sqlite.SqliteException(0,
+              'Transaction rolled back by earlier statement: ${err.toString()}');
+        } else {
+          // Recoverable error
         }
-        txId = data.ctxId;
-      } else if (txId != null && txId != data.ctxId) {
-        // Locks should prevent this from happening
-        throw sqlite.SqliteException(
-            0, 'Mixed transactions: $txId and ${data.ctxId}');
-      } else if (data.sql == 'ROLLBACK') {
-        // This is the only valid way to clear an error
-        txError = null;
-        txId = null;
-      } else if (txError != null) {
-        // Any statement (including COMMIT) after the first error will also error, until the
-        // transaction is aborted.
-        throw txError!;
-      } else if (data.sql == 'COMMIT' || data.sql == 'END TRANSACTION') {
-        txId = null;
       }
-      try {
-        final result = db.select(data.sql, mapParameters(data.args));
-        return result;
-      } catch (err) {
+      rethrow;
+    }
+  }
+
+  Future<Object?> handle(_RemoteIsolateRequest data, TimelineTask? task) async {
+    switch (data) {
+      case _SqliteIsolateClose():
+        // This is a transaction close message
         if (txId != null) {
-          if (db.autocommit) {
-            // Transaction rolled back
-            txError = sqlite.SqliteException(0,
-                'Transaction rolled back by earlier statement: ${err.toString()}');
-          } else {
-            // Recoverable error
+          if (!db.autocommit) {
+            db.execute('ROLLBACK');
           }
+          txId = null;
+          txError = null;
+          throw sqlite.SqliteException(
+              0, 'Transaction must be closed within the read or write lock');
         }
-        rethrow;
-      }
-    } else if (data is _SqliteIsolateClosure) {
-      try {
-        return await data.cb(db);
-      } finally {
+        // We would likely have received updates by this point - fire now.
         maybeFireUpdates();
-      }
-    } else if (data is _SqliteIsolateConnectionClose) {
-      db.dispose();
-      return null;
-    } else {
+        return null;
+      case _SqliteIsolateStatement():
+        return task.timeSync(
+          'execute_remote',
+          () => runStatement(data),
+          sql: data.sql,
+          parameters: data.args,
+        );
+      case _SqliteIsolateClosure():
+        try {
+          return await data.cb(db);
+        } finally {
+          maybeFireUpdates();
+        }
+      case _SqliteIsolateConnectionClose():
+        db.dispose();
+        return null;
+    }
+  }
+
+  server.open((data) async {
+    if (data is! _RemoteIsolateRequest) {
       throw ArgumentError('Unknown data type $data');
     }
+
+    final task = switch (data.timelineTask) {
+      null => null,
+      final id => TimelineTask.withTaskId(id),
+    };
+
+    return await handle(data, task);
   });
 
   commandPort.listen((data) async {});
+}
+
+sealed class _RemoteIsolateRequest {
+  final int? timelineTask;
+
+  const _RemoteIsolateRequest({required this.timelineTask});
 }
 
 class _SqliteConnectionParams {
@@ -399,28 +443,28 @@ class _SqliteConnectionParams {
       required this.primary});
 }
 
-class _SqliteIsolateStatement {
+class _SqliteIsolateStatement extends _RemoteIsolateRequest {
   final int ctxId;
   final String sql;
   final List<Object?> args;
   final bool readOnly;
 
   _SqliteIsolateStatement(this.ctxId, this.sql, this.args,
-      {this.readOnly = false});
+      {this.readOnly = false, super.timelineTask});
 }
 
-class _SqliteIsolateClosure {
+class _SqliteIsolateClosure extends _RemoteIsolateRequest {
   final TxCallback cb;
 
-  _SqliteIsolateClosure(this.cb);
+  _SqliteIsolateClosure(this.cb, {super.timelineTask});
 }
 
-class _SqliteIsolateClose {
+class _SqliteIsolateClose extends _RemoteIsolateRequest {
   final int ctxId;
 
-  const _SqliteIsolateClose(this.ctxId);
+  const _SqliteIsolateClose(this.ctxId, {super.timelineTask});
 }
 
-class _SqliteIsolateConnectionClose {
-  const _SqliteIsolateConnectionClose();
+class _SqliteIsolateConnectionClose extends _RemoteIsolateRequest {
+  const _SqliteIsolateConnectionClose({super.timelineTask});
 }

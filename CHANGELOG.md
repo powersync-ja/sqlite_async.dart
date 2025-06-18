@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-05-22
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.11.5`](#sqlite_async---v0115)
+
+---
+
+#### `sqlite_async` - `v0.11.5`
+
+- Allow profiling queries. Queries are profiled by default in debug and profile builds, the runtime
+  for queries is added to profiling timelines under the `sqlite_async` tag.
+- Fix cancelling `watch()` queries sometimes taking longer than necessary.
+- Fix web databases not respecting lock timeouts.
+
 ## 2024-11-06
 
 ### Changes

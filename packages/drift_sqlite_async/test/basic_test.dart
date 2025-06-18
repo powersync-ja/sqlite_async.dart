@@ -6,6 +6,7 @@ import 'dart:async';
 
 import 'package:drift/drift.dart';
 import 'package:drift_sqlite_async/drift_sqlite_async.dart';
+import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
@@ -218,6 +219,30 @@ void main() {
                   .getSingle())
               .data,
           equals({'count': 1}));
+    });
+
+    test('cannot update database with read', () async {
+      await expectLater(() => dbu.customSelect('''
+-- trick to circumvent regex detecting writes
+INSERT INTO test_data(description) VALUES('test data');
+''').get(), throwsA(isA<SqliteException>()));
+    });
+
+    test('allows spaces after returning', () async {
+      // This tests that the statement is forwarded to the write connection
+      // despite using customSelect(). If it wasn't, we'd get an error about
+      // the database being read-only.
+      final row = await dbu.customSelect(
+          'INSERT INTO test_data(description) VALUES(?) RETURNING *   ',
+          variables: [Variable('Test Data')]).getSingle();
+      expect(row.data['description'], equals('Test Data'));
+    });
+
+    test('allows spaces before insert', () async {
+      final row = await dbu.customSelect(
+          '  INSERT INTO test_data(description) VALUES(?)   ',
+          variables: [Variable('Test Data')]).get();
+      expect(row, isEmpty);
     });
   });
 }
