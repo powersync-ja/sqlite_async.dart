@@ -178,4 +178,9 @@ class SqliteDatabaseImpl
   Future<WebDatabaseEndpoint> exposeEndpoint() async {
     return await _connection.exposeEndpoint();
   }
+
+  @override
+  List<SqliteConnection> get allConnections {
+    return [_connection];
+  }
 }

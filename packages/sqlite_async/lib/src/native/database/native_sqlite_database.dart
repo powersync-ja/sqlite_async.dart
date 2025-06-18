@@ -171,4 +171,9 @@ class SqliteDatabaseImpl
   Future<void> refreshSchema() {
     return _pool.refreshSchema();
   }
+  
+  @override
+  List<SqliteConnection> get allConnections {
+    return _pool.allConnections;
+  }
 }
