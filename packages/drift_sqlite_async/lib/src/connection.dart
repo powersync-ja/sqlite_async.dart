@@ -18,14 +18,14 @@ class SqliteAsyncDriftConnection extends DatabaseConnection {
   SqliteAsyncDriftConnection(
     SqliteConnection db, {
     bool logStatements = false,
-    Set<TableUpdate> Function(UpdateNotification)? transformTableUpdate,
+    Set<TableUpdate> Function(UpdateNotification)? transformTableUpdates,
   }) : super(SqliteAsyncQueryExecutor(db, logStatements: logStatements)) {
     _updateSubscription = (db as SqliteQueries).updates!.listen((event) {
       final Set<TableUpdate> setUpdates;
       // This is useful to map local table names from PowerSync that are backed by a view name
       // which is the entity that the user interacts with.
-      if (transformTableUpdate != null) {
-        setUpdates = transformTableUpdate(event);
+      if (transformTableUpdates != null) {
+        setUpdates = transformTableUpdates(event);
       } else {
         setUpdates = <TableUpdate>{};
         for (var tableName in event.tables) {
