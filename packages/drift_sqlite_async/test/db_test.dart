@@ -117,5 +117,35 @@ void main() {
       final deleted = await dbu.delete(dbu.todoItems).go();
       expect(deleted, 10);
     });
+
+    test('nested transactions', () async {
+      await dbu
+          .into(dbu.todoItems)
+          .insert(TodoItemsCompanion.insert(description: 'root'));
+
+      await dbu.transaction(() async {
+        await dbu
+            .into(dbu.todoItems)
+            .insert(TodoItemsCompanion.insert(description: 'tx0'));
+
+        await dbu.transaction(() async {
+          await dbu
+              .into(dbu.todoItems)
+              .insert(TodoItemsCompanion.insert(description: 'tx1'));
+
+          await expectLater(() {
+            return dbu.transaction(() async {
+              await dbu
+                  .into(dbu.todoItems)
+                  .insert(TodoItemsCompanion.insert(description: 'tx2'));
+              throw 'rollback';
+            });
+          }, throwsA(anything));
+        });
+      });
+
+      final items = await dbu.todoItems.all().get();
+      expect(items.map((e) => e.description).toSet(), {'root', 'tx0', 'tx1'});
+    });
   });
 }
