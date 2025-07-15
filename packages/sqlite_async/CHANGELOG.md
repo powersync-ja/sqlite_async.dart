@@ -1,3 +1,7 @@
+## 0.11.8
+
+- Support nested transactions (emulated with `SAVEPOINT` statements).
+
 ## 0.11.7
 
 - Shared worker: Release locks owned by connected client tab when it closes.
