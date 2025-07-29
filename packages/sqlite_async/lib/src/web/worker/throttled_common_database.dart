@@ -28,12 +28,14 @@ class ThrottledCommonDatabase extends CommonDatabase {
   DatabaseConfig get config => _db.config;
 
   @override
-  void createAggregateFunction<V>(
-      {required String functionName,
-      required AggregateFunction<V> function,
-      AllowedArgumentCount argumentCount = const AllowedArgumentCount.any(),
-      bool deterministic = false,
-      bool directOnly = true}) {
+  void createAggregateFunction<V>({
+    required String functionName,
+    required AggregateFunction<V> function,
+    AllowedArgumentCount argumentCount = const AllowedArgumentCount.any(),
+    bool deterministic = false,
+    bool directOnly = true,
+    bool subtype = false,
+  }) {
     _db.createAggregateFunction(functionName: functionName, function: function);
   }
 
@@ -44,12 +46,14 @@ class ThrottledCommonDatabase extends CommonDatabase {
   }
 
   @override
-  void createFunction(
-      {required String functionName,
-      required ScalarFunction function,
-      AllowedArgumentCount argumentCount = const AllowedArgumentCount.any(),
-      bool deterministic = false,
-      bool directOnly = true}) {
+  void createFunction({
+    required String functionName,
+    required ScalarFunction function,
+    AllowedArgumentCount argumentCount = const AllowedArgumentCount.any(),
+    bool deterministic = false,
+    bool directOnly = true,
+    bool subtype = false,
+  }) {
     _db.createFunction(functionName: functionName, function: function);
   }
 
