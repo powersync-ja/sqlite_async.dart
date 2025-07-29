@@ -3,6 +3,30 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-07-29
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.11.8`](#sqlite_async---v0118)
+ - [`drift_sqlite_async` - `v0.2.3`](#drift_sqlite_async---v023)
+
+---
+
+#### `sqlite_async` - `v0.11.8`
+
+- Support nested transactions (emulated with `SAVEPOINT` statements).
+- Fix web compilation issues with version `2.8.0` of `package:sqlite3`.
+
+#### `drift_sqlite_async` - `v0.2.3`
+
+- Support nested transactions.
+
 ## 2025-06-03
 
 ---

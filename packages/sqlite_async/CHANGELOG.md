@@ -1,6 +1,7 @@
 ## 0.11.8
 
 - Support nested transactions (emulated with `SAVEPOINT` statements).
+- Fix web compilation issues with version `2.8.0` of `package:sqlite3`.
 
 ## 0.11.7
 
