@@ -232,6 +232,15 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       await connection.refreshSchema();
     }
   }
+
+  List<SqliteConnection> get allConnections {
+    final connections = <SqliteConnection>[];
+    if (_writeConnection != null) {
+      connections.add(_writeConnection!);
+    }
+    connections.addAll(_allReadConnections);
+    return connections;
+  }
 }
 
 typedef ReadCallback<T> = Future<T> Function(SqliteReadContext tx);
