@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:js_interop';
 import 'dart:js_interop_unsafe';
 
@@ -6,8 +7,7 @@ import 'package:mutex/mutex.dart';
 import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite3_web/protocol_utils.dart' as proto;
-
-import 'throttled_common_database.dart';
+import 'package:sqlite_async/src/utils/database_utils.dart';
 
 import '../protocol.dart';
 
@@ -22,13 +22,9 @@ base class AsyncSqliteController extends DatabaseController {
 
     // Register any custom functions here if needed
 
-    final throttled = ThrottledCommonDatabase(db);
-
-    return AsyncSqliteDatabase(database: throttled);
+    return AsyncSqliteDatabase(database: db);
   }
 
-  /// Opens a database with the `sqlite3` package that will be wrapped in a
-  /// [ThrottledCommonDatabase] for [openDatabase].
   @visibleForOverriding
   CommonDatabase openUnderlying(
     WasmSqlite3 sqlite3,
@@ -51,6 +47,7 @@ base class AsyncSqliteController extends DatabaseController {
 class AsyncSqliteDatabase extends WorkerDatabase {
   @override
   final CommonDatabase database;
+  final Stream<Set<String>> _updates;
 
   // This mutex is only used for lock requests from clients. Clients only send
   // these requests for shared workers, so we can assume each database is only
@@ -58,7 +55,8 @@ class AsyncSqliteDatabase extends WorkerDatabase {
   final mutex = ReadWriteMutex();
   final Map<ClientConnection, _ConnectionState> _state = {};
 
-  AsyncSqliteDatabase({required this.database});
+  AsyncSqliteDatabase({required this.database})
+      : _updates = database.throttledUpdatedTables;
 
   _ConnectionState _findState(ClientConnection connection) {
     return _state.putIfAbsent(connection, _ConnectionState.new);
@@ -67,9 +65,15 @@ class AsyncSqliteDatabase extends WorkerDatabase {
   void _markHoldsMutex(ClientConnection connection) {
     final state = _findState(connection);
     state.holdsMutex = true;
+    _registerCloseListener(state, connection);
+  }
+
+  void _registerCloseListener(
+      _ConnectionState state, ClientConnection connection) {
     if (!state.hasOnCloseListener) {
       state.hasOnCloseListener = true;
       connection.closed.then((_) {
+        state.unsubscribeUpdates();
         if (state.holdsMutex) {
           mutex.release();
         }
@@ -93,6 +97,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         _findState(connection).holdsMutex = false;
         mutex.release();
       case CustomDatabaseMessageKind.lockObtained:
+      case CustomDatabaseMessageKind.notifyUpdates:
         throw UnsupportedError('This is a response, not a request');
       case CustomDatabaseMessageKind.getAutoCommit:
         return database.autocommit.toJS;
@@ -129,6 +134,25 @@ class AsyncSqliteDatabase extends WorkerDatabase {
               "Transaction rolled back by earlier statement. Cannot execute: $sql");
         }
         database.execute(sql, parameters);
+      case CustomDatabaseMessageKind.updateSubscriptionManagement:
+        final shouldSubscribe = (message.rawParameters[0] as JSBoolean).toDart;
+        final id = message.rawSql.toDart;
+        final state = _findState(connection);
+
+        if (shouldSubscribe) {
+          state.unsubscribeUpdates();
+          _registerCloseListener(state, connection);
+
+          state.updatesNotification = _updates.listen((tables) {
+            connection.customRequest(CustomDatabaseMessage(
+              CustomDatabaseMessageKind.notifyUpdates,
+              id,
+              tables.toList(),
+            ));
+          });
+        } else {
+          state.unsubscribeUpdates();
+        }
     }
 
     return CustomDatabaseMessage(CustomDatabaseMessageKind.lockObtained);
@@ -148,4 +172,12 @@ class AsyncSqliteDatabase extends WorkerDatabase {
 final class _ConnectionState {
   bool hasOnCloseListener = false;
   bool holdsMutex = false;
+  StreamSubscription<Set<String>>? updatesNotification;
+
+  void unsubscribeUpdates() {
+    if (updatesNotification case final active?) {
+      updatesNotification = null;
+      active.cancel();
+    }
+  }
 }
