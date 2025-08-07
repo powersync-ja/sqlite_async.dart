@@ -69,15 +69,19 @@ class DefaultSqliteOpenFactory
         ? null
         : MutexImpl(identifier: path); // Use the DB path as a mutex identifier
 
-    BroadcastUpdates? updates;
+    BroadcastUpdates? broadcastUpdates;
     if (connection.access != AccessMode.throughSharedWorker &&
         connection.storage != StorageMode.inMemory) {
-      updates = BroadcastUpdates(path);
+      broadcastUpdates = BroadcastUpdates(path);
     }
 
-    return WebDatabase(connection.database, options.mutex ?? mutex,
-        broadcastUpdates: updates,
-        profileQueries: sqliteOptions.profileQueries);
+    return WebDatabase(
+      connection.database,
+      options.mutex ?? mutex,
+      broadcastUpdates: broadcastUpdates,
+      profileQueries: sqliteOptions.profileQueries,
+      updates: updatesFor(connection.database),
+    );
   }
 
   @override

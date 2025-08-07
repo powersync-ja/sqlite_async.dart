@@ -13,6 +13,8 @@ enum CustomDatabaseMessageKind {
   getAutoCommit,
   executeInTransaction,
   executeBatchInTransaction,
+  updateSubscriptionManagement,
+  notifyUpdates,
 }
 
 extension type CustomDatabaseMessage._raw(JSObject _) implements JSObject {

@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:sqlite3/common.dart';
+
 import '../sqlite_connection.dart';
 
 Future<T> internalReadTransaction<T>(SqliteReadContext ctx,
@@ -74,4 +76,71 @@ Object? mapParameter(Object? parameter) {
 
 List<Object?> mapParameters(List<Object?> parameters) {
   return [for (var p in parameters) mapParameter(p)];
+}
+
+extension ThrottledUpdates on CommonDatabase {
+  /// Wraps [updatesSync] to:
+  ///
+  ///   - Not fire in transactions.
+  ///   - Fire asynchronously.
+  ///   - Only report table names, which are buffered to avoid duplicates.
+  Stream<Set<String>> get throttledUpdatedTables {
+    StreamController<Set<String>>? controller;
+    var pendingUpdates = <String>{};
+    var paused = false;
+
+    Timer? updateDebouncer;
+
+    void maybeFireUpdates() {
+      updateDebouncer?.cancel();
+      updateDebouncer = null;
+
+      if (paused) {
+        // Continue collecting updates, but don't fire any
+        return;
+      }
+
+      if (!autocommit) {
+        // Inside a transaction - do not fire updates
+        return;
+      }
+
+      if (pendingUpdates.isNotEmpty) {
+        controller!.add(pendingUpdates);
+        pendingUpdates = {};
+      }
+    }
+
+    void collectUpdate(SqliteUpdate event) {
+      pendingUpdates.add(event.tableName);
+
+      updateDebouncer ??=
+          Timer(const Duration(milliseconds: 1), maybeFireUpdates);
+    }
+
+    StreamSubscription? txSubscription;
+    StreamSubscription? sourceSubscription;
+
+    controller = StreamController(onListen: () {
+      txSubscription = commits.listen((_) {
+        maybeFireUpdates();
+      }, onError: (error) {
+        controller?.addError(error);
+      });
+
+      sourceSubscription = updatesSync.listen(collectUpdate, onError: (error) {
+        controller?.addError(error);
+      });
+    }, onPause: () {
+      paused = true;
+    }, onResume: () {
+      paused = false;
+      maybeFireUpdates();
+    }, onCancel: () {
+      txSubscription?.cancel();
+      sourceSubscription?.cancel();
+    });
+
+    return controller.stream;
+  }
 }
