@@ -123,7 +123,6 @@ extension ThrottledUpdates on CommonDatabase {
 
     controller = StreamController(onListen: () {
       txSubscription = commits.listen((_) {
-        print('did commit');
         maybeFireUpdates();
       }, onError: (error) {
         controller?.addError(error);
