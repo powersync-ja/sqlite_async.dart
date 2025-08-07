@@ -7,7 +7,7 @@ import 'package:mutex/mutex.dart';
 import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite3_web/protocol_utils.dart' as proto;
-import 'package:sqlite_async/src/utils/database_utils.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 
 import '../protocol.dart';
 
