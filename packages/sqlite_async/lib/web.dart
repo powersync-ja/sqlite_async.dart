@@ -29,6 +29,8 @@ typedef WebDatabaseEndpoint = ({
   String? lockName,
 });
 
+final UpdateNotificationStreams _updateStreams = UpdateNotificationStreams();
+
 /// An additional interface for [SqliteOpenFactory] exposing additional
 /// functionality that is only relevant when compiling to the web.
 ///
@@ -36,8 +38,6 @@ typedef WebDatabaseEndpoint = ({
 /// compiling for the web.
 abstract mixin class WebSqliteOpenFactory
     implements SqliteOpenFactory<CommonDatabase> {
-  final UpdateNotificationStreams _updateStreams = UpdateNotificationStreams();
-
   /// Handles a custom request sent from the worker to the client.
   Future<JSAny?> handleCustomRequest(JSAny? request) {
     return _updateStreams.handleRequest(request);
