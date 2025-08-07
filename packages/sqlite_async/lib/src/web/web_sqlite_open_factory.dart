@@ -10,7 +10,7 @@ import 'package:sqlite_async/web.dart';
 import 'database.dart';
 import 'worker/worker_utils.dart';
 
-Map<String, FutureOr<WebSqlite>> webSQLiteImplementations = {};
+Map<String, FutureOr<WebSqlite>> _webSQLiteImplementations = {};
 
 /// Web implementation of [AbstractDefaultSqliteOpenFactory]
 class DefaultSqliteOpenFactory
@@ -20,13 +20,13 @@ class DefaultSqliteOpenFactory
     final cacheKey = sqliteOptions.webSqliteOptions.wasmUri +
         sqliteOptions.webSqliteOptions.workerUri;
 
-    if (webSQLiteImplementations.containsKey(cacheKey)) {
-      return webSQLiteImplementations[cacheKey]!;
+    if (_webSQLiteImplementations.containsKey(cacheKey)) {
+      return _webSQLiteImplementations[cacheKey]!;
     }
 
-    webSQLiteImplementations[cacheKey] =
+    _webSQLiteImplementations[cacheKey] =
         openWebSqlite(sqliteOptions.webSqliteOptions);
-    return webSQLiteImplementations[cacheKey]!;
+    return _webSQLiteImplementations[cacheKey]!;
   });
 
   DefaultSqliteOpenFactory(
@@ -42,6 +42,7 @@ class DefaultSqliteOpenFactory
       wasmModule: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
       worker: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
       controller: AsyncSqliteController(),
+      handleCustomRequest: handleCustomRequest,
     );
   }
 

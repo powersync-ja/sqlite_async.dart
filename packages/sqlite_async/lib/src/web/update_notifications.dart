@@ -26,7 +26,8 @@ final class UpdateNotificationStreams {
           .map((e) => (e as JSString).toDart)
           .toSet());
 
-      _updates[customRequest.rawSql.toDart]?.add(notification);
+      final controller = _updates[customRequest.rawSql.toDart];
+      controller?.add(notification);
     }
 
     return null;
@@ -50,6 +51,8 @@ final class UpdateNotificationStreams {
           id,
           [false],
         ));
+
+        _updates.remove(id);
       };
 
     return controller.stream;
