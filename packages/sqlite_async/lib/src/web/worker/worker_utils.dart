@@ -56,7 +56,8 @@ class AsyncSqliteDatabase extends WorkerDatabase {
   final Map<ClientConnection, _ConnectionState> _state = {};
 
   AsyncSqliteDatabase({required this.database})
-      : _updates = database.throttledUpdatedTables;
+      : _updates = database.updatedTables
+            .pauseAfterEvent(const Duration(milliseconds: 1));
 
   _ConnectionState _findState(ClientConnection connection) {
     return _state.putIfAbsent(connection, _ConnectionState.new);
