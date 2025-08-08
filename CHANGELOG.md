@@ -15,6 +15,7 @@ Packages with breaking changes:
 
 Packages with other changes:
 
+ - [`sqlite_async` - `v0.12.1`](#sqlite_async---v0121)
  - [`sqlite_async` - `v0.12.0`](#sqlite_async---v0120)
  - [`drift_sqlite_async` - `v0.2.3+1`](#drift_sqlite_async---v0231)
 
@@ -25,6 +26,10 @@ Packages with dependency updates only:
  - `drift_sqlite_async` - `v0.2.3+1`
 
 ---
+
+#### `sqlite_async` - `v0.12.1`
+
+- Fix distributing updates from shared worker.
 
 #### `sqlite_async` - `v0.12.0`
 

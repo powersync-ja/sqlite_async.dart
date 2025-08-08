@@ -1,3 +1,7 @@
+## 0.12.1
+
+- Fix distributing updates from shared worker.
+
 ## 0.12.0
 
  - Avoid large transactions creating a large internal update queue.
