@@ -1,3 +1,7 @@
+## 0.12.0
+
+ - Avoid large transactions creating a large internal update queue.
+
 ## 0.11.8
 
 - Support nested transactions (emulated with `SAVEPOINT` statements).
