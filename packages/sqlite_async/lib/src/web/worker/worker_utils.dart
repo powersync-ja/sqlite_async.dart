@@ -56,8 +56,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
   final Map<ClientConnection, _ConnectionState> _state = {};
 
   AsyncSqliteDatabase({required this.database})
-      : _updates = database.updatedTables
-            .pauseAfterEvent(const Duration(milliseconds: 1));
+      : _updates = database.updatedTables;
 
   _ConnectionState _findState(ClientConnection connection) {
     return _state.putIfAbsent(connection, _ConnectionState.new);
@@ -145,12 +144,13 @@ class AsyncSqliteDatabase extends WorkerDatabase {
           state.unsubscribeUpdates();
           _registerCloseListener(state, connection);
 
-          state.updatesNotification = _updates.listen((tables) {
-            connection.customRequest(CustomDatabaseMessage(
+          late StreamSubscription<void> subscription;
+          subscription = state.updatesNotification = _updates.listen((tables) {
+            subscription.pause(connection.customRequest(CustomDatabaseMessage(
               CustomDatabaseMessageKind.notifyUpdates,
               id,
               tables.toList(),
-            ));
+            )));
           });
         } else {
           state.unsubscribeUpdates();
