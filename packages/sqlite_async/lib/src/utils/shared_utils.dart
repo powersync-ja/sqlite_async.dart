@@ -133,6 +133,7 @@ extension ThrottledUpdates on CommonDatabase {
         final wrapped = _UpdateListener(listener);
         addListener(wrapped);
 
+        listener.onResume = wrapped.addPending;
         listener.onCancel = () => removeListener(wrapped);
       },
       isBroadcast: true,
@@ -149,6 +150,12 @@ class _UpdateListener {
   void notify(Set<String> pendingUpdates) {
     buffered.addAll(pendingUpdates);
     if (!downstream.isPaused) {
+      addPending();
+    }
+  }
+
+  void addPending() {
+    if (buffered.isNotEmpty) {
       downstream.add(buffered);
       buffered = {};
     }
