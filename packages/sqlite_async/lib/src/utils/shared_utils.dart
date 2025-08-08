@@ -79,68 +79,87 @@ List<Object?> mapParameters(List<Object?> parameters) {
 }
 
 extension ThrottledUpdates on CommonDatabase {
-  /// Wraps [updatesSync] to:
+  /// An unthrottled stream of updated tables that emits on every commit.
   ///
-  ///   - Not fire in transactions.
-  ///   - Fire asynchronously.
-  ///   - Only report table names, which are buffered to avoid duplicates.
-  Stream<Set<String>> get throttledUpdatedTables {
-    StreamController<Set<String>>? controller;
-    var pendingUpdates = <String>{};
-    var paused = false;
+  /// A paused subscription on this stream will buffer changed tables into a
+  /// growing set instead of losing events, so this stream is simple to throttle
+  /// downstream.
+  Stream<Set<String>> get updatedTables {
+    final listeners = <_UpdateListener>[];
+    var uncommitedUpdates = <String>{};
+    var underlyingSubscriptions = <StreamSubscription<void>>[];
 
-    Timer? updateDebouncer;
+    void handleUpdate(SqliteUpdate update) {
+      uncommitedUpdates.add(update.tableName);
+    }
 
-    void maybeFireUpdates() {
-      updateDebouncer?.cancel();
-      updateDebouncer = null;
-
-      if (paused) {
-        // Continue collecting updates, but don't fire any
-        return;
+    void afterCommit() {
+      for (final listener in listeners) {
+        listener.notify(uncommitedUpdates);
       }
 
-      if (!autocommit) {
-        // Inside a transaction - do not fire updates
-        return;
-      }
+      uncommitedUpdates.clear();
+    }
 
-      if (pendingUpdates.isNotEmpty) {
-        controller!.add(pendingUpdates);
-        pendingUpdates = {};
+    void afterRollback() {
+      uncommitedUpdates.clear();
+    }
+
+    void addListener(_UpdateListener listener) {
+      listeners.add(listener);
+
+      if (listeners.length == 1) {
+        // First listener, start listening for raw updates on underlying
+        // database.
+        underlyingSubscriptions = [
+          updatesSync.listen(handleUpdate),
+          commits.listen((_) => afterCommit()),
+          commits.listen((_) => afterRollback())
+        ];
       }
     }
 
-    void collectUpdate(SqliteUpdate event) {
-      pendingUpdates.add(event.tableName);
-
-      updateDebouncer ??=
-          Timer(const Duration(milliseconds: 1), maybeFireUpdates);
+    void removeListener(_UpdateListener listener) {
+      listeners.remove(listener);
+      if (listeners.isEmpty) {
+        for (final sub in underlyingSubscriptions) {
+          sub.cancel();
+        }
+      }
     }
 
-    StreamSubscription? txSubscription;
-    StreamSubscription? sourceSubscription;
+    return Stream.multi(
+      (listener) {
+        final wrapped = _UpdateListener(listener);
+        addListener(wrapped);
 
-    controller = StreamController(onListen: () {
-      txSubscription = commits.listen((_) {
-        maybeFireUpdates();
-      }, onError: (error) {
-        controller?.addError(error);
-      });
+        listener.onCancel = () => removeListener(wrapped);
+      },
+      isBroadcast: true,
+    );
+  }
+}
 
-      sourceSubscription = updatesSync.listen(collectUpdate, onError: (error) {
-        controller?.addError(error);
-      });
-    }, onPause: () {
-      paused = true;
-    }, onResume: () {
-      paused = false;
-      maybeFireUpdates();
-    }, onCancel: () {
-      txSubscription?.cancel();
-      sourceSubscription?.cancel();
-    });
+class _UpdateListener {
+  final MultiStreamController<Set<String>> downstream;
+  Set<String> buffered = {};
 
-    return controller.stream;
+  _UpdateListener(this.downstream);
+
+  void notify(Set<String> pendingUpdates) {
+    buffered.addAll(pendingUpdates);
+    if (!downstream.isPaused) {
+      downstream.add(buffered);
+      buffered = {};
+    }
+  }
+}
+
+extension StreamUtils<T> on Stream<T> {
+  Stream<T> pauseAfterEvent(Duration duration) async* {
+    await for (final event in this) {
+      yield event;
+      await Future.delayed(duration);
+    }
   }
 }

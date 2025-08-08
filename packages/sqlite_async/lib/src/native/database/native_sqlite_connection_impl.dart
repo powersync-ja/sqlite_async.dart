@@ -303,7 +303,7 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
   final server = params.portServer;
   final commandPort = ReceivePort();
 
-  db.throttledUpdatedTables.listen((changedTables) {
+  db.updatedTables.listen((changedTables) {
     client.fire(UpdateNotification(changedTables));
   });
 
