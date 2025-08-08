@@ -154,12 +154,3 @@ class _UpdateListener {
     }
   }
 }
-
-extension StreamUtils<T> on Stream<T> {
-  Stream<T> pauseAfterEvent(Duration duration) async* {
-    await for (final event in this) {
-      yield event;
-      await Future.delayed(duration);
-    }
-  }
-}
