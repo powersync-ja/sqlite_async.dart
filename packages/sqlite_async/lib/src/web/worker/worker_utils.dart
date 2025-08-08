@@ -135,7 +135,8 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         }
         database.execute(sql, parameters);
       case CustomDatabaseMessageKind.updateSubscriptionManagement:
-        final shouldSubscribe = (message.rawParameters[0] as JSBoolean).toDart;
+        final shouldSubscribe =
+            (message.rawParameters.toDart[0] as JSBoolean).toDart;
         final id = message.rawSql.toDart;
         final state = _findState(connection);
 
