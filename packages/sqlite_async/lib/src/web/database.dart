@@ -171,6 +171,11 @@ class WebDatabase
     await isInitialized;
     return _database.fileSystem.flush();
   }
+
+  @override
+  List<SqliteConnection> get allConnections {
+    return [this];
+  }
 }
 
 final class _UnscopedContext extends UnscopedContext {

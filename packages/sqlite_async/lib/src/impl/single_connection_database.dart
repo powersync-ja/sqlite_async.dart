@@ -57,4 +57,9 @@ final class SingleConnectionDatabase
     return connection.writeLock(callback,
         lockTimeout: lockTimeout, debugContext: debugContext);
   }
+
+  @override
+  List<SqliteConnection> get allConnections {
+    return [connection];
+  }
 }
