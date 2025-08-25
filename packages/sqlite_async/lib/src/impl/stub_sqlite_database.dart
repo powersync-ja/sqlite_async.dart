@@ -64,4 +64,9 @@ class SqliteDatabaseImpl
   Future<bool> getAutoCommit() {
     throw UnimplementedError();
   }
+
+  @override
+  List<SqliteConnection> get allConnections {
+    throw UnimplementedError();
+  }
 }
