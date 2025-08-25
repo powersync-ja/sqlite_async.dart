@@ -4,12 +4,15 @@
 /// workers.
 library;
 
+import 'dart:js_interop';
+
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:web/web.dart';
 
 import 'sqlite3_common.dart';
 import 'sqlite_async.dart';
 import 'src/web/database.dart';
+import 'src/web/update_notifications.dart';
 
 /// An endpoint that can be used, by any running JavaScript context in the same
 /// website, to connect to an existing [WebSqliteConnection].
@@ -26,6 +29,8 @@ typedef WebDatabaseEndpoint = ({
   String? lockName,
 });
 
+final UpdateNotificationStreams _updateStreams = UpdateNotificationStreams();
+
 /// An additional interface for [SqliteOpenFactory] exposing additional
 /// functionality that is only relevant when compiling to the web.
 ///
@@ -33,6 +38,11 @@ typedef WebDatabaseEndpoint = ({
 /// compiling for the web.
 abstract mixin class WebSqliteOpenFactory
     implements SqliteOpenFactory<CommonDatabase> {
+  /// Handles a custom request sent from the worker to the client.
+  Future<JSAny?> handleCustomRequest(JSAny? request) {
+    return _updateStreams.handleRequest(request);
+  }
+
   /// Opens a [WebSqlite] instance for the given [options].
   ///
   /// This method can be overriden in scenarios where the way [WebSqlite] is
@@ -43,6 +53,7 @@ abstract mixin class WebSqliteOpenFactory
     return WebSqlite.open(
       worker: Uri.parse(options.workerUri),
       wasmModule: Uri.parse(options.wasmUri),
+      handleCustomRequest: handleCustomRequest,
     );
   }
 
@@ -53,6 +64,14 @@ abstract mixin class WebSqliteOpenFactory
   Future<ConnectToRecommendedResult> connectToWorker(
       WebSqlite sqlite, String name) {
     return sqlite.connectToRecommended(name);
+  }
+
+  /// Obtains a stream of [UpdateNotification]s from a [database].
+  ///
+  /// The default implementation uses custom requests to allow workers to
+  /// debounce the stream on their side to avoid messages where possible.
+  Stream<UpdateNotification> updatesFor(Database database) {
+    return _updateStreams.updatesFor(database);
   }
 }
 
@@ -85,8 +104,11 @@ abstract class WebSqliteConnection implements SqliteConnection {
   /// contexts to exchange opened database connections.
   static Future<WebSqliteConnection> connectToEndpoint(
       WebDatabaseEndpoint endpoint) async {
+    final updates = UpdateNotificationStreams();
     final rawSqlite = await WebSqlite.connectToPort(
-        (endpoint.connectPort, endpoint.connectName));
+      (endpoint.connectPort, endpoint.connectName),
+      handleCustomRequest: updates.handleRequest,
+    );
 
     final database = WebDatabase(
       rawSqlite,
@@ -95,6 +117,7 @@ abstract class WebSqliteConnection implements SqliteConnection {
         null => null,
       },
       profileQueries: false,
+      updates: updates.updatesFor(rawSqlite),
     );
     return database;
   }

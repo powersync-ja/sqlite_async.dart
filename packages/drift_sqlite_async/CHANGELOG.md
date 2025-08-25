@@ -1,3 +1,11 @@
+## 0.2.3+1
+
+ - Update a dependency to the latest release.
+
+## 0.2.3
+
+- Support nested transactions.
+
 ## 0.2.2
 
 - Fix write detection when using UPDATE/INSERT/DELETE with RETURNING in raw queries.

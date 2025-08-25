@@ -7,6 +7,7 @@ import 'dart:math';
 
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'package:test/test.dart';
 
 import '../utils/test_utils_impl.dart';
@@ -29,6 +30,51 @@ void main() {
           SqliteDatabase.withFactory(await testUtils.testFactory(path: path));
       await db.initialize();
       return db;
+    });
+
+    test('raw update notifications', () async {
+      final factory = await testUtils.testFactory(path: path);
+      final db = factory
+          .openDB(SqliteOpenOptions(primaryConnection: true, readOnly: false));
+
+      db.execute('CREATE TABLE a (bar INTEGER);');
+      db.execute('CREATE TABLE b (bar INTEGER);');
+      final events = <Set<String>>[];
+      final subscription = db.updatedTables.listen(events.add);
+
+      db.execute('insert into a default values');
+      expect(events, isEmpty); // should be async
+      await pumpEventQueue();
+      expect(events.removeLast(), {'a'});
+
+      db.execute('begin');
+      db.execute('insert into a default values');
+      db.execute('insert into b default values');
+      await pumpEventQueue();
+      expect(events, isEmpty); // should only trigger on commit
+      db.execute('commit');
+
+      await pumpEventQueue();
+      expect(events.removeLast(), {'a', 'b'});
+
+      db.execute('begin');
+      db.execute('insert into a default values');
+      db.execute('rollback');
+      expect(events, isEmpty);
+      await pumpEventQueue();
+      expect(events, isEmpty); // should ignore cancelled transactions
+
+      // Should still listen during pause, and dispatch on resume
+      subscription.pause();
+      db.execute('insert into a default values');
+      await pumpEventQueue();
+      expect(events, isEmpty);
+
+      subscription.resume();
+      await pumpEventQueue();
+      expect(events.removeLast(), {'a'});
+
+      subscription.pause();
     });
 
     test('watch in isolate', () async {
