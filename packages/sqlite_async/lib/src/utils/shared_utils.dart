@@ -1,6 +1,8 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:sqlite3/common.dart';
+
 import '../sqlite_connection.dart';
 
 Future<T> internalReadTransaction<T>(SqliteReadContext ctx,
@@ -74,4 +76,88 @@ Object? mapParameter(Object? parameter) {
 
 List<Object?> mapParameters(List<Object?> parameters) {
   return [for (var p in parameters) mapParameter(p)];
+}
+
+extension ThrottledUpdates on CommonDatabase {
+  /// An unthrottled stream of updated tables that emits on every commit.
+  ///
+  /// A paused subscription on this stream will buffer changed tables into a
+  /// growing set instead of losing events, so this stream is simple to throttle
+  /// downstream.
+  Stream<Set<String>> get updatedTables {
+    final listeners = <_UpdateListener>[];
+    var uncommitedUpdates = <String>{};
+    var underlyingSubscriptions = <StreamSubscription<void>>[];
+
+    void handleUpdate(SqliteUpdate update) {
+      uncommitedUpdates.add(update.tableName);
+    }
+
+    void afterCommit() {
+      for (final listener in listeners) {
+        listener.notify(uncommitedUpdates);
+      }
+
+      uncommitedUpdates.clear();
+    }
+
+    void afterRollback() {
+      uncommitedUpdates.clear();
+    }
+
+    void addListener(_UpdateListener listener) {
+      listeners.add(listener);
+
+      if (listeners.length == 1) {
+        // First listener, start listening for raw updates on underlying
+        // database.
+        underlyingSubscriptions = [
+          updatesSync.listen(handleUpdate),
+          commits.listen((_) => afterCommit()),
+          commits.listen((_) => afterRollback())
+        ];
+      }
+    }
+
+    void removeListener(_UpdateListener listener) {
+      listeners.remove(listener);
+      if (listeners.isEmpty) {
+        for (final sub in underlyingSubscriptions) {
+          sub.cancel();
+        }
+      }
+    }
+
+    return Stream.multi(
+      (listener) {
+        final wrapped = _UpdateListener(listener);
+        addListener(wrapped);
+
+        listener.onResume = wrapped.addPending;
+        listener.onCancel = () => removeListener(wrapped);
+      },
+      isBroadcast: true,
+    );
+  }
+}
+
+class _UpdateListener {
+  final MultiStreamController<Set<String>> downstream;
+  Set<String> buffered = {};
+
+  _UpdateListener(this.downstream);
+
+  void notify(Set<String> pendingUpdates) {
+    buffered.addAll(pendingUpdates);
+    if (!downstream.isPaused) {
+      addPending();
+    }
+  }
+
+  void addPending() {
+    if (buffered.isNotEmpty) {
+      downstream.add(buffered);
+      buffered = {};
+    }
+  }
 }

@@ -130,11 +130,26 @@ class _SqliteAsyncTransactionDelegate extends SupportedTransactionDelegate {
   _SqliteAsyncTransactionDelegate(this._db);
 
   @override
+  FutureOr<void> Function(QueryDelegate, Future<void> Function(QueryDelegate))?
+      get startNested => _startNested;
+
+  @override
   Future<void> startTransaction(Future Function(QueryDelegate p1) run) async {
-    await _db.writeTransaction((context) async {
+    await _startTransaction(_db, run);
+  }
+
+  Future<void> _startTransaction(
+      SqliteWriteContext context, Future Function(QueryDelegate p1) run) async {
+    await context.writeTransaction((context) async {
       final delegate = _SqliteAsyncQueryDelegate(context, null);
       return run(delegate);
     });
+  }
+
+  Future<void> _startNested(
+      QueryDelegate outer, Future<void> Function(QueryDelegate) block) async {
+    await _startTransaction(
+        (outer as _SqliteAsyncQueryDelegate)._context, block);
   }
 }
 

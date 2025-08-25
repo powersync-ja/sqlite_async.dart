@@ -1,6 +1,14 @@
-## 0.2.3
+## 0.2.4
 
 - Allow transforming table updates from sqlite_async.
+
+## 0.2.3+1
+
+ - Update a dependency to the latest release.
+
+## 0.2.3
+
+- Support nested transactions.
 
 ## 0.2.2
 

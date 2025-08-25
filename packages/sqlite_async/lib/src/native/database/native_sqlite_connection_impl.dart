@@ -303,39 +303,12 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
   final server = params.portServer;
   final commandPort = ReceivePort();
 
-  Timer? updateDebouncer;
-  Set<String> updatedTables = {};
+  db.updatedTables.listen((changedTables) {
+    client.fire(UpdateNotification(changedTables));
+  });
+
   int? txId;
   Object? txError;
-
-  void maybeFireUpdates() {
-    // We keep buffering the set of updated tables until we are not
-    // in a transaction. Firing transactions inside a transaction
-    // has multiple issues:
-    // 1. Watched queries would detect changes to the underlying tables,
-    //    but the data would not be visible to queries yet.
-    // 2. It would trigger many more notifications than required.
-    //
-    // This still includes updates for transactions that are rolled back.
-    // We could handle those better at a later stage.
-
-    if (updatedTables.isNotEmpty && db.autocommit) {
-      client.fire(UpdateNotification(updatedTables));
-      updatedTables.clear();
-    }
-    updateDebouncer?.cancel();
-    updateDebouncer = null;
-  }
-
-  db.updates.listen((event) {
-    updatedTables.add(event.tableName);
-
-    // This handles two cases:
-    // 1. Update arrived after _SqliteIsolateClose (not sure if this could happen).
-    // 2. Long-running _SqliteIsolateClosure that should fire updates while running.
-    updateDebouncer ??=
-        Timer(const Duration(milliseconds: 1), maybeFireUpdates);
-  });
 
   ResultSet runStatement(_SqliteIsolateStatement data) {
     if (data.sql == 'BEGIN' || data.sql == 'BEGIN IMMEDIATE') {
@@ -388,8 +361,6 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
           throw sqlite.SqliteException(
               0, 'Transaction must be closed within the read or write lock');
         }
-        // We would likely have received updates by this point - fire now.
-        maybeFireUpdates();
         return null;
       case _SqliteIsolateStatement():
         return task.timeSync(
@@ -399,11 +370,7 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
           parameters: data.args,
         );
       case _SqliteIsolateClosure():
-        try {
-          return await data.cb(db);
-        } finally {
-          maybeFireUpdates();
-        }
+        return await data.cb(db);
       case _SqliteIsolateConnectionClose():
         db.dispose();
         return null;

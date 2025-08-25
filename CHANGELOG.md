@@ -3,6 +3,63 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-08-08
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.12.1`](#sqlite_async---v0121)
+ - [`sqlite_async` - `v0.12.0`](#sqlite_async---v0120)
+ - [`drift_sqlite_async` - `v0.2.3+1`](#drift_sqlite_async---v0231)
+
+Packages with dependency updates only:
+
+> Packages listed below depend on other packages in this workspace that have had changes. Their versions have been incremented to bump the minimum dependency versions of the packages they depend upon in this project.
+
+ - `drift_sqlite_async` - `v0.2.3+1`
+
+---
+
+#### `sqlite_async` - `v0.12.1`
+
+- Fix distributing updates from shared worker.
+
+#### `sqlite_async` - `v0.12.0`
+
+ - Avoid large transactions creating a large internal update queue.
+
+
+## 2025-07-29
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.11.8`](#sqlite_async---v0118)
+ - [`drift_sqlite_async` - `v0.2.3`](#drift_sqlite_async---v023)
+
+---
+
+#### `sqlite_async` - `v0.11.8`
+
+- Support nested transactions (emulated with `SAVEPOINT` statements).
+- Fix web compilation issues with version `2.8.0` of `package:sqlite3`.
+
+#### `drift_sqlite_async` - `v0.2.3`
+
+- Support nested transactions.
+
 ## 2025-06-03
 
 ---

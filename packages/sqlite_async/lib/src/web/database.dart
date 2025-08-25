@@ -21,6 +21,9 @@ class WebDatabase
   final Mutex? _mutex;
   final bool profileQueries;
 
+  @override
+  final Stream<UpdateNotification> updates;
+
   /// For persistent databases that aren't backed by a shared worker, we use
   /// web broadcast channels to forward local update events to other tabs.
   final BroadcastUpdates? broadcastUpdates;
@@ -32,6 +35,7 @@ class WebDatabase
     this._database,
     this._mutex, {
     required this.profileQueries,
+    required this.updates,
     this.broadcastUpdates,
   });
 
@@ -112,10 +116,6 @@ class WebDatabase
       }
     }
   }
-
-  @override
-  Stream<UpdateNotification> get updates =>
-      _database.updates.map((event) => UpdateNotification({event.tableName}));
 
   @override
   Future<T> writeTransaction<T>(
