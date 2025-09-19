@@ -15,12 +15,22 @@ import 'package:sqlite_async/sqlite_async.dart';
 class SqliteAsyncDriftConnection extends DatabaseConnection {
   late StreamSubscription _updateSubscription;
 
-  SqliteAsyncDriftConnection(SqliteConnection db, {bool logStatements = false})
-      : super(SqliteAsyncQueryExecutor(db, logStatements: logStatements)) {
+  /// [transformTableUpdates] is useful to map local table names from PowerSync that are backed by a view name
+  /// which is the entity that the user interacts with.
+  SqliteAsyncDriftConnection(
+    SqliteConnection db, {
+    bool logStatements = false,
+    Set<TableUpdate> Function(UpdateNotification)? transformTableUpdates,
+  }) : super(SqliteAsyncQueryExecutor(db, logStatements: logStatements)) {
     _updateSubscription = (db as SqliteQueries).updates!.listen((event) {
-      var setUpdates = <TableUpdate>{};
-      for (var tableName in event.tables) {
-        setUpdates.add(TableUpdate(tableName));
+      final Set<TableUpdate> setUpdates;
+      if (transformTableUpdates != null) {
+        setUpdates = transformTableUpdates(event);
+      } else {
+        setUpdates = <TableUpdate>{};
+        for (var tableName in event.tables) {
+          setUpdates.add(TableUpdate(tableName));
+        }
       }
       super.streamQueries.handleTableUpdates(setUpdates);
     });
