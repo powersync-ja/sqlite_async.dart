@@ -11,6 +11,7 @@ import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
 import './utils/test_utils.dart';
+import 'generated/database.dart';
 
 class EmptyDatabase extends GeneratedDatabase {
   EmptyDatabase(super.executor);
@@ -244,5 +245,44 @@ INSERT INTO test_data(description) VALUES('test data');
           variables: [Variable('Test Data')]).get();
       expect(row, isEmpty);
     });
+  });
+
+  test('transform table updates', () async {
+    final path = dbPath();
+    await cleanDb(path: path);
+
+    final db = await setupDatabase(path: path);
+    final connection = SqliteAsyncDriftConnection(
+      db,
+      // tables with the local_ prefix are mapped to the name without the prefix
+      transformTableUpdates: (event) {
+        final updates = <TableUpdate>{};
+
+        for (final originalTableName in event.tables) {
+          final effectiveName = originalTableName.startsWith("local_")
+              ? originalTableName.substring(6)
+              : originalTableName;
+          updates.add(TableUpdate(effectiveName));
+        }
+
+        return updates;
+      },
+    );
+
+    // Create table with a different name than drift. (Mimicking a table name backed by a view in PowerSync with the optional sync strategy)
+    await db.execute(
+      'CREATE TABLE local_todos(id INTEGER PRIMARY KEY AUTOINCREMENT, description TEXT)',
+    );
+
+    final dbu = TodoDatabase.fromSqliteAsyncConnection(connection);
+
+    final tableUpdatesFut =
+        dbu.tableUpdates(TableUpdateQuery.onTableName("todos")).first;
+
+    // This insert will trigger the sqlite_async "updates" stream
+    await db.execute("INSERT INTO local_todos(description) VALUES('Test 1')");
+
+    expect(await tableUpdatesFut.timeout(const Duration(seconds: 2)),
+        {TableUpdate("todos")});
   });
 }
