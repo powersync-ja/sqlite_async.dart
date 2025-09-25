@@ -241,6 +241,55 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     connections.addAll(_allReadConnections);
     return connections;
   }
+
+  Future<T> withAllConnections<T>(
+      Future<T> Function(
+              SqliteWriteContext writer, List<SqliteReadContext> readers)
+          block) async {
+    final blockCompleter = Completer<T>();
+    final (write, reads) = await _lockAllConns<T>(blockCompleter);
+
+    try {
+      final res = await block(write, reads);
+      blockCompleter.complete(res);
+      return res;
+    } catch (e, st) {
+      blockCompleter.completeError(e, st);
+      rethrow;
+    }
+  }
+
+  /// Locks all connections, returning the acquired contexts.
+  /// We pass a completer that would be called after the locks are taken.
+  Future<(SqliteWriteContext, List<SqliteReadContext>)> _lockAllConns<T>(
+      Completer<T> lockCompleter) async {
+    final List<Completer<SqliteReadContext>> readLockedCompleters = [];
+    final Completer<SqliteWriteContext> writeLockedCompleter = Completer();
+
+    // Take the write lock
+    writeLock((ctx) {
+      writeLockedCompleter.complete(ctx);
+      return lockCompleter.future;
+    });
+
+    // Take all the read locks
+    for (final readConn in _allReadConnections) {
+      final completer = Completer<SqliteReadContext>();
+      readLockedCompleters.add(completer);
+
+      readConn.readLock((ctx) {
+        completer.complete(ctx);
+        return lockCompleter.future;
+      });
+    }
+
+    // Wait after all locks are taken
+    final contexts = await Future.wait([
+      writeLockedCompleter.future,
+      ...readLockedCompleters.map((e) => e.future)
+    ]);
+    return (contexts.first as SqliteWriteContext, contexts.sublist(1));
+  }
 }
 
 typedef ReadCallback<T> = Future<T> Function(SqliteReadContext tx);

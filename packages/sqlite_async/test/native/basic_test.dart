@@ -69,7 +69,35 @@ void main() {
       }
     });
 
-    test('Concurrency 2', () async {
+    test('with all connections', () async {
+      final db = SqliteDatabase.withFactory(
+          await testUtils.testFactory(path: path),
+          maxReaders: 3);
+      await db.initialize();
+      await createTables(db);
+
+      print("${DateTime.now()} start");
+
+      final withAllConnsFut = () async {
+        await Future.delayed(const Duration(milliseconds: 20));
+        await db.withAllConnections((writer, readers) async {
+          print("${DateTime.now()} in withAllConnections");
+          await Future.delayed(const Duration(seconds: 5));
+        });
+      }();
+
+      var readFutures = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => db.get(
+          'SELECT ? as i, test_sleep(?) as sleep, test_connection_name() as connection',
+          [i, 5 + Random().nextInt(10)]));
+
+      final futures = [...readFutures, withAllConnsFut];
+
+      await for (var result in Stream.fromFutures(futures)) {
+        print("${DateTime.now()} $result");
+      }
+    });
+
+    test('Concurren 2', () async {
       final db1 = await testUtils.setupDatabase(path: path, maxReaders: 3);
       final db2 = await testUtils.setupDatabase(path: path, maxReaders: 3);
 
