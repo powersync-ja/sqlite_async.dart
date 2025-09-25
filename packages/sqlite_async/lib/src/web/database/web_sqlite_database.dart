@@ -178,4 +178,12 @@ class SqliteDatabaseImpl
   Future<WebDatabaseEndpoint> exposeEndpoint() async {
     return await _connection.exposeEndpoint();
   }
+
+  @override
+  Future<T> withAllConnections<T>(
+      Future<T> Function(
+              SqliteWriteContext writer, List<SqliteReadContext> readers)
+          block) {
+    return writeLock((_) => block(_connection, []));
+  }
 }

@@ -171,6 +171,14 @@ class WebDatabase
     await isInitialized;
     return _database.fileSystem.flush();
   }
+
+  @override
+  Future<T> withAllConnections<T>(
+      Future<T> Function(
+              SqliteWriteContext writer, List<SqliteReadContext> readers)
+          block) {
+    return writeLock((_) => block(this, []));
+  }
 }
 
 final class _UnscopedContext extends UnscopedContext {
