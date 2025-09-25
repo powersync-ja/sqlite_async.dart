@@ -78,7 +78,6 @@ void main() {
       await db.initialize();
       await createTables(db);
 
-
       Future<Row> readWithRandomDelay(SqliteReadContext ctx, int id) async {
         return await ctx.get(
             'SELECT ? as i, test_sleep(?) as sleep, test_connection_name() as connection',

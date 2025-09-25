@@ -233,15 +233,6 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     }
   }
 
-  List<SqliteConnection> get allConnections {
-    final connections = <SqliteConnection>[];
-    if (_writeConnection != null) {
-      connections.add(_writeConnection!);
-    }
-    connections.addAll(_allReadConnections);
-    return connections;
-  }
-
   Future<T> withAllConnections<T>(
       Future<T> Function(
               SqliteWriteContext writer, List<SqliteReadContext> readers)

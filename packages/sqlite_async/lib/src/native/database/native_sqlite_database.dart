@@ -171,14 +171,12 @@ class SqliteDatabaseImpl
   Future<void> refreshSchema() {
     return _pool.refreshSchema();
   }
-  
+
   @override
-  List<SqliteConnection> get allConnections {
-    return _pool.allConnections;
-  }
-  
-  @override
-  Future<T> withAllConnections<T>(Future<T> Function(SqliteWriteContext writer, List<SqliteReadContext> readers) block) {
+  Future<T> withAllConnections<T>(
+      Future<T> Function(
+              SqliteWriteContext writer, List<SqliteReadContext> readers)
+          block) {
     return _pool.withAllConnections(block);
   }
 }

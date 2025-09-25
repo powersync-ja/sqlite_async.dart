@@ -41,6 +41,8 @@ mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
   IsolateConnectionFactory isolateConnectionFactory();
 
   /// Locks all underlying connections making up this database, and gives [block] access to all of them at once.
+  /// This can be useful to run the same statement on all connections. For instance,
+  /// ATTACHing a database, that is expected to be available in all connections.
   Future<T> withAllConnections<T>(
       Future<T> Function(
               SqliteWriteContext writer, List<SqliteReadContext> readers)
@@ -109,9 +111,4 @@ abstract class SqliteDatabase
   factory SqliteDatabase.singleConnection(SqliteConnection connection) {
     return SingleConnectionDatabase(connection);
   }
-
-  /// Returns a list of all the connections (read and write) managed by this database.
-  /// This can be useful to run the same statement on all connections. For instance,
-  /// ATTACHing a database, that is expected to be available in all connections.
-  List<SqliteConnection> get allConnections;
 }

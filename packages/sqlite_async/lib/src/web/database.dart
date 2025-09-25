@@ -173,11 +173,6 @@ class WebDatabase
   }
 
   @override
-  List<SqliteConnection> get allConnections {
-    return [this];
-  }
-
-  @override
   Future<T> withAllConnections<T>(
       Future<T> Function(
               SqliteWriteContext writer, List<SqliteReadContext> readers)

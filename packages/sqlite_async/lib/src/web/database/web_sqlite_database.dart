@@ -180,11 +180,6 @@ class SqliteDatabaseImpl
   }
 
   @override
-  List<SqliteConnection> get allConnections {
-    return [_connection];
-  }
-
-  @override
   Future<T> withAllConnections<T>(
       Future<T> Function(
               SqliteWriteContext writer, List<SqliteReadContext> readers)
