@@ -176,4 +176,9 @@ class SqliteDatabaseImpl
   List<SqliteConnection> get allConnections {
     return _pool.allConnections;
   }
+  
+  @override
+  Future<T> withAllConnections<T>(Future<T> Function(SqliteWriteContext writer, List<SqliteReadContext> readers) block) {
+    return _pool.withAllConnections(block);
+  }
 }

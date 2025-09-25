@@ -62,4 +62,9 @@ final class SingleConnectionDatabase
   List<SqliteConnection> get allConnections {
     return [connection];
   }
+  
+  @override
+  Future<T> withAllConnections<T>(Future<T> Function(SqliteWriteContext writer, List<SqliteReadContext> readers) block) {
+    return writeLock((_) => block(connection, []));
+  }
 }

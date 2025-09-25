@@ -69,4 +69,9 @@ class SqliteDatabaseImpl
   List<SqliteConnection> get allConnections {
     throw UnimplementedError();
   }
+  
+  @override
+  Future<T> withAllConnections<T>(Future<T> Function(SqliteWriteContext writer, List<SqliteReadContext> readers) block) {
+    throw UnimplementedError();
+  }
 }

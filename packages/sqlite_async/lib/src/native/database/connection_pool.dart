@@ -284,11 +284,12 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
     }
 
     // Wait after all locks are taken
-    final contexts = await Future.wait([
+    final [writer as SqliteWriteContext, ...readers] = await Future.wait([
       writeLockedCompleter.future,
       ...readLockedCompleters.map((e) => e.future)
     ]);
-    return (contexts.first as SqliteWriteContext, contexts.sublist(1));
+
+    return (writer, readers);
   }
 }
 
