@@ -15,7 +15,7 @@ class TodoItems extends Table {
 @DriftDatabase(tables: [TodoItems])
 class TodoDatabase extends _$TodoDatabase {
   TodoDatabase(SqliteConnection db) : super(SqliteAsyncDriftConnection(db));
-  
+
   TodoDatabase.fromSqliteAsyncConnection(SqliteAsyncDriftConnection super.conn);
 
   @override
