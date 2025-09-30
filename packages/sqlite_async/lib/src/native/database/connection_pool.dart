@@ -92,7 +92,9 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
     if (_availableReadConnections.isEmpty &&
         _runningWithAllConnectionsCount > 0) {
-      // Wait until withAllConnections is done
+      // Wait until [withAllConnections] is done. Otherwise we could spawn a new
+      // reader while the user is configuring all the connections,
+      // e.g. a global open factory configuration shared across all connections.
       return;
     }
 
