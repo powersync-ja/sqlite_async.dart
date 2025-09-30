@@ -31,7 +31,7 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
 
   final MutexImpl mutex;
 
-  bool _runningWithAllConnections = false;
+  int _runningWithAllConnectionsCount = 0;
 
   @override
   bool closed = false;
@@ -90,7 +90,8 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
       return;
     }
 
-    if (_availableReadConnections.isEmpty && _runningWithAllConnections) {
+    if (_availableReadConnections.isEmpty &&
+        _runningWithAllConnectionsCount > 0) {
       // Wait until withAllConnections is done
       return;
     }
@@ -245,21 +246,21 @@ class SqliteConnectionPool with SqliteQueries implements SqliteConnection {
               SqliteWriteContext writer, List<SqliteReadContext> readers)
           block) async {
     try {
-      _runningWithAllConnections = true;
+      _runningWithAllConnectionsCount++;
 
       final blockCompleter = Completer<T>();
       final (write, reads) = await _lockAllConns<T>(blockCompleter);
 
-    try {
-      final res = await block(write, reads);
-      blockCompleter.complete(res);
-      return res;
-    } catch (e, st) {
+      try {
+        final res = await block(write, reads);
+        blockCompleter.complete(res);
+        return res;
+      } catch (e, st) {
         blockCompleter.completeError(e, st);
         rethrow;
       }
     } finally {
-      _runningWithAllConnections = false;
+      _runningWithAllConnectionsCount--;
 
       // Continue processing any pending read requests that may have been queued while
       // the block was running.
