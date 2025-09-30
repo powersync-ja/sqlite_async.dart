@@ -39,6 +39,14 @@ mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
   ///
   /// Use this to access the database in background isolates.
   IsolateConnectionFactory isolateConnectionFactory();
+
+  /// Locks all underlying connections making up this database, and gives [block] access to all of them at once.
+  /// This can be useful to run the same statement on all connections. For instance,
+  /// ATTACHing a database, that is expected to be available in all connections.
+  Future<T> withAllConnections<T>(
+      Future<T> Function(
+              SqliteWriteContext writer, List<SqliteReadContext> readers)
+          block);
 }
 
 /// A SQLite database instance.
