@@ -7,6 +7,7 @@ import 'utils/test_utils_impl.dart';
 
 final testUtils = TestUtils();
 const _isDart2Wasm = bool.fromEnvironment('dart.tool.dart2wasm');
+const _isWeb = identical(0, 0.0) || _isDart2Wasm;
 
 void main() {
   group('Shared Basic Tests', () {
@@ -300,6 +301,49 @@ void main() {
       'browser': Skip(
         'Web locks are managed with a shared worker, which does not support timeouts',
       )
+    });
+
+    test('with all connections', () async {
+      final maxReaders = _isWeb ? 0 : 3;
+
+      final db = SqliteDatabase.withFactory(
+        await testUtils.testFactory(path: path),
+        maxReaders: maxReaders,
+      );
+      await db.initialize();
+      await createTables(db);
+
+      // Warm up to spawn the max readers
+      await Future.wait([for (var i = 0; i < 10; i++) db.get('SELECT $i')]);
+
+      bool finishedWithAllConns = false;
+
+      late Future<void> readsCalledWhileWithAllConnsRunning;
+
+      final parentZone = Zone.current;
+      await db.withAllConnections((writer, readers) async {
+        expect(readers.length, maxReaders);
+
+        // Run some reads during the block that they should run after the block finishes and releases
+        // all locks
+        // Need a root zone here to avoid recursive lock errors.
+        readsCalledWhileWithAllConnsRunning =
+            Future(parentZone.bindCallback(() async {
+          await Future.wait(
+            [1, 2, 3, 4, 5, 6, 7, 8].map((i) async {
+              await db.readLock((c) async {
+                expect(finishedWithAllConns, isTrue);
+                await Future.delayed(const Duration(milliseconds: 100));
+              });
+            }),
+          );
+        }));
+
+        await Future.delayed(const Duration(milliseconds: 200));
+        finishedWithAllConns = true;
+      });
+
+      await readsCalledWhileWithAllConnsRunning;
     });
   });
 }

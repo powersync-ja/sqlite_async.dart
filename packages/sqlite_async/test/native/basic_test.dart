@@ -2,12 +2,16 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 import 'dart:math';
 
+import 'package:collection/collection.dart';
+import 'package:path/path.dart' show join;
 import 'package:sqlite3/common.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
+import '../utils/abstract_test_utils.dart';
 import '../utils/test_utils_impl.dart';
 
 final testUtils = TestUtils();
@@ -98,6 +102,126 @@ void main() {
       await Future.wait(futures1);
       await Future.wait(futures2);
       print("${DateTime.now()} done");
+    });
+
+    test('prevent opening new readers while in withAllConnections', () async {
+      final sharedStateDir = Directory.systemTemp.createTempSync();
+      addTearDown(() => sharedStateDir.deleteSync(recursive: true));
+
+      final File sharedStateFile =
+          File(join(sharedStateDir.path, 'shared-state.txt'));
+
+      sharedStateFile.writeAsStringSync('initial');
+
+      final db = SqliteDatabase.withFactory(
+          _TestSqliteOpenFactoryWithSharedStateFile(
+              path: path, sharedStateFilePath: sharedStateFile.path),
+          maxReaders: 3);
+      await db.initialize();
+      await createTables(db);
+
+      // The writer saw 'initial' in the file when opening the connection
+      expect(
+        await db
+            .writeLock((c) => c.get('SELECT file_contents_on_open() AS state')),
+        {'state': 'initial'},
+      );
+
+      final withAllConnectionsCompleter = Completer<void>();
+
+      final withAllConnsFut = db.withAllConnections((writer, readers) async {
+        expect(readers.length, 0); // No readers yet
+
+        // Simulate some work until the file is updated
+        await Future.delayed(const Duration(milliseconds: 200));
+        sharedStateFile.writeAsStringSync('updated');
+
+        await withAllConnectionsCompleter.future;
+      });
+
+      // Start a reader that gets the contents of the shared file
+      bool readFinished = false;
+      final someReadFut =
+          db.get('SELECT file_contents_on_open() AS state', []).then((r) {
+        readFinished = true;
+        return r;
+      });
+
+      // The withAllConnections should prevent the reader from opening
+      await Future.delayed(const Duration(milliseconds: 100));
+      expect(readFinished, isFalse);
+
+      // Free all the locks
+      withAllConnectionsCompleter.complete();
+      await withAllConnsFut;
+
+      final readerInfo = await someReadFut;
+      expect(readFinished, isTrue);
+      // The read should see the updated value in the file. This checks
+      // that a reader doesn't spawn while running withAllConnections
+      expect(readerInfo, {'state': 'updated'});
+    });
+
+    test('with all connections', () async {
+      final maxReaders = 3;
+
+      final db = SqliteDatabase.withFactory(
+        await testUtils.testFactory(path: path),
+        maxReaders: maxReaders,
+      );
+      await db.initialize();
+      await createTables(db);
+
+      Future<sqlite.Row> readWithRandomDelay(
+          SqliteReadContext ctx, int id) async {
+        return await ctx.get(
+            'SELECT ? as i, test_sleep(?) as sleep, test_connection_name() as connection',
+            [id, 5 + Random().nextInt(10)]);
+      }
+
+      // Warm up to spawn the max readers
+      await Future.wait(
+        [1, 2, 3, 4, 5, 6, 7, 8].map((i) => readWithRandomDelay(db, i)),
+      );
+
+      bool finishedWithAllConns = false;
+
+      late Future<void> readsCalledWhileWithAllConnsRunning;
+
+      print("${DateTime.now()} start");
+      await db.withAllConnections((writer, readers) async {
+        expect(readers.length, maxReaders);
+
+        // Run some reads during the block that they should run after the block finishes and releases
+        // all locks
+        readsCalledWhileWithAllConnsRunning = Future.wait(
+          [1, 2, 3, 4, 5, 6, 7, 8].map((i) async {
+            final r = await db.readLock((c) async {
+              expect(finishedWithAllConns, isTrue);
+              return await readWithRandomDelay(c, i);
+            });
+            print(
+                "${DateTime.now()} After withAllConnections, started while running $r");
+          }),
+        );
+
+        await Future.wait([
+          writer.execute(
+              "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 1 ' || datetime() as connection RETURNING *",
+              [
+                123,
+                5 + Random().nextInt(20)
+              ]).then((value) =>
+              print("${DateTime.now()} withAllConnections writer done $value")),
+          ...readers
+              .mapIndexed((i, r) => readWithRandomDelay(r, i).then((results) {
+                    print(
+                        "${DateTime.now()} withAllConnections readers done $results");
+                  }))
+        ]);
+      }).then((_) => finishedWithAllConns = true);
+
+      await readsCalledWhileWithAllConnsRunning;
     });
 
     test('read-only transactions', () async {
@@ -377,5 +501,33 @@ class _InvalidPragmaOnOpenFactory extends DefaultSqliteOpenFactory {
       'invalid syntax to fail open in test',
       ...super.pragmaStatements(options),
     ];
+  }
+}
+
+class _TestSqliteOpenFactoryWithSharedStateFile
+    extends TestDefaultSqliteOpenFactory {
+  final String sharedStateFilePath;
+
+  _TestSqliteOpenFactoryWithSharedStateFile(
+      {required super.path, required this.sharedStateFilePath});
+
+  @override
+  sqlite.CommonDatabase open(SqliteOpenOptions options) {
+    final File sharedStateFile = File(sharedStateFilePath);
+    final String sharedState = sharedStateFile.readAsStringSync();
+
+    final db = super.open(options);
+
+    // Function to return the contents of the shared state file at the time of opening
+    // so that we know at which point the factory was called.
+    db.createFunction(
+      functionName: 'file_contents_on_open',
+      argumentCount: const sqlite.AllowedArgumentCount(0),
+      function: (args) {
+        return sharedState;
+      },
+    );
+
+    return db;
   }
 }

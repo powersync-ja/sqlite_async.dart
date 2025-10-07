@@ -57,4 +57,12 @@ final class SingleConnectionDatabase
     return connection.writeLock(callback,
         lockTimeout: lockTimeout, debugContext: debugContext);
   }
+
+  @override
+  Future<T> withAllConnections<T>(
+      Future<T> Function(
+              SqliteWriteContext writer, List<SqliteReadContext> readers)
+          block) {
+    return writeLock((_) => block(connection, []));
+  }
 }
