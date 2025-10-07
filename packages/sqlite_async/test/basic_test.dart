@@ -1,6 +1,4 @@
 import 'dart:async';
-import 'dart:math';
-import 'package:collection/collection.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
@@ -9,6 +7,7 @@ import 'utils/test_utils_impl.dart';
 
 final testUtils = TestUtils();
 const _isDart2Wasm = bool.fromEnvironment('dart.tool.dart2wasm');
+const _isWeb = identical(0, 0.0) || _isDart2Wasm;
 
 void main() {
   group('Shared Basic Tests', () {
@@ -305,8 +304,7 @@ void main() {
     });
 
     test('with all connections', () async {
-      // TODO: Is this right?
-      final maxReaders = _isDart2Wasm ? 0 : 3;
+      final maxReaders = _isWeb ? 0 : 3;
 
       final db = SqliteDatabase.withFactory(
         await testUtils.testFactory(path: path),
@@ -315,53 +313,35 @@ void main() {
       await db.initialize();
       await createTables(db);
 
-      Future<Row> readWithRandomDelay(SqliteReadContext ctx, int id) async {
-        return await ctx.get(
-            'SELECT ? as i, test_sleep(?) as sleep, test_connection_name() as connection',
-            [id, 5 + Random().nextInt(10)]);
-      }
-
       // Warm up to spawn the max readers
-      await Future.wait(
-        [1, 2, 3, 4, 5, 6, 7, 8].map((i) => readWithRandomDelay(db, i)),
-      );
+      await Future.wait([for (var i = 0; i < 10; i++) db.get('SELECT $i')]);
 
       bool finishedWithAllConns = false;
 
       late Future<void> readsCalledWhileWithAllConnsRunning;
 
-      print("${DateTime.now()} start");
+      final parentZone = Zone.current;
       await db.withAllConnections((writer, readers) async {
         expect(readers.length, maxReaders);
 
         // Run some reads during the block that they should run after the block finishes and releases
         // all locks
-        readsCalledWhileWithAllConnsRunning = Future.wait(
-          [1, 2, 3, 4, 5, 6, 7, 8].map((i) async {
-            final r = await db.readLock((c) async {
-              expect(finishedWithAllConns, isTrue);
-              return await readWithRandomDelay(c, i);
-            });
-            print(
-                "${DateTime.now()} After withAllConnections, started while running $r");
-          }),
-        );
+        // Need a root zone here to avoid recursive lock errors.
+        readsCalledWhileWithAllConnsRunning =
+            Future(parentZone.bindCallback(() async {
+          await Future.wait(
+            [1, 2, 3, 4, 5, 6, 7, 8].map((i) async {
+              await db.readLock((c) async {
+                expect(finishedWithAllConns, isTrue);
+                await Future.delayed(const Duration(milliseconds: 100));
+              });
+            }),
+          );
+        }));
 
-        await Future.wait([
-          writer.execute(
-              "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 1 ' || datetime() as connection RETURNING *",
-              [
-                123,
-                5 + Random().nextInt(20)
-              ]).then((value) =>
-              print("${DateTime.now()} withAllConnections writer done $value")),
-          ...readers
-              .mapIndexed((i, r) => readWithRandomDelay(r, i).then((results) {
-                    print(
-                        "${DateTime.now()} withAllConnections readers done $results");
-                  }))
-        ]);
-      }).then((_) => finishedWithAllConns = true);
+        await Future.delayed(const Duration(milliseconds: 200));
+        finishedWithAllConns = true;
+      });
 
       await readsCalledWhileWithAllConnsRunning;
     });

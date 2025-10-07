@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 import 'dart:math';
 
+import 'package:collection/collection.dart';
 import 'package:path/path.dart' show join;
 import 'package:sqlite3/common.dart' as sqlite;
 import 'package:sqlite_async/sqlite_async.dart';
@@ -159,6 +160,68 @@ void main() {
       // The read should see the updated value in the file. This checks
       // that a reader doesn't spawn while running withAllConnections
       expect(readerInfo, {'state': 'updated'});
+    });
+
+    test('with all connections', () async {
+      final maxReaders = 3;
+
+      final db = SqliteDatabase.withFactory(
+        await testUtils.testFactory(path: path),
+        maxReaders: maxReaders,
+      );
+      await db.initialize();
+      await createTables(db);
+
+      Future<sqlite.Row> readWithRandomDelay(
+          SqliteReadContext ctx, int id) async {
+        return await ctx.get(
+            'SELECT ? as i, test_sleep(?) as sleep, test_connection_name() as connection',
+            [id, 5 + Random().nextInt(10)]);
+      }
+
+      // Warm up to spawn the max readers
+      await Future.wait(
+        [1, 2, 3, 4, 5, 6, 7, 8].map((i) => readWithRandomDelay(db, i)),
+      );
+
+      bool finishedWithAllConns = false;
+
+      late Future<void> readsCalledWhileWithAllConnsRunning;
+
+      print("${DateTime.now()} start");
+      await db.withAllConnections((writer, readers) async {
+        expect(readers.length, maxReaders);
+
+        // Run some reads during the block that they should run after the block finishes and releases
+        // all locks
+        readsCalledWhileWithAllConnsRunning = Future.wait(
+          [1, 2, 3, 4, 5, 6, 7, 8].map((i) async {
+            final r = await db.readLock((c) async {
+              expect(finishedWithAllConns, isTrue);
+              return await readWithRandomDelay(c, i);
+            });
+            print(
+                "${DateTime.now()} After withAllConnections, started while running $r");
+          }),
+        );
+
+        await Future.wait([
+          writer.execute(
+              "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 1 ' || datetime() as connection RETURNING *",
+              [
+                123,
+                5 + Random().nextInt(20)
+              ]).then((value) =>
+              print("${DateTime.now()} withAllConnections writer done $value")),
+          ...readers
+              .mapIndexed((i, r) => readWithRandomDelay(r, i).then((results) {
+                    print(
+                        "${DateTime.now()} withAllConnections readers done $results");
+                  }))
+        ]);
+      }).then((_) => finishedWithAllConns = true);
+
+      await readsCalledWhileWithAllConnsRunning;
     });
 
     test('read-only transactions', () async {
