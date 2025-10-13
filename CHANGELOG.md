@@ -3,6 +3,32 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-10-13
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.12.2`](#sqlite_async---v0122)
+ - [`drift_sqlite_async` - `v0.2.5`](#drift_sqlite_async---v025)
+
+---
+
+#### `sqlite_async` - `v0.12.2`
+
+ - Add `withAllConnections` method to run statements on all connections in the pool.
+
+#### `drift_sqlite_async` - `v0.2.5`
+
+ - Allow customizing update notifications from `sqlite_async`.
+
+
 ## 2025-08-08
 
 ### Changes

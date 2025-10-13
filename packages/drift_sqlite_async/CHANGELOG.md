@@ -1,3 +1,7 @@
+## 0.2.5
+
+ - Allow customizing update notifications from `sqlite_async`.
+
 ## 0.2.4
 
 - Allow transforming table updates from sqlite_async.
