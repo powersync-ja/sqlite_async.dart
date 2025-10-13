@@ -1,3 +1,7 @@
+## 0.12.2
+
+ - Add `withAllConnections` method to run statements on all connections in the pool.
+
 ## 0.12.1
 
 - Fix distributing updates from shared worker.
