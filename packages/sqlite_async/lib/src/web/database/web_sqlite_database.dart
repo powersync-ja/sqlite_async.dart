@@ -56,7 +56,7 @@ class SqliteDatabaseImpl
   ///
   /// A maximum of [maxReaders] concurrent read transactions are allowed.
   factory SqliteDatabaseImpl(
-      {required path,
+      {required String path,
       int maxReaders = SqliteDatabase.defaultMaxReaders,
       SqliteOptions options = const SqliteOptions.defaults()}) {
     final factory =

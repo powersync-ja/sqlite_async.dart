@@ -159,7 +159,7 @@ class SharedMutex implements Mutex {
     }, zoneValues: {this: true});
   }
 
-  _unlock() {
+  void _unlock() {
     client.fire(const _UnlockMessage());
   }
 

@@ -20,7 +20,7 @@ class SqliteDatabaseImpl
   int maxReaders;
 
   factory SqliteDatabaseImpl(
-      {required path,
+      {required String path,
       int maxReaders = SqliteDatabase.defaultMaxReaders,
       SqliteOptions options = const SqliteOptions.defaults()}) {
     throw UnimplementedError();

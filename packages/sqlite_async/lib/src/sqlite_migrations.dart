@@ -25,7 +25,7 @@ class SqliteMigrations {
 
   SqliteMigrations({this.migrationTable = "_migrations"});
 
-  add(SqliteMigration migration) {
+  void add(SqliteMigration migration) {
     assert(
         migrations.isEmpty || migrations.last.toVersion < migration.toVersion);
 
@@ -48,7 +48,7 @@ class SqliteMigrations {
   }
 
   /// The current version as specified by the migrations.
-  get version {
+  int get version {
     return migrations.isEmpty ? 0 : migrations.last.toVersion;
   }
 
@@ -68,7 +68,7 @@ class SqliteMigrations {
     }
   }
 
-  _validateCreateDatabase() {
+  void _validateCreateDatabase() {
     if (createDatabase != null) {
       if (createDatabase!.downMigration != null) {
         throw MigrationError("createDatabase may not contain down migrations");
@@ -229,7 +229,7 @@ class SqliteDownMigration {
   SqliteDownMigration({required this.toVersion});
 
   /// Add an statement to execute to downgrade the database version.
-  add(String sql, [List<Object?>? params]) {
+  void add(String sql, [List<Object?>? params]) {
     _statements.add(_SqliteMigrationStatement(sql, params ?? []));
   }
 }
