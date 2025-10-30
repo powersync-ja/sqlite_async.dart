@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:js_interop';
-import 'dart:js_interop_unsafe';
 
 import 'package:meta/meta.dart';
 import 'package:mutex/mutex.dart';
@@ -62,12 +61,6 @@ class AsyncSqliteDatabase extends WorkerDatabase {
     return _state.putIfAbsent(connection, _ConnectionState.new);
   }
 
-  void _markHoldsMutex(ClientConnection connection) {
-    final state = _findState(connection);
-    state.holdsMutex = true;
-    _registerCloseListener(state, connection);
-  }
-
   void _registerCloseListener(
       _ConnectionState state, ClientConnection connection) {
     if (!state.hasOnCloseListener) {
@@ -87,44 +80,11 @@ class AsyncSqliteDatabase extends WorkerDatabase {
     final message = request as CustomDatabaseMessage;
 
     switch (message.kind) {
-      case CustomDatabaseMessageKind.requestSharedLock:
-        await mutex.acquireRead();
-        _markHoldsMutex(connection);
-      case CustomDatabaseMessageKind.requestExclusiveLock:
-        await mutex.acquireWrite();
-        _markHoldsMutex(connection);
-      case CustomDatabaseMessageKind.releaseLock:
-        _findState(connection).holdsMutex = false;
-        mutex.release();
-      case CustomDatabaseMessageKind.lockObtained:
+      case CustomDatabaseMessageKind.ok:
       case CustomDatabaseMessageKind.notifyUpdates:
         throw UnsupportedError('This is a response, not a request');
       case CustomDatabaseMessageKind.getAutoCommit:
         return database.autocommit.toJS;
-      case CustomDatabaseMessageKind.executeInTransaction:
-        final sql = message.rawSql.toDart;
-        final hasTypeInfo = message.typeInfo.isDefinedAndNotNull;
-        final parameters = proto.deserializeParameters(
-            message.rawParameters, message.typeInfo);
-        if (database.autocommit) {
-          throw SqliteException(0,
-              "Transaction rolled back by earlier statement. Cannot execute: $sql");
-        }
-
-        var res = database.select(sql, parameters);
-        if (hasTypeInfo) {
-          // If the client is sending a request that has parameters with type
-          // information, it will also support a newer serialization format for
-          // result sets.
-          return JSObject()
-            ..['format'] = 2.toJS
-            ..['r'] = proto.serializeResultSet(res);
-        } else {
-          var dartMap = resultSetToMap(res);
-          var jsObject = dartMap.jsify();
-          return jsObject;
-        }
-
       case CustomDatabaseMessageKind.executeBatchInTransaction:
         final sql = message.rawSql.toDart;
         final parameters = proto.deserializeParameters(
@@ -157,7 +117,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         }
     }
 
-    return CustomDatabaseMessage(CustomDatabaseMessageKind.lockObtained);
+    return CustomDatabaseMessage(CustomDatabaseMessageKind.ok);
   }
 
   Map<String, dynamic> resultSetToMap(ResultSet resultSet) {
