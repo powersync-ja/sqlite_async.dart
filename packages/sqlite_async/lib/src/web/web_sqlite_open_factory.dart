@@ -63,10 +63,19 @@ class DefaultSqliteOpenFactory
     final workers = await _initialized;
     final connection = await connectToWorker(workers, path);
 
-    // When the database is accessed through a shared worker, we implement
-    // mutexes over custom messages sent through the shared worker. In other
-    // cases, we need to implement a mutex locally.
-    final mutex = connection.access == AccessMode.throughSharedWorker
+    // When the database is hosted in a shared worker, we don't need a local
+    // mutex since that worker will hand out leases for us.
+    // Additionally, package:sqlite3_web uses navigator locks internally for
+    // OPFS databases.
+    // Technically, the only other implementation (IndexedDB in a local context
+    // or a dedicated worker) is inherently unsafe to use across tabs. But
+    // wrapping those in a mutex and flushing the file system helps a little bit
+    // (still something we're trying to avoid).
+    final hasSqliteWebMutex =
+        connection.access == AccessMode.throughSharedWorker ||
+            connection.storage == StorageMode.opfs;
+
+    final mutex = hasSqliteWebMutex
         ? null
         : MutexImpl(identifier: path); // Use the DB path as a mutex identifier
 
