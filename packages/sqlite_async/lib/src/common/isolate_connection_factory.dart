@@ -31,7 +31,7 @@ abstract class IsolateConnectionFactory<Database extends sqlite.CommonDatabase>
 
   factory IsolateConnectionFactory(
       {required dynamic /* platform-specific type */ openFactory,
-      required /* platform-specific type */ mutex,
+      required dynamic /* platform-specific type */ mutex,
       required SerializedPortClient upstreamPort}) {
     return IsolateConnectionFactoryImpl(
         openFactory: openFactory,
