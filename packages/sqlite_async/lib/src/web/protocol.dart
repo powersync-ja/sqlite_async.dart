@@ -6,12 +6,8 @@ import 'dart:js_interop';
 import 'package:sqlite3_web/protocol_utils.dart' as proto;
 
 enum CustomDatabaseMessageKind {
-  requestSharedLock,
-  requestExclusiveLock,
-  releaseLock,
-  lockObtained,
+  ok,
   getAutoCommit,
-  executeInTransaction,
   executeBatchInTransaction,
   updateSubscriptionManagement,
   notifyUpdates,

@@ -12,8 +12,8 @@ topics:
   - flutter
 
 dependencies:
-  sqlite3: ^2.9.0
-  sqlite3_web: ^0.3.2
+  sqlite3: ^2.9.4
+  sqlite3_web: ^0.4.0
   async: ^2.10.0
   collection: ^1.17.0
   mutex: ^3.1.0
