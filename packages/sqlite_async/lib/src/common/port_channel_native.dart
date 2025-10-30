@@ -128,7 +128,7 @@ class ParentPortClient implements PortClient {
     _close();
   }
 
-  tieToIsolate(Isolate isolate) {
+  void tieToIsolate(Isolate isolate) {
     _isolateDebugName = isolate.debugName;
     isolate.addErrorListener(_errorPort.sendPort);
     isolate.addOnExitListener(_receivePort.sendPort, response: _closeMessage);
@@ -207,7 +207,7 @@ class RequestPortServer {
 
   RequestPortServer(this.port);
 
-  open(Future<Object?> Function(Object? message) handle) {
+  PortServer open(Future<Object?> Function(Object? message) handle) {
     return PortServer.forSendPort(port, handle);
   }
 }

@@ -53,7 +53,7 @@ class ParentPortClient implements PortClient {
     _stub();
   }
 
-  tieToIsolate(Isolate isolate) {
+  void tieToIsolate(Isolate isolate) {
     _stub();
   }
 }
@@ -97,7 +97,7 @@ class RequestPortServer {
 
   RequestPortServer(this.port);
 
-  open(Future<Object?> Function(Object? message) handle) {
+  PortServer open(Future<Object?> Function(Object? message) handle) {
     _stub();
   }
 }

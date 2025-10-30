@@ -75,7 +75,7 @@ class _IsolateUpdateListener {
     return controller.stream;
   }
 
-  close() {
+  void close() {
     client.fire(UnsubscribeToUpdates(port.sendPort));
     controller.close();
     port.close();
