@@ -1,3 +1,7 @@
+## 0.2.6
+
+- Support latest `sqlite_async`.
+
 ## 0.2.5
 
  - Allow customizing update notifications from `sqlite_async`.

@@ -3,6 +3,31 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2025-11-04
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.13.0`](#sqlite_async---v0130)
+ - [`drift_sqlite_async` - `v0.2.6`](#drift_sqlite_async---v026)
+
+---
+
+#### `sqlite_async` - `v0.13.0`
+
+ - Update sqlite3_web to 0.4.0
+
+#### `drift_sqlite_async` - `v0.2.6`
+
+- Support latest `sqlite_async`.
+
 ## 2025-10-13
 
 ### Changes

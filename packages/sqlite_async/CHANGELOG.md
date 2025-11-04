@@ -1,3 +1,7 @@
+## 0.13.0
+
+ - Update sqlite3_web to 0.4.0
+
 ## 0.12.2
 
  - Add `withAllConnections` method to run statements on all connections in the pool.
