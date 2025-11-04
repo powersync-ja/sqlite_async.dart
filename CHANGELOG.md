@@ -11,7 +11,7 @@ See [Conventional Commits](https://conventionalcommits.org) for commit guideline
 
 Packages with breaking changes:
 
- - There are no breaking changes in this release.
+ - `sqlite_async` uses version 0.4.x of `sqlite3_web`, which requires a new worker.
 
 Packages with other changes:
 
