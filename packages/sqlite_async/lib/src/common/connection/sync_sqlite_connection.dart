@@ -166,18 +166,10 @@ final class _UnsafeSyncContext extends UnscopedContext {
   }
 
   @override
-  Future<void> executeMultiple(String sql) async {
-    task.timeSync('executeBatch', () {
-      final statements = db.prepareMultiple(sql);
-      try {
-        for (var statement in statements) {
-          task.timeSync('iteration', () => statement.execute());
-        }
-      } finally {
-        for (var statement in statements) {
-          statement.dispose();
-        }
-      }
+  Future<void> executeMultiple(String sql,
+      [List<Object?> parameters = const []]) async {
+    task.timeSync('executeMultiple', () {
+      db.execute(sql, parameters);
     }, sql: sql);
   }
 }

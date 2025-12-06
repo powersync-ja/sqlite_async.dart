@@ -137,9 +137,10 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   }
 
   @override
-  Future<void> executeMultiple(String sql) {
+  Future<void> executeMultiple(String sql,
+      [List<Object?> parameters = const []]) {
     return writeTransaction((tx) async {
-      return tx.executeMultiple(sql);
+      return tx.executeMultiple(sql, parameters);
     });
   }
 

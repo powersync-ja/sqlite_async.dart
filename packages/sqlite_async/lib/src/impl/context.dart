@@ -12,7 +12,7 @@ import '../sqlite_connection.dart';
 abstract base class UnscopedContext implements SqliteReadContext {
   Future<ResultSet> execute(String sql, List<Object?> parameters);
   Future<void> executeBatch(String sql, List<List<Object?>> parameterSets);
-  Future<void> executeMultiple(String sql);
+  Future<void> executeMultiple(String sql, List<Object?> parameters);
 
   /// Returns an [UnscopedContext] useful as the outermost transaction.
   ///
@@ -145,9 +145,10 @@ final class ScopedWriteContext extends ScopedReadContext
   }
 
   @override
-  Future<void> executeMultiple(String sql) {
+  Future<void> executeMultiple(String sql,
+      [List<Object?> parameters = const []]) async {
     _checkNotLocked();
-    return _context.executeMultiple(sql);
+    return await _context.executeMultiple(sql, parameters);
   }
 
   @override

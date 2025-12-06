@@ -294,11 +294,13 @@ final class _UnscopedContext extends UnscopedContext {
   }
 
   @override
-  Future<void> executeMultiple(String sql) {
+  Future<void> executeMultiple(String sql,
+      [List<Object?> parameters = const []]) {
     return _task.timeAsync('executeMultiple', sql: sql, () {
       return wrapSqliteException(() async {
-        await _database._database.executeMultiple(
+        await _database._database.execute(
           sql,
+          parameters: parameters,
           token: _lock,
           checkInTransaction: _checkInTransaction,
         );

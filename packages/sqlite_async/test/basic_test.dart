@@ -331,11 +331,11 @@ void main() {
       expect(result.rows[0][1], equals('test returning without params'));
     });
 
-    test('execute handles multiple statements', () async {
+    test('executeMultiple handles multiple statements', () async {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
-      await db.execute('''
+      await db.executeMultiple('''
         INSERT INTO test_data(description) VALUES('row1');
         INSERT INTO test_data(description) VALUES('row2');
       ''');
