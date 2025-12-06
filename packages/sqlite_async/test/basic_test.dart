@@ -303,6 +303,23 @@ void main() {
       )
     });
 
+    test('executeMultiple inserts multiple rows', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+
+      await db.executeMultiple('''
+        INSERT INTO test_data(description) VALUES('row1');
+        INSERT INTO test_data(description) VALUES('row2');
+      ''');
+
+      final results = await db.getAll('SELECT description FROM test_data ORDER BY id');
+      expect(results.length, equals(2));
+      expect(results.rows[0], equals(['row1']));
+      expect(results.rows[1], equals(['row2']));
+
+      await db.close();
+    }, skip: _isWeb ? 'executeMultiple is not supported on web' : null);
+
     test('with all connections', () async {
       final maxReaders = _isWeb ? 0 : 3;
 

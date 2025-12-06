@@ -294,6 +294,19 @@ final class _UnscopedContext extends UnscopedContext {
   }
 
   @override
+  Future<void> executeMultiple(String sql) {
+    return _task.timeAsync('executeMultiple', sql: sql, () {
+      return wrapSqliteException(() async {
+        await _database._database.executeMultiple(
+          sql,
+          token: _lock,
+          checkInTransaction: _checkInTransaction,
+        );
+      });
+    });
+  }
+
+  @override
   UnscopedContext interceptOutermostTransaction() {
     // All execute calls done in the callback will be checked for the
     // autocommit state
