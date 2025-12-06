@@ -303,22 +303,51 @@ void main() {
       )
     });
 
-    test('executeMultiple inserts multiple rows', () async {
+    test('execute single statement with RETURNING populates ResultSet',
+        () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+      final result = await db.execute(
+          'INSERT INTO test_data(description) VALUES(?) RETURNING id, description',
+          ['test returning with params']);
+
+      expect(result.columnNames, equals(['id', 'description']));
+      expect(result.rows.length, equals(1));
+      expect(result.rows[0][0], isA<int>());
+      expect(result.rows[0][1], equals('test returning with params'));
+    });
+
+    test(
+        'execute single statment with RETURNING populates ResultSet without params',
+        () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+      final result = await db.execute(
+          'INSERT INTO test_data(description) VALUES("test returning without params") RETURNING id, description');
+
+      expect(result.columnNames, equals(['id', 'description']));
+      expect(result.rows.length, equals(1));
+      expect(result.rows[0][0], isA<int>());
+      expect(result.rows[0][1], equals('test returning without params'));
+    });
+
+    test('execute handles multiple statements', () async {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
-      await db.executeMultiple('''
+      await db.execute('''
         INSERT INTO test_data(description) VALUES('row1');
         INSERT INTO test_data(description) VALUES('row2');
       ''');
 
-      final results = await db.getAll('SELECT description FROM test_data ORDER BY id');
+      final results =
+          await db.getAll('SELECT description FROM test_data ORDER BY id');
       expect(results.length, equals(2));
       expect(results.rows[0], equals(['row1']));
       expect(results.rows[1], equals(['row2']));
 
       await db.close();
-    }, skip: _isWeb ? 'executeMultiple is not supported on web' : null);
+    });
 
     test('with all connections', () async {
       final maxReaders = _isWeb ? 0 : 3;
