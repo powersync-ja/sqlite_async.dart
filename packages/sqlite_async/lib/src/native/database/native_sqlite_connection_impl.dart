@@ -277,11 +277,10 @@ final class _UnsafeContext extends UnscopedContext {
   }
 
   @override
-  Future<void> executeMultiple(String sql,
-      [List<Object?> parameters = const []]) async {
+  Future<void> executeMultiple(String sql) async {
     return computeWithDatabase((db) async {
       // execute allows multiple statements, but does not return results.
-      db.execute(sql, parameters);
+      db.execute(sql);
     });
   }
 }

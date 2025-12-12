@@ -77,8 +77,7 @@ abstract interface class SqliteWriteContext extends SqliteReadContext {
   Future<void> executeBatch(String sql, List<List<Object?>> parameterSets);
 
   // Execute a query that potentially contains multiple statements.
-  Future<void> executeMultiple(String sql,
-      [List<Object?> parameters = const []]);
+  Future<void> executeMultiple(String sql);
 
   /// Open a read-write transaction on this write context.
   ///
