@@ -349,6 +349,31 @@ void main() {
       await db.close();
     });
 
+    test('executeMultiple rolls back on failure', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+
+      // Insert an initial row with id=1
+      await db.execute(
+          'INSERT INTO test_data(id, description) VALUES(?, ?)', [1, 'initial']);
+
+      // Attempt executeMultiple where second statement fails due to duplicate primary key
+      await expectLater(
+        db.executeMultiple('''
+          INSERT INTO test_data(id, description) VALUES(2, 'should_rollback');
+          INSERT INTO test_data(id, description) VALUES(1, 'duplicate_key');
+        '''),
+        throwsA(isA<SqliteException>()),
+      );
+
+      // Verify only the initial row exists - the first insert in executeMultiple should have been rolled back
+      final results = await db.getAll('SELECT id, description FROM test_data ORDER BY id');
+      expect(results.length, equals(1));
+      expect(results.rows[0], equals([1, 'initial']));
+
+      await db.close();
+    });
+
     test('with all connections', () async {
       final maxReaders = _isWeb ? 0 : 3;
 
