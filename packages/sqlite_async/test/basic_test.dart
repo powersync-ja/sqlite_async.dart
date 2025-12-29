@@ -323,7 +323,7 @@ void main() {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
       final result = await db.execute(
-          'INSERT INTO test_data(description) VALUES("test returning without params") RETURNING id, description');
+          "INSERT INTO test_data(description) VALUES('test returning without params') RETURNING id, description");
 
       expect(result.columnNames, equals(['id', 'description']));
       expect(result.rows.length, equals(1));
