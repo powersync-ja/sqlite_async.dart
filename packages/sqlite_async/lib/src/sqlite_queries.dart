@@ -137,6 +137,13 @@ mixin SqliteQueries implements SqliteWriteContext, SqliteConnection {
   }
 
   @override
+  Future<void> executeMultiple(String sql) {
+    return writeTransaction((tx) async {
+      return tx.executeMultiple(sql);
+    });
+  }
+
+  @override
   Future<void> refreshSchema() {
     return getAll("PRAGMA table_info('sqlite_master')");
   }

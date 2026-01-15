@@ -164,4 +164,11 @@ final class _UnsafeSyncContext extends UnscopedContext {
       }
     }, sql: sql);
   }
+
+  @override
+  Future<void> executeMultiple(String sql) async {
+    task.timeSync('executeMultiple', () {
+      db.execute(sql);
+    }, sql: sql);
+  }
 }

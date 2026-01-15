@@ -303,6 +303,80 @@ void main() {
       )
     });
 
+    test('execute single statement with RETURNING populates ResultSet',
+        () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+      final result = await db.execute(
+          'INSERT INTO test_data(description) VALUES(?) RETURNING id, description',
+          ['test returning with params']);
+
+      expect(result.columnNames, equals(['id', 'description']));
+      expect(result.rows.length, equals(1));
+      expect(result.rows[0][0], isA<int>());
+      expect(result.rows[0][1], equals('test returning with params'));
+    });
+
+    test(
+        'execute single statment with RETURNING populates ResultSet without params',
+        () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+      final result = await db.execute(
+          "INSERT INTO test_data(description) VALUES('test returning without params') RETURNING id, description");
+
+      expect(result.columnNames, equals(['id', 'description']));
+      expect(result.rows.length, equals(1));
+      expect(result.rows[0][0], isA<int>());
+      expect(result.rows[0][1], equals('test returning without params'));
+    });
+
+    test('executeMultiple handles multiple statements', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+
+      await db.executeMultiple('''
+        INSERT INTO test_data(description) VALUES('row1');
+        INSERT INTO test_data(description) VALUES('row2');
+      ''');
+
+      final results =
+          await db.getAll('SELECT description FROM test_data ORDER BY id');
+      expect(results.length, equals(2));
+      expect(results.rows[0], equals(['row1']));
+      expect(results.rows[1], equals(['row2']));
+
+      await db.close();
+    });
+
+    test('executeMultiple rolls back on failure', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+
+      // Insert an initial row with id=1
+      await db.execute('INSERT INTO test_data(id, description) VALUES(?, ?)',
+          [1, 'initial']);
+
+      // Attempt executeMultiple where second statement fails due to duplicate primary key
+      await expectLater(
+        db.executeMultiple('''
+          INSERT INTO test_data(id, description) VALUES(2, 'should_rollback');
+          INSERT INTO test_data(id, description) VALUES(1, 'duplicate_key');
+        '''),
+        throwsA(isA<SqliteException>()),
+      );
+
+      // Verify only the initial row exists - the first insert in
+      // executeMultiple should have been rolled back.
+      final results =
+          await db.getAll('SELECT id, description FROM test_data ORDER BY id');
+      expect(results, [
+        {'id': 1, 'description': 'initial'}
+      ]);
+
+      await db.close();
+    });
+
     test('with all connections', () async {
       final maxReaders = _isWeb ? 0 : 3;
 

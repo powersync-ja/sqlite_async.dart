@@ -275,6 +275,14 @@ final class _UnsafeContext extends UnscopedContext {
       }
     });
   }
+
+  @override
+  Future<void> executeMultiple(String sql) async {
+    return computeWithDatabase((db) async {
+      // execute allows multiple statements, but does not return results.
+      db.execute(sql);
+    });
+  }
 }
 
 void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
