@@ -1,3 +1,7 @@
+## 0.13.1
+
+ - Add `executeMultiple` to run multiple statements not using parameters.
+
 ## 0.13.0
 
  - Update sqlite3_web to 0.4.0

@@ -3,6 +3,27 @@
 All notable changes to this project will be documented in this file.
 See [Conventional Commits](https://conventionalcommits.org) for commit guidelines.
 
+## 2026-01-15
+
+### Changes
+
+---
+
+Packages with breaking changes:
+
+ - There are no breaking changes in this release.
+
+Packages with other changes:
+
+ - [`sqlite_async` - `v0.13.1`](#sqlite_async---v0131)
+
+---
+
+#### `sqlite_async` - `v0.13.1`
+
+ - Add `executeMultiple` to run multiple statements not using parameters.
+
+
 ## 2025-11-04
 
 ### Changes
