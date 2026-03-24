@@ -51,7 +51,7 @@ abstract mixin class WebSqliteOpenFactory
   /// when provided with the same [options] again.
   Future<WebSqlite> openWebSqlite(WebSqliteOptions options) async {
     return WebSqlite.open(
-      worker: Uri.parse(options.workerUri),
+      workers: WorkerConnector.defaultWorkers(Uri.parse(options.workerUri)),
       wasmModule: Uri.parse(options.wasmUri),
       handleCustomRequest: handleCustomRequest,
     );

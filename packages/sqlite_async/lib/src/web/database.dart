@@ -325,7 +325,10 @@ Future<T> wrapSqliteException<T>(Future<T> Function() callback) async {
 
     if (ex.message.contains('Database is not in a transaction')) {
       throw SqliteException(
-          0, "Transaction rolled back by earlier statement. Cannot execute.");
+        extendedResultCode: 0,
+        message:
+            'Transaction rolled back by earlier statement. Cannot execute.',
+      );
     }
 
     // Older versions of package:sqlite_web reported SqliteExceptions as strings
@@ -333,8 +336,10 @@ Future<T> wrapSqliteException<T>(Future<T> Function() callback) async {
     if (ex.toString().contains('SqliteException')) {
       RegExp regExp = RegExp(r'SqliteException\((\d+)\)');
       throw SqliteException(
-          int.parse(regExp.firstMatch(ex.message)?.group(1) ?? '0'),
-          ex.message);
+        extendedResultCode:
+            int.parse(regExp.firstMatch(ex.message)?.group(1) ?? '0'),
+        message: ex.message,
+      );
     }
     rethrow;
   }

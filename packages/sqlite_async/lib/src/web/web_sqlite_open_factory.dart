@@ -40,7 +40,8 @@ class DefaultSqliteOpenFactory
   Future<WebSqlite> openWebSqlite(WebSqliteOptions options) async {
     return WebSqlite.open(
       wasmModule: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
-      worker: Uri.parse(sqliteOptions.webSqliteOptions.workerUri),
+      workers: WorkerConnector.defaultWorkers(
+          Uri.parse(sqliteOptions.webSqliteOptions.workerUri)),
       controller: AsyncSqliteController(),
       handleCustomRequest: handleCustomRequest,
     );

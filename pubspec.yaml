@@ -1,6 +1,11 @@
 name: drift_sqlite_async_monorepo
 
 environment:
-  sdk: ">=3.4.0 <4.0.0"
-dev_dependencies:
-  melos: ^4.1.0
+  sdk: ">=3.10.0 <4.0.0"
+
+workspace:
+  - packages/drift_sqlite_async
+  - packages/sqlite_async
+
+dependencies:
+  lints: ^6.1.0

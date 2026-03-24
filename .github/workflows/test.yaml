@@ -7,68 +7,104 @@ on:
   pull_request:
 
 jobs:
-  build:
+  analyze:
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)  
+    outputs:
+      dart-version: ${{ steps.dart.outputs.dart-version }}
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dart-lang/setup-dart@v1
+        id: dart
+      - name: "Setup local pub cache folder"
+        # Make pub cache folder consistent across OSes, so that we can share the cache.
+        run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
+        shell: bash
+      # We need to update the cache whenever the pubspec.lock changes, as that
+      # indicates a changed dependency after `pub upgrade`. However, we can't
+      # include the pubspec.lock in the cache key as it's not part of the repository.
+      # So, we explicitly restore from and update to the cache as needed.
+      - uses: actions/cache/restore@v5
+        id: restore
+        with:
+          path: |
+            ${{ env.PUB_CACHE }}
+            pubspec.lock
+          key: dart-deps-${{ steps.dart.outputs.dart-version }}-${{ hashFiles('pubspec.yaml') }}
+          restore-keys:
+            dart-deps-${{ steps.dart.outputs.dart-version }}
+            dart-deps-
+          enableCrossOsArchive: true
 
-      - name: Install Melos
-        run: dart pub global activate melos
-      - name: Install dependencies
-        run: melos prepare
-      - name: Check formatting
-        run: melos format:check:packages
-      - name: Lint
-        run: melos analyze:packages
-      - name: Publish dry-run
-        run: melos publish --dry-run --yes
-      - name: Check publish score
+      - name: "Hash pubspec lockfiles before pub upgrade"
+        id: deps-before
         run: |
+          echo "lockfiles=${{ hashFiles('**/pubspec.lock') }}" >> $GITHUB_OUTPUT
+        shell: bash
+      - name: "Install dependencies"
+        run: |
+          dart pub upgrade
           dart pub global activate pana
-          melos analyze:packages:pana
+
+      - name: "Ensure formatted"
+        run: dart format --output=none --set-exit-if-changed .
+
+      - name: "Analyze project"
+        run: dart analyze --fatal-infos
+
+      - name: "Update cache due to changed pubspec.lock"
+        if: ${{ hashFiles('**/pubspec.lock') != steps.deps-before.outputs.lockfiles || !steps.restore.outputs.cache-hit }}
+        uses: actions/cache/save@v5
+        with:
+          path: |
+            ${{ env.PUB_CACHE }}
+            pubspec.lock
+          key: dart-deps-${{ steps.dart.outputs.dart-version }}-${{ hashFiles('pubspec.yaml') }}
+          enableCrossOsArchive: true
 
   test:
+    needs: [analyze]
     runs-on: ubuntu-latest
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)  
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - sqlite_version: "3440200"
-            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3440200.tar.gz"
-            dart_sdk: stable
-          - sqlite_version: "3430200"
-            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3430200.tar.gz"
-            dart_sdk: stable
-          - sqlite_version: "3420000"
-            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3420000.tar.gz"
-            dart_sdk: stable
-          - sqlite_version: "3410100"
-            sqlite_url: "https://www.sqlite.org/2023/sqlite-autoconf-3410100.tar.gz"
-            dart_sdk: stable
-          - sqlite_version: "3380000"
-            sqlite_url: "https://www.sqlite.org/2022/sqlite-autoconf-3380000.tar.gz"
-            dart_sdk: stable
     steps:
-      - uses: actions/checkout@v5
+      - uses: actions/checkout@v6
       - uses: dart-lang/setup-dart@v1
         with:
-          sdk: ${{ matrix.dart_sdk }}
+          sdk: ${{ needs.analyze.outputs.dart-version }}
+      - name: "Setup local pub cache folder"
+        run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
+        shell: bash
+      - uses: actions/cache/restore@v5
+        with:
+          path: |
+            ${{ env.PUB_CACHE }}
+            pubspec.lock
+          key: dart-deps-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          # Should be created by analyze run
+          fail-on-cache-miss: true
+          enableCrossOsArchive: true
 
-      - name: Install Melos
-        run: dart pub global activate melos
-
-      - name: Install dependencies
-        run: melos prepare
-
-      - name: Install SQLite
+      - name: "Get dependencies"
+        # Passing --offline here asserts that dependencies have been cached properly.
         run: |
-          ./scripts/install_sqlite.sh ${{ matrix.sqlite_version }} ${{ matrix.sqlite_url }}
+          dart pub get --offline
+          dart pub global activate pana
 
-      - name: Run Tests
+      - name: Setup
         run: |
-          export LD_LIBRARY_PATH=$(pwd)/sqlite-autoconf-${{ matrix.sqlite_version }}/.libs
-          melos test
-          melos test_build
+          dart run tool/sqlite3_wasm_download.dart
+
+      - name: Test sqlite_async
+        working-directory: packages/sqlite_async
+        run: |
+          dart test -p chrome,vm --compiler dart2js,dart2wasm
+          dart run build_runner test -- -p chrome
+
+      - name: Test drift_sqlite_async
+        working-directory: packages/drift_sqlite_async
+        run: dart test -p chrome,vm --compiler dart2js,dart2wasm
+
+      - name: Pana for sqlite_async
+        run: dart pub global run pana --no-warning packages/sqlite_async
+      - name: Pana for drift_sqlite_async
+        run: dart pub global run pana --no-warning packages/drift_sqlite_async
