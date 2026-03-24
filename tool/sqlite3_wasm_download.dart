@@ -15,7 +15,7 @@ void main() async {
   final sqlitePath = 'assets/$sqliteFilename';
 
   // Download sqlite3.wasm
-  final version = findSqliteVersion();
+  final version = await findSqliteVersion();
   final sqliteUrl =
       'https://github.com/simolus3/sqlite3.dart/releases/download/sqlite3-${version}/sqlite3.wasm';
 
@@ -26,7 +26,7 @@ Future<String> findSqliteVersion() async {
   final lockFileLines = File(
     'pubspec.lock',
   ).openRead().transform(utf8.decoder).transform(const LineSplitter());
-  final versionRegex = RegExp(r'version: ".+"');
+  final versionRegex = RegExp(r'version: "(.+)"');
 
   var isReadingSqlite3Entry = false;
 
@@ -55,6 +55,7 @@ Future<void> downloadFile(String url, String savePath) async {
   if (response.statusCode == HttpStatus.ok) {
     var file = File(savePath);
     await response.pipe(file.openWrite());
+    httpClient.close();
   } else {
     print(
       'Failed to download file: ${response.statusCode} ${response.reasonPhrase}',
