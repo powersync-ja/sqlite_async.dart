@@ -1,4 +1,4 @@
-## 0.2.7-wip
+## 0.3.0-wip
 
 - Support versions 3.x of the `sqlite3` package.
 
