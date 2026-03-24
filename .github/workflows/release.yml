@@ -10,7 +10,7 @@ on:
 jobs:
   gh_release:
     runs-on: ubuntu-latest
-    if: "${{ startsWith(github.ref_name, 'sqlite3-') }}"
+    if: "${{ startsWith(github.ref_name, 'sqlite_async-') }}"
     permissions:
       contents: write # Needed to create releases
 
