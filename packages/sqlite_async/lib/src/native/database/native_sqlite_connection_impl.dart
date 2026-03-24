@@ -202,7 +202,11 @@ final class _UnsafeContext extends UnscopedContext {
   Future<sqlite.ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]) async {
     if (_closed) {
-      throw sqlite.SqliteException(0, 'Transaction closed', null, sql);
+      throw sqlite.SqliteException(
+        extendedResultCode: 0,
+        message: 'Transaction closed',
+        causingStatement: sql,
+      );
     }
     try {
       var future = _sendPort.post<sqlite.ResultSet>(_SqliteIsolateStatement(
@@ -218,10 +222,9 @@ final class _UnsafeContext extends UnscopedContext {
       if (e.resultCode == 8) {
         // SQLITE_READONLY
         throw sqlite.SqliteException(
-            e.extendedResultCode,
-            'attempt to write in a read-only transaction',
-            null,
-            e.causingStatement);
+            extendedResultCode: e.extendedResultCode,
+            message: 'attempt to write in a read-only transaction',
+            causingStatement: e.causingStatement);
       } else {
         rethrow;
       }
@@ -271,7 +274,7 @@ final class _UnsafeContext extends UnscopedContext {
           statement.execute(parameters);
         }
       } finally {
-        statement.dispose();
+        statement.close();
       }
     });
   }
@@ -301,7 +304,7 @@ void _sqliteConnectionIsolate(_SqliteConnectionParams params) async {
   runZonedGuarded(() async {
     await _sqliteConnectionIsolateInner(params, client, db);
   }, (error, stack) {
-    db.dispose();
+    db.close();
     throw error;
   });
 }
@@ -327,7 +330,8 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
     } else if (txId != null && txId != data.ctxId) {
       // Locks should prevent this from happening
       throw sqlite.SqliteException(
-          0, 'Mixed transactions: $txId and ${data.ctxId}');
+          extendedResultCode: 0,
+          message: 'Mixed transactions: $txId and ${data.ctxId}');
     } else if (data.sql == 'ROLLBACK') {
       // This is the only valid way to clear an error
       txError = null;
@@ -346,8 +350,10 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
       if (txId != null) {
         if (db.autocommit) {
           // Transaction rolled back
-          txError = sqlite.SqliteException(0,
-              'Transaction rolled back by earlier statement: ${err.toString()}');
+          txError = sqlite.SqliteException(
+              extendedResultCode: 0,
+              message:
+                  'Transaction rolled back by earlier statement: ${err.toString()}');
         } else {
           // Recoverable error
         }
@@ -367,7 +373,9 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
           txId = null;
           txError = null;
           throw sqlite.SqliteException(
-              0, 'Transaction must be closed within the read or write lock');
+              extendedResultCode: 0,
+              message:
+                  'Transaction must be closed within the read or write lock');
         }
         return null;
       case _SqliteIsolateStatement():
@@ -380,7 +388,7 @@ Future<void> _sqliteConnectionIsolateInner(_SqliteConnectionParams params,
       case _SqliteIsolateClosure():
         return await data.cb(db);
       case _SqliteIsolateConnectionClose():
-        db.dispose();
+        db.close();
         return null;
     }
   }

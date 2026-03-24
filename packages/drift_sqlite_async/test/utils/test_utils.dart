@@ -1,31 +1,21 @@
-import 'dart:ffi';
 import 'dart:io';
 import 'dart:isolate';
 
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
-import 'package:sqlite3/open.dart' as sqlite_open;
 import 'package:sqlite_async/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
-const defaultSqlitePath = 'libsqlite3.so.0';
-// const defaultSqlitePath = './sqlite-autoconf-3410100/.libs/libsqlite3.so.0';
-
 class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
-  String sqlitePath;
-
-  TestSqliteOpenFactory(
-      {required super.path,
-      super.sqliteOptions,
-      this.sqlitePath = defaultSqlitePath});
+  TestSqliteOpenFactory({
+    required super.path,
+    super.sqliteOptions,
+  });
 
   @override
   CommonDatabase open(SqliteOpenOptions options) {
-    sqlite_open.open.overrideFor(sqlite_open.OperatingSystem.linux, () {
-      return DynamicLibrary.open(sqlitePath);
-    });
     final db = super.open(options);
 
     db.createFunction(

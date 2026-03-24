@@ -1,15 +1,16 @@
 # This triggers whenever a tagged release is pushed
-name: Compile Assets and Create Draft Release
+name: Release packages
 
 on:
   push:
     tags:
-      # Trigger on sqlite_async tags
-      - 'sqlite_async-v*'
+      - 'sqlite_async-v[0-9]+.[0-9]+.[0-9]+*'
+      - 'drift_sqlite_async-v[0-9]+.[0-9]+.[0-9]+*'
 
 jobs:
-  release:
+  gh_release:
     runs-on: ubuntu-latest
+    if: "${{ startsWith(github.ref_name, 'sqlite_async-') }}"
     permissions:
       contents: write # Needed to create releases
 
@@ -21,11 +22,10 @@ jobs:
 
       - uses: dart-lang/setup-dart@v1
 
-      - name: Install Melos
-        run: dart pub global activate melos
-
-      - name: Install dependencies
-        run: melos prepare
+      - name: Compile web worker
+        run: |
+          dart pub get
+          dart compile js -O4 -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart
 
       - name: Set tag name
         id: tag
@@ -48,3 +48,19 @@ jobs:
           GH_REPO: ${{ github.repository }}
         run: |
           gh release upload "${{ steps.tag.outputs.tag  }}" assets/db_worker.js
+
+  publish_sqlite_async:
+    permissions:
+      id-token: write
+    if: "${{ startsWith(github.ref_name, 'sqlite_async-') }}"
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      working-directory: packages/sqlite_async/
+
+  publish_drift_sqlite_async:
+    permissions:
+      id-token: write
+    if: "${{ startsWith(github.ref_name, 'drift_sqlite_async-') }}"
+    uses: dart-lang/setup-dart/.github/workflows/publish.yml@v1
+    with:
+      working-directory: packages/drift_sqlite_async/

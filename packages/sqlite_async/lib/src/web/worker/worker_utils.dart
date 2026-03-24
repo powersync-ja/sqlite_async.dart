@@ -90,8 +90,12 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         final parameters = proto.deserializeParameters(
             message.rawParameters, message.typeInfo);
         if (database.autocommit) {
-          throw SqliteException(0,
-              "Transaction rolled back by earlier statement. Cannot execute: $sql");
+          throw SqliteException(
+            extendedResultCode: 0,
+            message:
+                'Transaction rolled back by earlier statement. Cannot execute',
+            causingStatement: sql,
+          );
         }
         database.execute(sql, parameters);
       case CustomDatabaseMessageKind.updateSubscriptionManagement:

@@ -76,7 +76,7 @@ class SyncSqliteConnection with SqliteQueries implements SqliteConnection {
   @override
   Future<void> close() async {
     _closed = true;
-    return db.dispose();
+    return db.close();
   }
 
   @override
@@ -160,7 +160,7 @@ final class _UnsafeSyncContext extends UnscopedContext {
               parameters: parameters);
         }
       } finally {
-        statement.dispose();
+        statement.close();
       }
     }, sql: sql);
   }

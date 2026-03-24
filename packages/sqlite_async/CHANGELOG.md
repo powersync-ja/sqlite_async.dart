@@ -1,3 +1,8 @@
+## 0.14.0-wip
+
+- Support versions 3.x of the `sqlite3` package and 0.6.0 of `sqlite3_web`.
+- Remove the `sqlite3_open.dart` library, SQLite libraries are no longer loaded through Dart.
+
 ## 0.13.1
 
  - Add `executeMultiple` to run multiple statements not using parameters.

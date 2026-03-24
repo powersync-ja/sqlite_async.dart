@@ -1,3 +1,7 @@
+## 0.3.0-wip
+
+- Support versions 3.x of the `sqlite3` package.
+
 ## 0.2.6
 
 - Support latest `sqlite_async`.

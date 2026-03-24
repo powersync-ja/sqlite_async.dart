@@ -32,12 +32,7 @@ explaining why these features are important for using SQLite.
 dart pub add sqlite_async
 ```
 
-For flutter applications, additionally add `sqlite3_flutter_libs` to include the native SQLite
-library.
-
-For other platforms, see the [sqlite3 package docs](https://pub.dev/packages/sqlite3#supported-platforms).
-
-Web is currently not supported.
+Running this on the web requires additional setup, see [web](#web).
 
 ## Getting Started
 

@@ -134,7 +134,7 @@ List<SqliteBenchmark> benchmarks = [
           stmt.execute(params);
         }
       } finally {
-        stmt.dispose();
+        stmt.close();
       }
     });
   }),
@@ -157,7 +157,7 @@ List<SqliteBenchmark> benchmarks = [
           stmt.execute(myParams);
         }
       } finally {
-        stmt.dispose();
+        stmt.close();
       }
     });
   }, enabled: false)
