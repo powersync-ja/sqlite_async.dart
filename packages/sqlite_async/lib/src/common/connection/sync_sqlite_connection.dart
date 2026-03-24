@@ -14,7 +14,7 @@ import '../../impl/context.dart';
 /// implementation using a synchronous SQLite connection
 class SyncSqliteConnection with SqliteQueries implements SqliteConnection {
   final CommonDatabase db;
-  late Mutex mutex;
+  final Mutex mutex;
   @override
   late final Stream<UpdateNotification> updates;
 
@@ -26,10 +26,9 @@ class SyncSqliteConnection with SqliteQueries implements SqliteConnection {
   /// [SqliteOptions.profileQueries] for details.
   final bool profileQueries;
 
-  SyncSqliteConnection(this.db, Mutex m, {bool? profileQueries})
+  SyncSqliteConnection(this.db, this.mutex, {bool? profileQueries})
       : profileQueries =
             profileQueries ?? const SqliteOptions().profileQueries {
-    mutex = m.open();
     updates = db.updates.map(
       (event) {
         return UpdateNotification({event.tableName});

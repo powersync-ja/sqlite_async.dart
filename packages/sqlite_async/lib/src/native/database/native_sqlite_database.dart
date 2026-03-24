@@ -1,47 +1,46 @@
 import 'dart:async';
 
 import 'package:meta/meta.dart';
+import 'package:sqlite3/sqlite3.dart';
+import 'package:sqlite3_connection_pool/sqlite3_connection_pool.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
-import 'package:sqlite_async/src/native/database/connection_pool.dart';
-import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
-import 'package:sqlite_async/src/native/native_isolate_connection_factory.dart';
-import 'package:sqlite_async/src/native/native_isolate_mutex.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 
+import '../../common/timeouts.dart';
+import '../../impl/context.dart';
+import 'leased_context.dart';
+
 /// A SQLite database instance.
 ///
-/// Use one instance per database file. If multiple instances are used, update
-/// notifications may not trigger, and calls may fail with "SQLITE_BUSY" errors.
+/// It is safe to use multiple instances backed by the same database file. In
+/// that case, update notifications and connection locks are automatically
+/// shared between instances. This also works if the instances are opened on
+/// different
 class SqliteDatabaseImpl
     with SqliteQueries, SqliteDatabaseMixin
     implements SqliteDatabase {
   @override
   final DefaultSqliteOpenFactory openFactory;
+  late final Future<SqliteConnectionPool> _pool =
+      _openNativePool(openFactory, maxReaders);
+  bool _isClosed = false;
 
   @override
-  late Stream<UpdateNotification> updates;
-
-  @override
-  int maxReaders;
-
-  /// Global lock to serialize write transactions.
-  final SimpleMutex mutex = SimpleMutex();
+  final int maxReaders;
 
   @override
   @protected
-  // ignore: invalid_use_of_protected_member
-  late Future<void> isInitialized = _internalConnection.isInitialized;
+  Future<void> get isInitialized => _pool;
 
-  late final SqliteConnectionImpl _internalConnection;
-  late final SqliteConnectionPool _pool;
-
-  final StreamController<UpdateNotification> updatesController =
-      StreamController.broadcast();
+  @override
+  late final Stream<UpdateNotification> updates = Stream.fromFuture(_pool)
+      .asyncExpand((pool) => pool.updatedTables
+          .map((changedTables) => UpdateNotification(changedTables.toSet())));
 
   /// Open a SqliteDatabase.
   ///
@@ -73,45 +72,31 @@ class SqliteDatabaseImpl
   ///  4. Creating temporary views or triggers.
   SqliteDatabaseImpl.withFactory(AbstractDefaultSqliteOpenFactory factory,
       {this.maxReaders = SqliteDatabase.defaultMaxReaders})
-      : openFactory = factory as DefaultSqliteOpenFactory {
-    _internalConnection = _openPrimaryConnection(debugName: 'sqlite-writer');
-    _pool = SqliteConnectionPool(openFactory,
-        writeConnection: _internalConnection,
-        debugName: 'sqlite',
-        maxReaders: maxReaders,
-        mutex: mutex);
-    // Updates get updates from the pool
-    updates = _pool.updates;
-  }
+      : openFactory = factory as DefaultSqliteOpenFactory;
 
   @override
   bool get closed {
-    return _pool.closed;
+    return _isClosed;
   }
 
   /// Returns true if the _write_ connection is in auto-commit mode
   /// (no active transaction).
   @override
-  Future<bool> getAutoCommit() {
-    return _pool.getAutoCommit();
-  }
-
-  /// A connection factory that can be passed to different isolates.
-  ///
-  /// Use this to access the database in background isolates.
-  @override
-  IsolateConnectionFactoryImpl isolateConnectionFactory() {
-    return IsolateConnectionFactoryImpl(
-        openFactory: openFactory,
-        mutex: mutex.shared,
-        upstreamPort: _pool.upstreamPort!);
+  Future<bool> getAutoCommit() async {
+    final pool = await _pool;
+    final writer = await pool.writer();
+    try {
+      return await writer.autocommit;
+    } finally {
+      writer.returnLease();
+    }
   }
 
   @override
   Future<void> close() async {
-    await _pool.close();
-    updatesController.close();
-    await mutex.close();
+    _isClosed = true;
+    final pool = await _pool;
+    pool.close();
   }
 
   /// Open a read-only transaction.
@@ -126,8 +111,20 @@ class SqliteDatabaseImpl
   @override
   Future<T> readTransaction<T>(
       Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout}) {
-    return _pool.readTransaction(callback, lockTimeout: lockTimeout);
+      {Duration? lockTimeout}) async {
+    final pool = await _pool;
+    final reader = await pool.reader(abortSignal: lockTimeout?.asTimeout);
+    try {
+      // We pretend this is a write context to be able to use the connection
+      // helper. This doesn't matter much since attempting to do a write here
+      // would throw.
+      return await ScopedWriteContext.assumeWriteLock(LeasedContext(reader),
+          (context) {
+        return context.writeTransaction(callback);
+      });
+    } finally {
+      reader.returnLease();
+    }
   }
 
   /// Open a read-write transaction.
@@ -141,42 +138,96 @@ class SqliteDatabaseImpl
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout}) {
-    return _pool.writeTransaction(callback, lockTimeout: lockTimeout);
+    return writeLock((context) {
+      return context.writeTransaction(callback);
+    }, lockTimeout: lockTimeout);
   }
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
-    return _pool.readLock(callback,
-        lockTimeout: lockTimeout, debugContext: debugContext);
+      {Duration? lockTimeout, String? debugContext}) async {
+    final pool = await _pool;
+    final reader = await pool.reader(abortSignal: lockTimeout?.asTimeout);
+    try {
+      return await ScopedReadContext.assumeReadLock(
+          LeasedContext(reader), callback);
+    } finally {
+      reader.returnLease();
+    }
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
-    return _pool.writeLock(callback,
-        lockTimeout: lockTimeout, debugContext: debugContext);
-  }
-
-  SqliteConnectionImpl _openPrimaryConnection({String? debugName}) {
-    return SqliteConnectionImpl(
-        primary: true,
-        debugName: debugName,
-        mutex: mutex,
-        readOnly: false,
-        openFactory: openFactory);
+      {Duration? lockTimeout, String? debugContext}) async {
+    final pool = await _pool;
+    final reader = await pool.writer(abortSignal: lockTimeout?.asTimeout);
+    try {
+      return await ScopedWriteContext.assumeWriteLock(
+          LeasedContext(reader), callback);
+    } finally {
+      reader.returnLease();
+    }
   }
 
   @override
-  Future<void> refreshSchema() {
-    return _pool.refreshSchema();
+  Future<void> refreshSchema() async {
+    await withAllConnections((writer, readers) async {
+      await Future.wait([
+        writer.execute("PRAGMA table_info('sqlite_master')"),
+        for (final reader in readers)
+          reader.getAll("PRAGMA table_info('sqlite_master')")
+      ]);
+    });
   }
 
   @override
   Future<T> withAllConnections<T>(
       Future<T> Function(
               SqliteWriteContext writer, List<SqliteReadContext> readers)
-          block) {
-    return _pool.withAllConnections(block);
+          block) async {
+    final pool = await _pool;
+    final exclusiveAccess = await pool.exclusiveAccess();
+
+    final writer = ScopedWriteContext(LeasedContext(exclusiveAccess.writer));
+    final readers = [
+      for (final reader in exclusiveAccess.readers)
+        ScopedReadContext(LeasedContext(reader))
+    ];
+    try {
+      return await block(writer, readers);
+    } finally {
+      writer.invalidate();
+      for (final reader in readers) {
+        reader.invalidate();
+      }
+
+      exclusiveAccess.close();
+    }
+  }
+
+  static Future<SqliteConnectionPool> _openNativePool(
+    DefaultSqliteOpenFactory openFactory,
+    int maxReaders,
+  ) {
+    // We want to open pools asynchronously since running pragma statements as
+    // part of openFactory.open might do IO, and
+    return SqliteConnectionPool.openAsync(
+      name: openFactory.path,
+      openConnections: () {
+        Database openConnection({required bool isWriter}) {
+          return openFactory.open(
+            SqliteOpenOptions(primaryConnection: isWriter, readOnly: !isWriter),
+          ) as Database;
+        }
+
+        return PoolConnections(
+          openConnection(isWriter: true),
+          [
+            for (var i = 0; i < maxReaders; i++) openConnection(isWriter: false)
+          ],
+          // TODO: Option to enable prepared statement cache.
+        );
+      },
+    );
   }
 }

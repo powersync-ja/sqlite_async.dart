@@ -2,7 +2,6 @@ import 'package:sqlite_async/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite3_common.dart';
 
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
-import 'package:sqlite_async/src/native/database/native_sqlite_connection_impl.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 
@@ -48,13 +47,8 @@ class DefaultSqliteOpenFactory extends AbstractDefaultSqliteOpenFactory {
 
   @override
   SqliteConnection openConnection(SqliteOpenOptions options) {
-    return SqliteConnectionImpl(
-      primary: options.primaryConnection,
-      readOnly: options.readOnly,
-      mutex: options.mutex!,
-      debugName: options.debugName,
-      updates: options.updates,
-      openFactory: this,
-    );
+    // TODO: Refactor open factories to remove this method.
+    throw UnsupportedError(
+        'openConnection() is not supported on native platforms, open factories can only open pools.');
   }
 }

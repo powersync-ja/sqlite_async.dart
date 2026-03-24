@@ -8,6 +8,7 @@ import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import 'package:sqlite_async/web.dart';
+import '../common/timeouts.dart';
 import '../impl/context.dart';
 import 'protocol.dart';
 import 'web_mutex.dart';
@@ -63,13 +64,6 @@ class WebDatabase
 
   @override
 
-  /// Not relevant for web.
-  Never isolateConnectionFactory() {
-    throw UnimplementedError();
-  }
-
-  @override
-
   /// Not supported on web. There is only 1 connection.
   int get maxReaders => throw UnimplementedError();
 
@@ -86,7 +80,7 @@ class WebDatabase
       connectPort: endpoint.$1,
       connectName: endpoint.$2,
       lockName: switch (_mutex) {
-        MutexImpl(:final resolvedIdentifier) => resolvedIdentifier,
+        WebMutexImpl(:final resolvedIdentifier) => resolvedIdentifier,
         _ => null,
       },
     );
@@ -158,12 +152,7 @@ class WebDatabase
         }
       });
     } else {
-      final abortTrigger = switch (lockTimeout) {
-        null => null,
-        final duration => Future.delayed(duration),
-      };
-
-      return await _database.requestLock(abortTrigger: abortTrigger,
+      return await _database.requestLock(abortTrigger: lockTimeout?.asTimeout,
           (token) async {
         final context = _UnscopedContext(this, token);
         try {
@@ -222,12 +211,6 @@ final class _UnscopedContext extends UnscopedContext {
   }
 
   @override
-  Future<Row> get(String sql, [List<Object?> parameters = const []]) async {
-    final results = await getAll(sql, parameters);
-    return results.first;
-  }
-
-  @override
   Future<ResultSet> getAll(String sql,
       [List<Object?> parameters = const []]) async {
     return _task.timeAsync(
@@ -251,13 +234,6 @@ final class _UnscopedContext extends UnscopedContext {
   @override
   Future<bool> getAutoCommit() async {
     return _database.getAutoCommit();
-  }
-
-  @override
-  Future<Row?> getOptional(String sql,
-      [List<Object?> parameters = const []]) async {
-    final results = await getAll(sql, parameters);
-    return results.firstOrNull;
   }
 
   @override

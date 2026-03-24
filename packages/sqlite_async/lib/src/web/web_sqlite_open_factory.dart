@@ -78,7 +78,8 @@ class DefaultSqliteOpenFactory
 
     final mutex = hasSqliteWebMutex
         ? null
-        : MutexImpl(identifier: path); // Use the DB path as a mutex identifier
+        : WebMutexImpl(
+            identifier: path); // Use the DB path as a mutex identifier
 
     BroadcastUpdates? broadcastUpdates;
     if (connection.access != AccessMode.throughSharedWorker &&

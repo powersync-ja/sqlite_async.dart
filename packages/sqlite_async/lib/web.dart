@@ -13,6 +13,7 @@ import 'sqlite3_common.dart';
 import 'sqlite_async.dart';
 import 'src/web/database.dart';
 import 'src/web/update_notifications.dart';
+import 'src/web/web_mutex.dart';
 
 /// An endpoint that can be used, by any running JavaScript context in the same
 /// website, to connect to an existing [WebSqliteConnection].
@@ -113,7 +114,7 @@ abstract class WebSqliteConnection implements SqliteConnection {
     final database = WebDatabase(
       rawSqlite,
       switch (endpoint.lockName) {
-        var lock? => Mutex(identifier: lock),
+        var lock? => WebMutexImpl(identifier: lock),
         null => null,
       },
       profileQueries: false,

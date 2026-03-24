@@ -11,7 +11,7 @@ final testUtils = TestUtils();
 void main() {
   group('Shared Mutex Tests', () {
     test('Queue exclusive operations', () async {
-      final m = Mutex();
+      final m = Mutex.simple();
       final collection = List.generate(10, (index) => index);
       final results = <int>[];
 
@@ -33,7 +33,7 @@ void main() {
   });
 
   test('Timeout should throw a TimeoutException', () async {
-    final m = Mutex();
+    final m = Mutex.simple();
     m.lock(() async {
       await Future.delayed(Duration(milliseconds: 300));
     });
@@ -48,7 +48,7 @@ void main() {
   });
 
   test('In-time timeout should function normally', () async {
-    final m = Mutex();
+    final m = Mutex.simple();
     final results = [];
     m.lock(() async {
       await Future.delayed(Duration(milliseconds: 100));
@@ -63,8 +63,8 @@ void main() {
   });
 
   test('Different Mutex instances should cause separate locking', () async {
-    final m1 = Mutex();
-    final m2 = Mutex();
+    final m1 = Mutex.simple();
+    final m2 = Mutex.simple();
 
     final results = [];
     final p1 = m1.lock(() async {

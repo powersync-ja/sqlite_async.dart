@@ -23,6 +23,19 @@ abstract base class UnscopedContext implements SqliteReadContext {
   UnscopedContext interceptOutermostTransaction() {
     return this;
   }
+
+  @override
+  Future<Row> get(String sql, [List<Object?> parameters = const []]) async {
+    final results = await getAll(sql, parameters);
+    return results.first;
+  }
+
+  @override
+  Future<Row?> getOptional(String sql,
+      [List<Object?> parameters = const []]) async {
+    final results = await getAll(sql, parameters);
+    return results.firstOrNull;
+  }
 }
 
 /// A view over an [UnscopedContext] implementing [SqliteReadContext].
