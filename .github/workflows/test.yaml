@@ -79,7 +79,7 @@ jobs:
           path: |
             ${{ env.PUB_CACHE }}
             pubspec.lock
-          key: dart-deps-${{ matrix.dart-sdk }}-${{ hashFiles('pubspec.yaml') }}
+          key: dart-deps-${{ needs.analyze.outputs.dart-version }}-${{ hashFiles('pubspec.yaml') }}
           # Should be created by analyze run
           fail-on-cache-miss: true
           enableCrossOsArchive: true
