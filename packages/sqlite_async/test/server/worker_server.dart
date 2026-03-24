@@ -18,6 +18,12 @@ Future<void> hybridMain(StreamChannel<Object?> channel) async {
         'sqlite3.wasm file should be present in the ./assets folder');
   }
 
+  final workerPath = p.join(directory, 'db_worker.js');
+  if (!(await File(workerPath).exists())) {
+    throw AssertionError(
+        'db_worker.js should be present in the ./assets folder. Run dart compile js -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart');
+  }
+
   final server = await HttpServer.bind('localhost', 0);
 
   final handler = const Pipeline()

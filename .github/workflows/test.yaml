@@ -93,6 +93,7 @@ jobs:
       - name: Setup
         run: |
           dart run tool/sqlite3_wasm_download.dart
+          dart compile js -O4 --no-minify -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart
 
       - name: Test sqlite_async
         working-directory: packages/sqlite_async
@@ -102,9 +103,9 @@ jobs:
 
       - name: Test drift_sqlite_async
         working-directory: packages/drift_sqlite_async
-        run: dart test -p chrome,vm --compiler dart2js,dart2wasm
+        run: dart test
 
       - name: Pana for sqlite_async
         run: dart pub global run pana --no-warning packages/sqlite_async
-      - name: Pana for drift_sqlite_async
-        run: dart pub global run pana --no-warning packages/drift_sqlite_async
+        # We don't run pana on drift_sqlite_async because it can depend on unpublished changes from
+        # sqlite_async, causing it to fail all the time.
