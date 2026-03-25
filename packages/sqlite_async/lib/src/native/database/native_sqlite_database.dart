@@ -1,6 +1,10 @@
 import 'dart:async';
+import 'dart:collection';
+import 'dart:developer';
+import 'dart:ffi';
 
 import 'package:meta/meta.dart';
+import 'package:sqlite3/common.dart';
 import 'package:sqlite3/sqlite3.dart';
 import 'package:sqlite3_connection_pool/sqlite3_connection_pool.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
@@ -14,7 +18,8 @@ import 'package:sqlite_async/src/update_notification.dart';
 import '../../common/mutex.dart';
 import '../../common/timeouts.dart';
 import '../../impl/context.dart';
-import 'leased_context.dart';
+import '../../utils/profiler.dart';
+import 'worker.dart';
 
 /// A SQLite database instance.
 ///
@@ -38,6 +43,8 @@ class SqliteDatabaseImpl
   @override
   @protected
   Future<void> get isInitialized => _pool;
+
+  final Queue<IsolateWorker> _workers;
 
   @override
   late final Stream<UpdateNotification> updates = Stream.fromFuture(_pool)
@@ -74,7 +81,8 @@ class SqliteDatabaseImpl
   ///  4. Creating temporary views or triggers.
   SqliteDatabaseImpl.withFactory(AbstractDefaultSqliteOpenFactory factory,
       {this.maxReaders = SqliteDatabase.defaultMaxReaders})
-      : openFactory = factory as DefaultSqliteOpenFactory;
+      : openFactory = factory as DefaultSqliteOpenFactory,
+        _workers = ListQueue(maxReaders + 1);
 
   @override
   bool get closed {
@@ -115,21 +123,14 @@ class SqliteDatabaseImpl
   Future<T> readTransaction<T>(
       Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout}) async {
-    final pool = await _pool;
-    return _runInLockContext(() async {
-      final reader = await pool.reader(abortSignal: lockTimeout?.asTimeout);
-      try {
-        // We pretend this is a write context to be able to use the connection
-        // helper. This doesn't matter much since attempting to do a write here
-        // would throw.
-        return await ScopedWriteContext.assumeWriteLock(LeasedContext(reader),
-            (context) {
-          return context.writeTransaction(callback);
-        });
-      } finally {
-        reader.returnLease();
-      }
-    });
+    return _useConnection(
+      writer: false,
+      lockTimeout: lockTimeout,
+      debugContext: 'readTransaction',
+      (context) {
+        return _transactionInLease(context, callback);
+      },
+    );
   }
 
   /// Open a read-write transaction.
@@ -143,37 +144,69 @@ class SqliteDatabaseImpl
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout}) {
-    return writeLock((context) {
-      return context.writeTransaction(callback);
-    }, lockTimeout: lockTimeout);
+    return _useConnection(
+      writer: true,
+      lockTimeout: lockTimeout,
+      debugContext: 'writeTransaction',
+      (context) {
+        return _transactionInLease(context, callback);
+      },
+    );
+  }
+
+  Future<T> _transactionInLease<T>(
+    _LeasedContext context,
+    Future<T> Function(SqliteWriteContext tx) callback,
+  ) {
+    final ctx = ScopedWriteContext(context);
+    return ctx.writeTransaction(callback).whenComplete(ctx.invalidate);
   }
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
-    final pool = await _pool;
-    return _runInLockContext(() async {
-      final reader = await pool.reader(abortSignal: lockTimeout?.asTimeout);
-      try {
-        return await ScopedReadContext.assumeReadLock(
-            LeasedContext(reader), callback);
-      } finally {
-        reader.returnLease();
-      }
-    });
+    return _useConnection(
+      writer: false,
+      debugContext: 'readLock',
+      lockTimeout: lockTimeout,
+      (context) => ScopedReadContext.assumeReadLock(context, callback),
+    );
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
-    final pool = await _pool;
+    return _useConnection(
+      writer: true,
+      debugContext: 'writeLock',
+      lockTimeout: lockTimeout,
+      (context) => ScopedWriteContext.assumeWriteLock(context, callback),
+    );
+  }
+
+  Future<T> _useConnection<T>(
+    Future<T> Function(_LeasedContext context) callback, {
+    required bool writer,
+    Duration? lockTimeout,
+    String? debugContext,
+  }) {
+    final timeout = lockTimeout?.asTimeout;
     return _runInLockContext(() async {
-      final reader = await pool.writer(abortSignal: lockTimeout?.asTimeout);
+      final pool = await _pool;
+      final connection = await (writer
+          ? pool.writer(abortSignal: timeout)
+          : pool.reader(abortSignal: timeout));
+
       try {
-        return await ScopedWriteContext.assumeWriteLock(
-            LeasedContext(reader), callback);
+        final context = _LeasedContext(
+            inner: connection, pool: this, worker: await _takeIsolateWorker());
+        try {
+          return await callback(context);
+        } finally {
+          context.close();
+        }
       } finally {
-        reader.returnLease();
+        connection.returnLease();
       }
     });
   }
@@ -198,23 +231,66 @@ class SqliteDatabaseImpl
     final pool = await _pool;
     return _runInLockContext(() async {
       final exclusiveAccess = await pool.exclusiveAccess();
-
-      final writer = ScopedWriteContext(LeasedContext(exclusiveAccess.writer));
-      final readers = [
-        for (final reader in exclusiveAccess.readers)
-          ScopedReadContext(LeasedContext(reader))
-      ];
       try {
-        return await block(writer, readers);
-      } finally {
-        writer.invalidate();
-        for (final reader in readers) {
-          reader.invalidate();
-        }
+        final writeExecutor = _LeasedContext(
+          inner: exclusiveAccess.writer,
+          pool: this,
+          worker: await _takeIsolateWorker(),
+        );
+        final readExecutors = [
+          for (final reader in exclusiveAccess.readers)
+            _LeasedContext(
+              inner: reader,
+              pool: this,
+              worker: await _takeIsolateWorker(),
+            )
+        ];
+        final writer = ScopedWriteContext(writeExecutor);
+        final readers = [
+          for (final reader in readExecutors) ScopedReadContext(reader)
+        ];
 
+        try {
+          return await block(writer, readers);
+        } finally {
+          writeExecutor.close();
+          for (final reader in readExecutors) {
+            reader.close();
+          }
+
+          writer.invalidate();
+          for (final reader in readers) {
+            reader.invalidate();
+          }
+        }
+      } finally {
         exclusiveAccess.close();
       }
     });
+  }
+
+  @override
+  Future<ResultSet> execute(String sql,
+      [List<Object?> parameters = const []]) async {
+    return _useConnection(writer: true, (ctx) async {
+      return ctx.execute(sql, parameters);
+    });
+  }
+
+  Future<IsolateWorker> _takeIsolateWorker() async {
+    if (_workers.isEmpty) {
+      return await IsolateWorker.spawn();
+    } else {
+      return _workers.removeFirst();
+    }
+  }
+
+  void _returnIsolateWorker(IsolateWorker worker) {
+    if (_isClosed) {
+      worker.close();
+    } else {
+      _workers.addLast(worker);
+    }
   }
 
   void _checkNotLocked() {
@@ -254,5 +330,134 @@ class SqliteDatabaseImpl
         );
       },
     );
+  }
+}
+
+final class _LeasedContext extends UnscopedContext {
+  final AsyncConnection inner;
+  final SqliteDatabaseImpl pool;
+  final TimelineTask? task;
+  final IsolateWorker worker;
+
+  /// Whether to throw an exception if we're about to execute a statement if
+  /// the connection is in autocommit mode.
+  final bool verifyInTransaction;
+
+  @override
+  bool closed = false;
+
+  _LeasedContext({
+    required this.inner,
+    required this.pool,
+    required this.worker,
+    this.task,
+    this.verifyInTransaction = false,
+  });
+
+  @override
+  UnscopedContext interceptOutermostTransaction() {
+    return _LeasedContext(
+      inner: inner,
+      pool: pool,
+      worker: worker,
+      task: task,
+      verifyInTransaction: true,
+    );
+  }
+
+  void close() {
+    closed = true;
+    pool._returnIsolateWorker(worker);
+  }
+
+  Future<T> _runOnWorker<T>(FutureOr<T> Function(PoolConnection db) compute) {
+    return inner.unsafeAccess((connection) {
+      final ptr = connection.unsafePointer.address;
+      final checkInTransaction = verifyInTransaction;
+
+      return worker.run(_wrapDbClosure(ptr, checkInTransaction, compute));
+    });
+  }
+
+  @override
+  Future<T> computeWithDatabase<T>(
+      FutureOr<T> Function(CommonDatabase db) compute) {
+    return _runOnWorker((db) => compute(db.database));
+  }
+
+  @override
+  Future<ResultSet> execute(String sql, List<Object?> parameters) {
+    return task.timeAsync('execute', sql: sql, parameters: parameters, () {
+      return _runOnWorker(_select(sql, parameters));
+    });
+  }
+
+  @override
+  Future<void> executeBatch(String sql, List<dynamic> parameterSets) {
+    // TODO: Make parameterSets a List<List<Object?>>
+    return task.timeAsync('executeMultiple', sql: sql, () {
+      return _runOnWorker(_executeBatch(sql, parameterSets));
+    });
+  }
+
+  @override
+  Future<void> executeMultiple(String sql) {
+    return task.timeAsync('executeMultiple', sql: sql, () {
+      return _runOnWorker(_selectMultiple(sql));
+    });
+  }
+
+  @override
+  Future<ResultSet> getAll(String sql, [List<Object?> parameters = const []]) {
+    return execute(sql, parameters);
+  }
+
+  @override
+  Future<bool> getAutoCommit() {
+    return inner.autocommit;
+  }
+
+  static void _checkInTransaction(CommonDatabase db) {
+    if (db.autocommit) {
+      throw SqliteException(
+        extendedResultCode: 0,
+        message: 'Transaction rolled back by earlier statement',
+      );
+    }
+  }
+
+  // Static helper methods to create closures we can send across isolates.
+
+  static T Function() _wrapDbClosure<T>(
+      int ptr, bool checkInTransaction, T Function(PoolConnection) inner) {
+    return () {
+      final conn = PoolConnection.unsafeFromPointer(Pointer.fromAddress(ptr));
+      if (checkInTransaction) _checkInTransaction(conn.database);
+
+      return inner(conn);
+    };
+  }
+
+  static ResultSet Function(PoolConnection) _select(
+      String sql, List<Object?> parameters) {
+    return (db) => db.select(sql, parameters);
+  }
+
+  static void Function(PoolConnection) _executeBatch(
+      String sql, List<dynamic> parameterSets) {
+    return (conn) {
+      final stmt = conn.database.prepare(sql, checkNoTail: true);
+      try {
+        for (final instantiation in parameterSets) {
+          stmt.execute(instantiation);
+        }
+      } finally {
+        stmt.close();
+      }
+    };
+  }
+
+  static void Function(PoolConnection) _selectMultiple(String sql) {
+    return (db) => db.execute(sql);
   }
 }
