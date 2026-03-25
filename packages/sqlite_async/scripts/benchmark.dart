@@ -49,10 +49,10 @@ List<SqliteBenchmark> benchmarks = [
   }, maxBatchSize: 200000, enabled: false),
   SqliteBenchmark('writeLock in isolate',
       (SqliteDatabase db, List<List<String>> parameters) async {
-    var factory = db.isolateConnectionFactory();
+    var path = db.openFactory.path;
     var len = parameters.length;
     await Isolate.run(() async {
-      final db = factory.open();
+      final db = SqliteDatabase(path: path);
       for (var i = 0; i < len; i++) {
         await db.writeLock((tx) async {});
       }
@@ -89,9 +89,9 @@ List<SqliteBenchmark> benchmarks = [
   }, maxBatchSize: 1000),
   SqliteBenchmark('Insert: executeBatch in isolate',
       (SqliteDatabase db, List<List<String>> parameters) async {
-    var factory = db.isolateConnectionFactory();
+    var path = db.openFactory.path;
     await Isolate.run(() async {
-      final db = factory.open();
+      final db = SqliteDatabase(path: path);
       await db.executeBatch(
           'INSERT INTO customers(name, email) VALUES(?, ?)', parameters);
       await db.close();
@@ -99,9 +99,9 @@ List<SqliteBenchmark> benchmarks = [
   }, maxBatchSize: 20000, enabled: true),
   SqliteBenchmark('Insert: direct write in isolate',
       (SqliteDatabase db, List<List<String>> parameters) async {
-    var factory = db.isolateConnectionFactory();
+    var path = db.openFactory.path;
     await Isolate.run(() async {
-      final db = factory.open();
+      final db = SqliteDatabase(path: path);
       for (var params in parameters) {
         await db.execute(
             'INSERT INTO customers(name, email) VALUES(?, ?)', params);

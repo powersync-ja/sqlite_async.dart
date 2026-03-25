@@ -11,6 +11,7 @@ import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 
+import '../../common/mutex.dart';
 import '../../common/timeouts.dart';
 import '../../impl/context.dart';
 import 'leased_context.dart';
@@ -29,6 +30,7 @@ class SqliteDatabaseImpl
   late final Future<SqliteConnectionPool> _pool =
       _openNativePool(openFactory, maxReaders);
   bool _isClosed = false;
+  final _lockGuard = Object();
 
   @override
   final int maxReaders;
@@ -83,6 +85,7 @@ class SqliteDatabaseImpl
   /// (no active transaction).
   @override
   Future<bool> getAutoCommit() async {
+    _checkNotLocked();
     final pool = await _pool;
     final writer = await pool.writer();
     try {
@@ -113,18 +116,20 @@ class SqliteDatabaseImpl
       Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout}) async {
     final pool = await _pool;
-    final reader = await pool.reader(abortSignal: lockTimeout?.asTimeout);
-    try {
-      // We pretend this is a write context to be able to use the connection
-      // helper. This doesn't matter much since attempting to do a write here
-      // would throw.
-      return await ScopedWriteContext.assumeWriteLock(LeasedContext(reader),
-          (context) {
-        return context.writeTransaction(callback);
-      });
-    } finally {
-      reader.returnLease();
-    }
+    return _runInLockContext(() async {
+      final reader = await pool.reader(abortSignal: lockTimeout?.asTimeout);
+      try {
+        // We pretend this is a write context to be able to use the connection
+        // helper. This doesn't matter much since attempting to do a write here
+        // would throw.
+        return await ScopedWriteContext.assumeWriteLock(LeasedContext(reader),
+            (context) {
+          return context.writeTransaction(callback);
+        });
+      } finally {
+        reader.returnLease();
+      }
+    });
   }
 
   /// Open a read-write transaction.
@@ -147,30 +152,35 @@ class SqliteDatabaseImpl
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     final pool = await _pool;
-    final reader = await pool.reader(abortSignal: lockTimeout?.asTimeout);
-    try {
-      return await ScopedReadContext.assumeReadLock(
-          LeasedContext(reader), callback);
-    } finally {
-      reader.returnLease();
-    }
+    return _runInLockContext(() async {
+      final reader = await pool.reader(abortSignal: lockTimeout?.asTimeout);
+      try {
+        return await ScopedReadContext.assumeReadLock(
+            LeasedContext(reader), callback);
+      } finally {
+        reader.returnLease();
+      }
+    });
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext}) async {
     final pool = await _pool;
-    final reader = await pool.writer(abortSignal: lockTimeout?.asTimeout);
-    try {
-      return await ScopedWriteContext.assumeWriteLock(
-          LeasedContext(reader), callback);
-    } finally {
-      reader.returnLease();
-    }
+    return _runInLockContext(() async {
+      final reader = await pool.writer(abortSignal: lockTimeout?.asTimeout);
+      try {
+        return await ScopedWriteContext.assumeWriteLock(
+            LeasedContext(reader), callback);
+      } finally {
+        reader.returnLease();
+      }
+    });
   }
 
   @override
   Future<void> refreshSchema() async {
+    _checkNotLocked();
     await withAllConnections((writer, readers) async {
       await Future.wait([
         writer.execute("PRAGMA table_info('sqlite_master')"),
@@ -186,23 +196,37 @@ class SqliteDatabaseImpl
               SqliteWriteContext writer, List<SqliteReadContext> readers)
           block) async {
     final pool = await _pool;
-    final exclusiveAccess = await pool.exclusiveAccess();
+    return _runInLockContext(() async {
+      final exclusiveAccess = await pool.exclusiveAccess();
 
-    final writer = ScopedWriteContext(LeasedContext(exclusiveAccess.writer));
-    final readers = [
-      for (final reader in exclusiveAccess.readers)
-        ScopedReadContext(LeasedContext(reader))
-    ];
-    try {
-      return await block(writer, readers);
-    } finally {
-      writer.invalidate();
-      for (final reader in readers) {
-        reader.invalidate();
+      final writer = ScopedWriteContext(LeasedContext(exclusiveAccess.writer));
+      final readers = [
+        for (final reader in exclusiveAccess.readers)
+          ScopedReadContext(LeasedContext(reader))
+      ];
+      try {
+        return await block(writer, readers);
+      } finally {
+        writer.invalidate();
+        for (final reader in readers) {
+          reader.invalidate();
+        }
+
+        exclusiveAccess.close();
       }
+    });
+  }
 
-      exclusiveAccess.close();
+  void _checkNotLocked() {
+    if (Zone.current[_lockGuard] != null) {
+      throw LockError(
+          'Blocked attempt to use connection object in a read/write lock callback.');
     }
+  }
+
+  T _runInLockContext<T>(T Function() inner) {
+    _checkNotLocked();
+    return runZoned(inner, zoneValues: {_lockGuard: true});
   }
 
   static Future<SqliteConnectionPool> _openNativePool(
@@ -210,7 +234,8 @@ class SqliteDatabaseImpl
     int maxReaders,
   ) {
     // We want to open pools asynchronously since running pragma statements as
-    // part of openFactory.open might do IO, and
+    // part of openFactory.open might do IO. openAsync spawn a temporary isolate
+    // for that.
     return SqliteConnectionPool.openAsync(
       name: openFactory.path,
       openConnections: () {

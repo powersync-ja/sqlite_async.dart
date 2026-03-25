@@ -1,6 +1,5 @@
 import 'dart:async';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
@@ -19,31 +18,6 @@ class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
       super.sqliteOptions,
       super.sqlitePath = defaultSqlitePath,
       initStatements});
-
-  @override
-  CommonDatabase open(SqliteOpenOptions options) {
-    final db = super.open(options);
-
-    db.createFunction(
-      functionName: 'test_sleep',
-      argumentCount: const AllowedArgumentCount(1),
-      function: (args) {
-        final millis = args[0] as int;
-        sleep(Duration(milliseconds: millis));
-        return millis;
-      },
-    );
-
-    db.createFunction(
-      functionName: 'test_connection_name',
-      argumentCount: const AllowedArgumentCount(0),
-      function: (args) {
-        return Isolate.current.debugName;
-      },
-    );
-
-    return db;
-  }
 
   @override
   Future<CommonDatabase> openDatabaseForSingleConnection() async {

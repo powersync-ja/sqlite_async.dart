@@ -1,9 +1,7 @@
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:glob/glob.dart';
 import 'package:glob/list_local_fs.dart';
-import 'package:sqlite_async/sqlite3.dart' as sqlite;
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test_api/src/backend/invoker.dart';
@@ -17,24 +15,6 @@ class TestSqliteOpenFactory extends DefaultSqliteOpenFactory {
   @override
   CommonDatabase open(SqliteOpenOptions options) {
     final db = super.open(options);
-
-    db.createFunction(
-      functionName: 'test_sleep',
-      argumentCount: const sqlite.AllowedArgumentCount(1),
-      function: (args) {
-        final millis = args[0] as int;
-        sleep(Duration(milliseconds: millis));
-        return millis;
-      },
-    );
-
-    db.createFunction(
-      functionName: 'test_connection_name',
-      argumentCount: const sqlite.AllowedArgumentCount(0),
-      function: (args) {
-        return Isolate.current.debugName;
-      },
-    );
 
     return db;
   }

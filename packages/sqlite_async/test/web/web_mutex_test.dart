@@ -1,3 +1,6 @@
+@TestOn('browser')
+library;
+
 import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:test/test.dart';
 
