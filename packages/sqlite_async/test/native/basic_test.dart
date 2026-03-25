@@ -167,7 +167,7 @@ void main() {
         // allow it by default.
         await expectLater(() async {
           await db.getAll('SELECT * FROM test_data');
-        }, throwsA(isA<LockError>()));
+        }, throwsA((e) => e is LockError && e.message.contains('tx.getAll')));
       });
 
       await db.readTransaction((tx) async {
@@ -177,7 +177,7 @@ void main() {
         // opens another connection, but doesn't use it.
         await expectLater(() async {
           await db.getAll('SELECT * FROM test_data');
-        }, throwsA(isA<LockError>()));
+        }, throwsA((e) => e is LockError && e.message.contains('tx.getAll')));
       });
     });
 
@@ -189,13 +189,17 @@ void main() {
       await db.writeLock((tx) async {
         await expectLater(() async {
           await db.getOptional('SELECT * FROM test_data');
-        }, throwsA(isA<LockError>()));
+        },
+            throwsA(
+                (e) => e is LockError && e.message.contains('tx.getOptional')));
       });
 
       await db.readLock((tx) async {
         await expectLater(() async {
           await db.getOptional('SELECT * FROM test_data');
-        }, throwsA(isA<LockError>()));
+        },
+            throwsA(
+                (e) => e is LockError && e.message.contains('tx.getOptional')));
       });
     });
 
@@ -246,18 +250,19 @@ void main() {
           'INSERT INTO test_data(description) VALUES(json(?))', ['test3']));
     });
 
-    test('should auto-rollback dangling transactions', () async {
+    test('should error on dangling transactions', () async {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
-      await db.execute('BEGIN');
+      await expectLater(
+          db.execute('BEGIN'), throwsA((e) => e is sqlite.SqliteException));
       expect(await db.getAutoCommit(), isTrue);
 
-      await db.writeLock((ctx) async {
+      await expectLater(db.writeLock((ctx) async {
         expect(await ctx.getAutoCommit(), isTrue);
         await ctx.execute('BEGIN');
         expect(await ctx.getAutoCommit(), isFalse);
-      });
+      }), throwsA(isA<sqlite.SqliteException>()));
 
       expect(await db.getAutoCommit(), isTrue);
     });

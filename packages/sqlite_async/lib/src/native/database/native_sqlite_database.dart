@@ -93,7 +93,7 @@ class SqliteDatabaseImpl
   /// (no active transaction).
   @override
   Future<bool> getAutoCommit() async {
-    _checkNotLocked();
+    _checkNotLocked('getAutoCommit');
     final pool = await _pool;
     final writer = await pool.writer();
     try {
@@ -167,7 +167,7 @@ class SqliteDatabaseImpl
       {Duration? lockTimeout, String? debugContext}) async {
     return _useConnection(
       writer: false,
-      debugContext: 'readLock',
+      debugContext: debugContext ?? 'readLock',
       lockTimeout: lockTimeout,
       (context) => ScopedReadContext.assumeReadLock(context, callback),
     );
@@ -178,7 +178,7 @@ class SqliteDatabaseImpl
       {Duration? lockTimeout, String? debugContext}) async {
     return _useConnection(
       writer: true,
-      debugContext: 'writeLock',
+      debugContext: debugContext ?? 'writeLock',
       lockTimeout: lockTimeout,
       (context) => ScopedWriteContext.assumeWriteLock(context, callback),
     );
@@ -187,11 +187,11 @@ class SqliteDatabaseImpl
   Future<T> _useConnection<T>(
     Future<T> Function(_LeasedContext context) callback, {
     required bool writer,
+    required String debugContext,
     Duration? lockTimeout,
-    String? debugContext,
   }) {
     final timeout = lockTimeout?.asTimeout;
-    return _runInLockContext(() async {
+    return _runInLockContext(debugContext, () async {
       final pool = await _pool;
       final connection = await (writer
           ? pool.writer(abortSignal: timeout)
@@ -213,7 +213,7 @@ class SqliteDatabaseImpl
 
   @override
   Future<void> refreshSchema() async {
-    _checkNotLocked();
+    _checkNotLocked('refreshSchema');
     await withAllConnections((writer, readers) async {
       await Future.wait([
         writer.execute("PRAGMA table_info('sqlite_master')"),
@@ -229,7 +229,7 @@ class SqliteDatabaseImpl
               SqliteWriteContext writer, List<SqliteReadContext> readers)
           block) async {
     final pool = await _pool;
-    return _runInLockContext(() async {
+    return _runInLockContext('withAllConnections', () async {
       final exclusiveAccess = await pool.exclusiveAccess();
       try {
         final writeExecutor = _LeasedContext(
@@ -272,8 +272,10 @@ class SqliteDatabaseImpl
   @override
   Future<ResultSet> execute(String sql,
       [List<Object?> parameters = const []]) async {
-    return _useConnection(writer: true, (ctx) async {
-      return ctx.execute(sql, parameters);
+    return _useConnection(debugContext: 'execute', writer: true, (ctx) async {
+      final rs = await ctx.execute(sql, parameters);
+      await ctx.checkNotInTransaction();
+      return rs;
     });
   }
 
@@ -293,15 +295,21 @@ class SqliteDatabaseImpl
     }
   }
 
-  void _checkNotLocked() {
+  void _checkNotLocked(String? debugContext) {
     if (Zone.current[_lockGuard] != null) {
-      throw LockError(
-          'Blocked attempt to use connection object in a read/write lock callback.');
+      var message =
+          'Blocked attempt to use connection object in a read/write lock callback.';
+      if (debugContext != null) {
+        message +=
+            ' Try using `tx.$debugContext` instead of `db.$debugContext`.';
+      }
+
+      throw LockError(message);
     }
   }
 
-  T _runInLockContext<T>(T Function() inner) {
-    _checkNotLocked();
+  T _runInLockContext<T>(String debugContext, T Function() inner) {
+    _checkNotLocked(debugContext);
     return runZoned(inner, zoneValues: {_lockGuard: true});
   }
 

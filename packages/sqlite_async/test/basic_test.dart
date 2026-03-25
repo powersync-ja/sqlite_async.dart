@@ -60,7 +60,7 @@ void main() {
         await expectLater(() async {
           await db.execute(
               'INSERT INTO test_data(description) VALUES(?)', ['test']);
-        }, throwsA(isA<LockError>()));
+        }, throwsA((e) => e is LockError && e.message.contains('tx.execute')));
       });
     });
 
