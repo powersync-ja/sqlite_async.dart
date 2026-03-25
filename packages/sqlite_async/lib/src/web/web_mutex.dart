@@ -27,7 +27,7 @@ class WebMutexImpl implements Mutex {
       ///      This would add another package dependency to `sqlite_async` which is potentially unnecessary at this point.
       /// An identifier should be supplied for better exclusion.
       : resolvedIdentifier = identifier ??
-            "${DateTime.now().microsecondsSinceEpoch}-${Random().nextDouble()}" {}
+            "${DateTime.now().microsecondsSinceEpoch}-${Random().nextDouble()}";
 
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) {
