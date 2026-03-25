@@ -82,6 +82,8 @@ class SqliteDatabaseImpl
   SqliteDatabaseImpl.withFactory(AbstractDefaultSqliteOpenFactory factory,
       {this.maxReaders = SqliteDatabase.defaultMaxReaders})
       : openFactory = factory as DefaultSqliteOpenFactory,
+        // When the pool is fully used, we'd have all concurrent readers and a
+        // writer operating on the database. Prepare a queue with that capacity.
         _workers = ListQueue(maxReaders + 1);
 
   @override
@@ -439,6 +441,10 @@ final class _LeasedContext extends UnscopedContext {
   static T Function() _wrapDbClosure<T>(
       int ptr, bool checkInTransaction, T Function(PoolConnection) inner) {
     return () {
+      // This pointer is safe: _wrapDbClosure is only called from within an
+      // unsafeAccess block (so there's no concurrency). This call is also
+      // awaited in the outer isolate, so the reference to the PoolConnection
+      // stays alive until we've returned here.
       final conn = PoolConnection.unsafeFromPointer(Pointer.fromAddress(ptr));
       if (checkInTransaction) _checkInTransaction(conn.database);
 

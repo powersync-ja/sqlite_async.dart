@@ -4,6 +4,7 @@
 - Remove the `sqlite3_open.dart` library, SQLite libraries are no longer loaded through Dart.
 - __Breaking__: Rewrite the native connection pool implementation.
   - Remove isolate connection factories. Simply open the same database on another isolate, it's safe to do so now.
+  - It is no longer possible to register user-defined functions in Dart. Extensions providing functions in native code can still be used.
 
 ## 0.13.1
 
