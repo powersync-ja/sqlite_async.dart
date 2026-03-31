@@ -77,6 +77,17 @@ base class WebSqliteOpenFactory extends InternalOpenFactory {
     final workers = await _initialized;
     final connection = await connectToWorker(workers, path);
 
+    final pragmaStatements = this.pragmaStatements(options);
+    if (pragmaStatements.isNotEmpty) {
+      // The default implementation doesn't use pragmas on the web, but a
+      // subclass might.
+      await connection.database.requestLock((token) async {
+        for (final stmt in pragmaStatements) {
+          await connection.database.execute(stmt, token: token);
+        }
+      });
+    }
+
     // When the database is hosted in a shared worker, we don't need a local
     // mutex since that worker will hand out leases for us.
     // Additionally, package:sqlite3_web uses navigator locks internally for
