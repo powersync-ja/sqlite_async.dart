@@ -1,7 +1,6 @@
 import 'dart:async';
 
 import 'package:collection/collection.dart';
-import 'package:meta/meta.dart';
 
 /// Notification of an update to one or more tables, for the purpose of realtime change
 /// notifications.
@@ -45,123 +44,146 @@ class UpdateNotification {
     }
     return false;
   }
+
+  /// Throttle an UpdateNotification stream to trigger a maximum of once
+  /// every [timeout].
+  ///
+  /// Use [addOne] to immediately send one update to the output stream.
+  static Stream<UpdateNotification> throttleStream(
+      Stream<UpdateNotification> input, Duration timeout,
+      {UpdateNotification? addOne}) {
+    return _throttleStream(
+      input: input,
+      timeout: timeout,
+      throttleFirst: true,
+      add: (a, b) => a.union(b),
+      addOne: addOne,
+    );
+  }
+
+  /// Filter an update stream by specific tables.
+  static StreamTransformer<UpdateNotification, UpdateNotification>
+      filterTablesTransformer(Iterable<String> tables) {
+    Set<String> normalized = {for (var table in tables) table.toLowerCase()};
+    return StreamTransformer.fromBind(
+        (source) => source.where((data) => data.containsAny(normalized)));
+  }
 }
 
-extension ThrottleUpdateNotifications on Stream<UpdateNotification> {
-  /// Turns a (likely broadcast) stream of [UpdateNotification]s into a single-
-  /// subscription stream with support for backpressure by accumulating update
-  /// notifications.
-  ///
-  /// If the listener is paused while an update notification is received on this
-  /// stream, we merge it into a growing set of updates that is emitted once the
-  /// listener unpauses.
-  Stream<UpdateNotification> get accumulated =>
-      filterAndAccumulate((_) => true);
+/// Throttles an [input] stream to not emit events more often than with a
+/// frequency of 1/[timeout].
+///
+/// When an event is received and no timeout window is active, it is forwarded
+/// downstream and a timeout window is started. For events received within a
+/// timeout window, [add] is called to fold events. Then when the window
+/// expires, pending events are emitted.
+/// The subscription to the [input] stream is never paused.
+///
+/// When the returned stream is paused, an active timeout window is reset and
+/// restarts after the stream is resumed.
+///
+/// If [addOne] is not null, that event will always be added when the stream is
+/// subscribed to.
+/// When [throttleFirst] is true, a timeout window begins immediately after
+/// listening (so that the first event, apart from [addOne], is emitted no
+/// earlier than after [timeout]).
+Stream<T> _throttleStream<T extends Object>({
+  required Stream<T> input,
+  required Duration timeout,
+  required bool throttleFirst,
+  required T Function(T, T) add,
+  required T? addOne,
+}) {
+  return Stream.multi((listener) {
+    T? pendingData;
+    Timer? activeTimeoutWindow;
+    var needsTimeoutWindowAfterResume = false;
 
-  /// Returns a backpressure-aware stream of filtered update notifications.
-  ///
-  /// Each emitted event will only contain tables matched by [tableFilter].
-  ///
-  /// Additionally, if this stream emits an event while the listener is paused,
-  /// it will get buffered in a growing set of affected tables. Then, when the
-  /// listener resumes, it will be informed about all tables updated in the
-  /// meantime.
-  ///
-  /// Consider an example:
-  ///
-  ///  1. A listener attaches with a table filter matching all tables.
-  ///  2. We receive a table update on table `a`, which is forwarded to the
-  ///     listener.
-  ///  3. The listener pauses.
-  ///  4. We receive another table update on `a`.
-  ///  5. We receive a table update on `b`.
-  ///  6. We receive yet another table update on `a`.
-  ///  7. The listener resumes.
-  ///  8. The listener receives a table update `{a, b}`.
-  ///
-  /// Without the accumulation middleware, the listener would receive three
-  /// events in step 8 (`{a}`, `{b}`, `{a}`). For streams that just need to
-  /// know whether a table was updated since the last pause, calling
-  /// [filterAndAccumulate] thus makes listening to table updates more
-  /// efficient.
-  Stream<UpdateNotification> filterAndAccumulate(
-      bool Function(String table) tableFilter) {
-    final upstream = this;
-
-    return Stream.multi((listener) {
-      Set<String>? undeliveredEvent;
-
-      void emitPending() {
-        if (undeliveredEvent case final pending?) {
-          listener.add(UpdateNotification(pending));
-          undeliveredEvent = null;
-        }
+    /// Add pending data, bypassing the active timeout window.
+    ///
+    /// This is used to forward error and done events immediately.
+    bool addPendingEvents() {
+      if (pendingData case final data?) {
+        pendingData = null;
+        listener.addSync(data);
+        activeTimeoutWindow?.cancel();
+        activeTimeoutWindow = null;
+        return true;
+      } else {
+        return false;
       }
+    }
 
-      void handleData(UpdateNotification notification) {
-        final filtered = notification.tables.where(tableFilter);
-        if (undeliveredEvent case final pending?) {
-          pending.addAll(filtered);
-        } else {
-          final asSet = {...filtered};
+    late void Function() setTimeout;
+
+    /// Emits [pendingData] if no timeout window is active, and then starts a
+    /// timeout window if necessary.
+    void maybeEmit() {
+      if (activeTimeoutWindow == null && !listener.isPaused) {
+        final didAdd = addPendingEvents();
+        if (didAdd) {
+          // Schedule a pause after resume if the subscription was paused
+          // directly in response to receiving the event. Otherwise, begin the
+          // timeout window immediately.
           if (listener.isPaused) {
-            undeliveredEvent = asSet;
+            needsTimeoutWindowAfterResume = true;
           } else {
-            // Not paused and no outstanding buffered events, we can deliver
-            // this synchronously.
-            listener.addSync(UpdateNotification(asSet));
+            setTimeout();
           }
         }
       }
+    }
 
-      void handleDone() {
-        emitPending();
-        listener.close();
+    setTimeout = () {
+      activeTimeoutWindow = Timer(timeout, () {
+        activeTimeoutWindow = null;
+        maybeEmit();
+      });
+    };
+
+    void onData(T data) {
+      pendingData = switch (pendingData) {
+        null => data,
+        final pending => add(pending, data),
+      };
+      maybeEmit();
+    }
+
+    void onError(Object error, StackTrace trace) {
+      addPendingEvents();
+      listener.addErrorSync(error, trace);
+    }
+
+    void onDone() {
+      addPendingEvents();
+      listener.closeSync();
+    }
+
+    final subscription = input.listen(onData, onError: onError, onDone: onDone);
+
+    listener.onPause = () {
+      needsTimeoutWindowAfterResume = activeTimeoutWindow != null;
+      activeTimeoutWindow?.cancel();
+      activeTimeoutWindow = null;
+    };
+    listener.onResume = () {
+      if (needsTimeoutWindowAfterResume) {
+        setTimeout();
+      } else {
+        maybeEmit();
       }
+    };
+    listener.onCancel = () async {
+      activeTimeoutWindow?.cancel();
+      return subscription.cancel();
+    };
 
-      final subscription = upstream.listen(handleData, onDone: handleDone);
-      listener
-        ..onResume = emitPending
-        ..onCancel = subscription.cancel;
-    });
-  }
-
-  /// Throttles this stream to not emit events more often than with a frequency
-  /// of 1/[timeout].
-  ///
-  /// When an event is received and no timeout window is active, it is forwarded
-  /// downstream and the upstream subscription is paused during that window.
-  ///
-  /// This should typically be installed on streams after a
-  /// [filterAndAccumulate] transformer, which accumulates table updates while
-  /// the downstream listener is paused to emit them as a single event.
-  @internal
-  Stream<UpdateNotification> throttleWithPause(Duration? throttle) {
-    if (throttle == null) return this;
-
-    return Stream.multi((listener) {
-      final subscription = listen(null);
-      Timer? currentTimeout;
-
-      subscription
-        ..onData((event) {
-          assert(currentTimeout == null);
-          // Note: There is no risk of this interfering with a listener pausing
-          // the subscription too, pause() and resume() count internally.
-          subscription.pause();
-          currentTimeout = Timer(throttle, () {
-            subscription.resume();
-          });
-        })
-        ..onDone(listener.closeSync);
-
-      listener
-        ..onPause = subscription.pause
-        ..onResume = subscription.resume
-        ..onCancel = () {
-          currentTimeout?.cancel();
-          return subscription.cancel();
-        };
-    });
-  }
+    if (addOne != null) {
+      // This must not be sync, we're doing this directly in onListen
+      listener.add(addOne);
+    }
+    if (throttleFirst) {
+      setTimeout();
+    }
+  });
 }

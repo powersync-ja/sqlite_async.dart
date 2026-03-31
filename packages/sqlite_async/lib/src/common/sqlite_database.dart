@@ -4,53 +4,15 @@ import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/impl/single_connection_database.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
-import 'package:sqlite_async/src/sqlite_queries.dart';
-import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 
 import '../impl/platform.dart' as platform;
-
-mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
-  /// Maximum number of concurrent read transactions.
-  int get maxReaders;
-
-  /// Factory that opens a raw database connection in each isolate.
-  ///
-  /// This must be safe to pass to different isolates.
-  ///
-  /// Use a custom class for this to customize the open process.
-  SqliteOpenFactory get openFactory;
-
-  /// Use this stream to subscribe to notifications of updates to tables.
-  @override
-  Stream<UpdateNotification> get updates;
-
-  @protected
-  Future<void> get isInitialized;
-
-  /// Wait for initialization to complete.
-  ///
-  /// While initializing is automatic, this helps to catch and report initialization errors.
-  Future<void> initialize() async {
-    await isInitialized;
-  }
-
-  /// Locks all underlying connections making up this database, and gives [block] access to all of them at once.
-  /// This can be useful to run the same statement on all connections. For instance,
-  /// ATTACHing a database, that is expected to be available in all connections.
-  Future<T> withAllConnections<T>(
-      Future<T> Function(
-              SqliteWriteContext writer, List<SqliteReadContext> readers)
-          block);
-}
 
 /// A SQLite database instance.
 ///
 /// Use one instance per database file. If multiple instances are used, update
 /// notifications may not trigger, and calls may fail with "SQLITE_BUSY" errors.
-abstract base class SqliteDatabase
-    with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteConnection {
+abstract base class SqliteDatabase extends SqliteConnection {
   SqliteDatabase._();
 
   /// Open a SqliteDatabase.
@@ -100,6 +62,34 @@ abstract base class SqliteDatabase
   factory SqliteDatabase.singleConnection(SqliteConnection connection) {
     return SingleConnectionDatabase(connection);
   }
+
+  /// Maximum number of concurrent read transactions.
+  int get maxReaders;
+
+  /// Factory that opens a raw database connection in each isolate.
+  ///
+  /// This must be safe to pass to different isolates.
+  ///
+  /// Use a custom class for this to customize the open process.
+  SqliteOpenFactory get openFactory;
+
+  @protected
+  Future<void> get isInitialized;
+
+  /// Wait for initialization to complete.
+  ///
+  /// While initializing is automatic, this helps to catch and report initialization errors.
+  Future<void> initialize() async {
+    await isInitialized;
+  }
+
+  /// Locks all underlying connections making up this database, and gives [block] access to all of them at once.
+  /// This can be useful to run the same statement on all connections. For instance,
+  /// ATTACHing a database, that is expected to be available in all connections.
+  Future<T> withAllConnections<T>(
+      Future<T> Function(
+              SqliteWriteContext writer, List<SqliteReadContext> readers)
+          block);
 }
 
 /// Internal superclass for all [SqliteDatabase] implementations.
