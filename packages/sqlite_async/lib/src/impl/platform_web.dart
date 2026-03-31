@@ -1,6 +1,6 @@
 import '../common/abstract_open_factory.dart';
 import '../sqlite_options.dart';
-import '../web/database/web_sqlite_database.dart';
+import '../web/database/async_web_database.dart';
 import '../web/web_sqlite_open_factory.dart';
 
 WebSqliteOpenFactory createDefaultOpenFactory(

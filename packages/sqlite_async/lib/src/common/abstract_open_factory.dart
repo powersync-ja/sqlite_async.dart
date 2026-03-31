@@ -24,8 +24,12 @@ import '../sqlite_options.dart';
 ///  - When compiling for the web, extend [WebSqliteOpenFactory].
 sealed class SqliteOpenFactory {
   final String path;
+  final SqliteOptions sqliteOptions;
 
-  SqliteOpenFactory._({required this.path});
+  SqliteOpenFactory._({
+    required this.path,
+    this.sqliteOptions = const SqliteOptions(),
+  });
 
   /// Creates a default open factory opening databases at the given path with
   /// specified options.
@@ -40,6 +44,9 @@ sealed class SqliteOpenFactory {
   }
 
   /// Pragma statements to run on newly opened connections to configure them.
+  ///
+  /// On native platforms, these configure WAL mode for instance. This can also
+  /// be useed to configure an encryption key if SQLite3MultipleCiphers is used.
   List<String> pragmaStatements(SqliteOpenOptions options);
 }
 
@@ -50,12 +57,7 @@ sealed class SqliteOpenFactory {
 /// [WebSqliteOpenFactory], respectively.
 @internal
 abstract base class InternalOpenFactory extends SqliteOpenFactory {
-  final SqliteOptions sqliteOptions;
-
-  InternalOpenFactory({
-    required super.path,
-    this.sqliteOptions = const SqliteOptions(),
-  }) : super._();
+  InternalOpenFactory({required super.path, super.sqliteOptions}) : super._();
 }
 
 final class SqliteOpenOptions {

@@ -58,6 +58,9 @@ final class SqliteOptions {
   });
 
   /// Creates a new options instance by applying overrides from parameters.
+  ///
+  /// Only non-nullable fields can be changed this way. For other fields, create
+  /// a new instance manually.
   SqliteOptions copyWith({
     WebSqliteOptions? webSqliteOptions,
     bool? profileQueries,
