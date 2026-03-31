@@ -2,21 +2,18 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
-import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
-import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/update_notification.dart';
-import 'package:sqlite_async/src/web/web_sqlite_open_factory.dart';
-import 'package:sqlite_async/web.dart';
+import 'package:sqlite_async/web.dart' hide WebDatabaseEndpoint;
 
+import '../connection.dart';
 import '../database.dart';
 
-/// Web implementation of [SqliteDatabase]
-/// Uses a web worker for SQLite connection
-class SqliteDatabaseImpl
-    with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase, WebSqliteConnection {
+/// A [SqliteDatabase] implemented by delegating to a [WebDatabase] opened
+/// asynchronously.
+final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
+    implements WebSqliteConnection {
   @override
   bool get closed {
     return _connection.closed;
@@ -32,48 +29,19 @@ class SqliteDatabaseImpl
   late Stream<UpdateNotification> updates;
 
   @override
-  int maxReaders;
+  int get maxReaders => openFactory.sqliteOptions.maxReaders;
 
   @override
   @protected
   late Future<void> isInitialized;
 
   @override
-  AbstractDefaultSqliteOpenFactory openFactory;
+  WebSqliteOpenFactory openFactory;
 
   late final WebDatabase _connection;
   StreamSubscription? _broadcastUpdatesSubscription;
 
-  /// Open a SqliteDatabase.
-  ///
-  /// Only a single SqliteDatabase per [path] should be opened at a time.
-  ///
-  /// A connection pool is used by default, allowing multiple concurrent read
-  /// transactions, and a single concurrent write transaction. Write transactions
-  /// do not block read transactions, and read transactions will see the state
-  /// from the last committed write transaction.
-  ///
-  /// A maximum of [maxReaders] concurrent read transactions are allowed.
-  factory SqliteDatabaseImpl(
-      {required String path,
-      int maxReaders = SqliteDatabase.defaultMaxReaders,
-      SqliteOptions options = const SqliteOptions.defaults()}) {
-    final factory =
-        DefaultSqliteOpenFactory(path: path, sqliteOptions: options);
-    return SqliteDatabaseImpl.withFactory(factory, maxReaders: maxReaders);
-  }
-
-  /// Advanced: Open a database with a specified factory.
-  ///
-  /// The factory is used to open each database connection in background isolates.
-  ///
-  /// Use when control is required over the opening process. Examples include:
-  ///  1. Specifying the path to `libsqlite.so` on Linux.
-  ///  2. Running additional per-connection PRAGMA statements on each connection.
-  ///  3. Creating custom SQLite functions.
-  ///  4. Creating temporary views or triggers.
-  SqliteDatabaseImpl.withFactory(this.openFactory,
-      {this.maxReaders = SqliteDatabase.defaultMaxReaders}) {
+  AsyncWebDatabaseImpl(this.openFactory) {
     // This way the `updates` member is available synchronously
     updates = updatesController.stream;
     isInitialized = _init();
@@ -81,8 +49,7 @@ class SqliteDatabaseImpl
 
   Future<void> _init() async {
     _connection = await openFactory.openConnection(
-            SqliteOpenOptions(primaryConnection: true, readOnly: false))
-        as WebDatabase;
+        SqliteOpenOptions(primaryConnection: true, readOnly: false));
 
     final broadcastUpdates = _connection.broadcastUpdates;
     if (broadcastUpdates == null) {

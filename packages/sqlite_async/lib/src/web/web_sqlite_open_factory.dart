@@ -1,21 +1,23 @@
 import 'dart:async';
+import 'dart:js_interop';
 
-import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
-import 'package:sqlite_async/web.dart';
 
+import '../common/abstract_open_factory.dart';
 import 'database.dart';
+import 'update_notifications.dart';
 import 'worker/worker_utils.dart';
 
+final UpdateNotificationStreams _updateStreams = UpdateNotificationStreams();
 Map<String, FutureOr<WebSqlite>> _webSQLiteImplementations = {};
 
-/// Web implementation of [AbstractDefaultSqliteOpenFactory]
-class DefaultSqliteOpenFactory
-    extends AbstractDefaultSqliteOpenFactory<CommonDatabase>
-    with WebSqliteOpenFactory {
+/// [SqliteOpenFactory] implementation for the web.
+///
+/// This class can be extended to customize how databases are opened on the web.
+base class WebSqliteOpenFactory extends InternalOpenFactory {
   late final Future<WebSqlite> _initialized = Future.sync(() {
     final cacheKey = sqliteOptions.webSqliteOptions.wasmUri +
         sqliteOptions.webSqliteOptions.workerUri;
@@ -29,14 +31,18 @@ class DefaultSqliteOpenFactory
     return _webSQLiteImplementations[cacheKey]!;
   });
 
-  DefaultSqliteOpenFactory(
-      {required super.path,
-      super.sqliteOptions = const SqliteOptions.defaults()}) {
+  WebSqliteOpenFactory(
+      {required super.path, super.sqliteOptions = const SqliteOptions()}) {
     // Make sure initializer starts running immediately
     _initialized;
   }
 
-  @override
+  /// Opens a [WebSqlite] instance for the given [options].
+  ///
+  /// This method can be overriden in scenarios where the way [WebSqlite] is
+  /// opened needs to be customized. Implementers should be aware that the
+  /// result of this method is cached and will be re-used by the open factory
+  /// when provided with the same [options] again.
   Future<WebSqlite> openWebSqlite(WebSqliteOptions options) async {
     return WebSqlite.open(
       wasmModule: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
@@ -47,22 +53,39 @@ class DefaultSqliteOpenFactory
     );
   }
 
-  /// This is currently not supported on web
-  @override
-  CommonDatabase openDB(SqliteOpenOptions options) {
-    throw UnimplementedError(
-        'Direct access to CommonDatabase is not available on web.');
+  /// Handles a custom request sent from the worker to the client.
+  Future<JSAny?> handleCustomRequest(JSAny? request) {
+    return _updateStreams.handleRequest(request);
   }
 
-  @override
+  /// Uses [WebSqlite] to connects to the recommended database setup for [name].
+  ///
+  /// This typically just calls [WebSqlite.connectToRecommended], but subclasses
+  /// can customize the behavior where needed.
+  Future<ConnectToRecommendedResult> connectToWorker(
+      WebSqlite sqlite, String name) {
+    return sqlite.connectToRecommended(name);
+  }
 
   /// Currently this only uses the SQLite Web WASM implementation.
   /// This provides built in async Web worker functionality
   /// and automatic persistence storage selection.
-  /// Due to being asynchronous, the under laying CommonDatabase is not accessible
-  Future<SqliteConnection> openConnection(SqliteOpenOptions options) async {
+  /// Due to being asynchronous, the under laying CommonDatabase is not
+  /// accessible
+  Future<WebDatabase> openConnection(SqliteOpenOptions options) async {
     final workers = await _initialized;
     final connection = await connectToWorker(workers, path);
+
+    final pragmaStatements = this.pragmaStatements(options);
+    if (pragmaStatements.isNotEmpty) {
+      // The default implementation doesn't use pragmas on the web, but a
+      // subclass might.
+      await connection.database.requestLock((token) async {
+        for (final stmt in pragmaStatements) {
+          await connection.database.execute(stmt, token: token);
+        }
+      });
+    }
 
     // When the database is hosted in a shared worker, we don't need a local
     // mutex since that worker will hand out leases for us.
@@ -89,7 +112,7 @@ class DefaultSqliteOpenFactory
 
     return WebDatabase(
       connection.database,
-      options.mutex ?? mutex,
+      mutex,
       broadcastUpdates: broadcastUpdates,
       profileQueries: sqliteOptions.profileQueries,
       updates: updatesFor(connection.database),
@@ -100,5 +123,13 @@ class DefaultSqliteOpenFactory
   List<String> pragmaStatements(SqliteOpenOptions options) {
     // WAL mode is not supported on Web
     return [];
+  }
+
+  /// Obtains a stream of [UpdateNotification]s from a [database].
+  ///
+  /// The default implementation uses custom requests to allow workers to
+  /// debounce the stream on their side to avoid messages where possible.
+  Stream<UpdateNotification> updatesFor(Database database) {
+    return _updateStreams.updatesFor(database);
   }
 }

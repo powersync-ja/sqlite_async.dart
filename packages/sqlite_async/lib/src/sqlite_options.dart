@@ -1,16 +1,15 @@
-class WebSqliteOptions {
+final class WebSqliteOptions {
   final String workerUri;
   final String wasmUri;
 
-  const WebSqliteOptions.defaults()
-      : workerUri = 'db_worker.js',
-        wasmUri = 'sqlite3.wasm';
+  @Deprecated('Use default WebSqliteOptions constructor instead')
+  const factory WebSqliteOptions.defaults() = WebSqliteOptions;
 
   const WebSqliteOptions(
       {this.wasmUri = 'sqlite3.wasm', this.workerUri = 'db_worker.js'});
 }
 
-class SqliteOptions {
+final class SqliteOptions {
   /// SQLite journal mode. Defaults to [SqliteJournalMode.wal].
   final SqliteJournalMode? journalMode;
 
@@ -37,20 +36,53 @@ class SqliteOptions {
   /// is enabled by default in debug and profile mode.
   final bool profileQueries;
 
+  /// The maximum amount of concurrent readers allowed on opened database pools.
+  ///
+  /// Depending on the target platforms, fewer readers than requested here might
+  /// be supported. For instance, this package does not currently open
+  /// additional readers on the web.
+  final int maxReaders;
+
+  @Deprecated('Use default SqliteOptions constructor instead')
   const factory SqliteOptions.defaults() = SqliteOptions;
 
   const SqliteOptions({
     this.journalMode = SqliteJournalMode.wal,
     this.journalSizeLimit = 6 * 1024 * 1024,
     this.synchronous = SqliteSynchronous.normal,
-    this.webSqliteOptions = const WebSqliteOptions.defaults(),
+    this.webSqliteOptions = const WebSqliteOptions(),
     this.lockTimeout = const Duration(seconds: 30),
     this.profileQueries = _profileQueriesByDefault,
+    this.maxReaders = defaultMaxReaders,
   });
+
+  /// Creates a new options instance by applying overrides from parameters.
+  ///
+  /// Only non-nullable fields can be changed this way. For other fields, create
+  /// a new instance manually.
+  SqliteOptions copyWith({
+    WebSqliteOptions? webSqliteOptions,
+    bool? profileQueries,
+    int? maxReaders,
+  }) {
+    return SqliteOptions(
+      journalMode: journalMode,
+      synchronous: synchronous,
+      journalSizeLimit: journalSizeLimit,
+      webSqliteOptions: webSqliteOptions ?? this.webSqliteOptions,
+      lockTimeout: lockTimeout,
+      profileQueries: profileQueries ?? this.profileQueries,
+      maxReaders: maxReaders ?? this.maxReaders,
+    );
+  }
 
   // https://api.flutter.dev/flutter/foundation/kReleaseMode-constant.html
   static const _profileQueriesByDefault =
       !bool.fromEnvironment('dart.vm.product');
+
+  /// The maximum number of concurrent read transactions if not explicitly
+  /// specified.
+  static const int defaultMaxReaders = 5;
 }
 
 /// SQLite journal mode. Set on the primary connection.

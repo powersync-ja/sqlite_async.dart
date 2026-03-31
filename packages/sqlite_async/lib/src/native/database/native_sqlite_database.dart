@@ -11,8 +11,7 @@ import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/native/native_sqlite_open_factory.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
-import 'package:sqlite_async/src/sqlite_options.dart';
-import 'package:sqlite_async/src/sqlite_queries.dart';
+
 import 'package:sqlite_async/src/update_notification.dart';
 
 import '../../common/mutex.dart';
@@ -28,18 +27,15 @@ import 'worker.dart';
 /// shared between instances. This also works if the instances are opened on
 /// different isolates or Dart/Flutter engines in the same process without prior
 /// coordination.
-class SqliteDatabaseImpl
-    with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase {
+final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   @override
-  final DefaultSqliteOpenFactory openFactory;
-  late final Future<SqliteConnectionPool> _pool =
-      _openNativePool(openFactory, maxReaders);
+  final NativeSqliteOpenFactory openFactory;
+  late final Future<SqliteConnectionPool> _pool = _openNativePool(openFactory);
   bool _isClosed = false;
   final _lockGuard = Object();
 
   @override
-  final int maxReaders;
+  int get maxReaders => openFactory.sqliteOptions.maxReaders;
 
   @override
   @protected
@@ -52,38 +48,11 @@ class SqliteDatabaseImpl
       .asyncExpand((pool) => pool.updatedTables
           .map((changedTables) => UpdateNotification(changedTables.toSet())));
 
-  /// Open a SqliteDatabase.
-  ///
-  /// A connection pool is used by default, allowing multiple concurrent read
-  /// transactions, and a single concurrent write transaction. Write transactions
-  /// do not block read transactions, and read transactions will see the state
-  /// from the last committed write transaction.
-  ///
-  /// A maximum of [maxReaders] concurrent read transactions are allowed.
-  factory SqliteDatabaseImpl(
-      {required String path,
-      int maxReaders = SqliteDatabase.defaultMaxReaders,
-      SqliteOptions options = const SqliteOptions.defaults()}) {
-    final factory =
-        DefaultSqliteOpenFactory(path: path, sqliteOptions: options);
-    return SqliteDatabaseImpl.withFactory(factory, maxReaders: maxReaders);
-  }
-
-  /// Advanced: Open a database with a specified factory.
-  ///
-  /// The factory is used to open each database connection in background isolates.
-  ///
-  /// Use when control is required over the opening process. Examples include:
-  ///  1. Specifying the path to `libsqlite.so` on Linux.
-  ///  2. Running additional per-connection PRAGMA statements on each connection.
-  ///  3. Creating custom SQLite functions.
-  ///  4. Creating temporary views or triggers.
-  SqliteDatabaseImpl.withFactory(AbstractDefaultSqliteOpenFactory factory,
-      {this.maxReaders = SqliteDatabase.defaultMaxReaders})
-      : openFactory = factory as DefaultSqliteOpenFactory,
+  NativeSqliteDatabaseImpl(this.openFactory)
+      :
         // When the pool is fully used, we'd have all concurrent readers and a
         // writer operating on the database. Prepare a queue with that capacity.
-        _workers = ListQueue(maxReaders + 1);
+        _workers = ListQueue(openFactory.sqliteOptions.maxReaders + 1);
 
   @override
   bool get closed {
@@ -319,19 +288,19 @@ class SqliteDatabaseImpl
   }
 
   static Future<SqliteConnectionPool> _openNativePool(
-    DefaultSqliteOpenFactory openFactory,
-    int maxReaders,
+    NativeSqliteOpenFactory openFactory,
   ) {
     // We want to open pools asynchronously since running pragma statements as
     // part of openFactory.open might do IO. openAsync spawn a temporary isolate
     // for that.
+    final maxReaders = openFactory.sqliteOptions.maxReaders;
     return SqliteConnectionPool.openAsync(
       name: openFactory.path,
       openConnections: () {
         Database openConnection({required bool isWriter}) {
-          return openFactory.open(
+          return openFactory.openNativeConnection(
             SqliteOpenOptions(primaryConnection: isWriter, readOnly: !isWriter),
-          ) as Database;
+          );
         }
 
         return PoolConnections(
@@ -348,7 +317,7 @@ class SqliteDatabaseImpl
 
 final class _LeasedContext extends UnscopedContext {
   final AsyncConnection inner;
-  final SqliteDatabaseImpl pool;
+  final NativeSqliteDatabaseImpl pool;
   final TimelineTask? task;
   final IsolateWorker worker;
 

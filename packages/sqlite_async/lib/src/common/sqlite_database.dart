@@ -3,11 +3,12 @@ import 'dart:async';
 import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/impl/single_connection_database.dart';
-import 'package:sqlite_async/src/impl/sqlite_database_impl.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
+
+import '../impl/platform.dart' as platform;
 
 mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
   /// Maximum number of concurrent read transactions.
@@ -18,7 +19,7 @@ mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
   /// This must be safe to pass to different isolates.
   ///
   /// Use a custom class for this to customize the open process.
-  AbstractDefaultSqliteOpenFactory get openFactory;
+  SqliteOpenFactory get openFactory;
 
   /// Use this stream to subscribe to notifications of updates to tables.
   @override
@@ -47,11 +48,10 @@ mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
 ///
 /// Use one instance per database file. If multiple instances are used, update
 /// notifications may not trigger, and calls may fail with "SQLITE_BUSY" errors.
-abstract class SqliteDatabase
+abstract base class SqliteDatabase
     with SqliteQueries, SqliteDatabaseMixin
     implements SqliteConnection {
-  /// The maximum number of concurrent read transactions if not explicitly specified.
-  static const int defaultMaxReaders = 5;
+  SqliteDatabase._();
 
   /// Open a SqliteDatabase.
   ///
@@ -61,14 +61,11 @@ abstract class SqliteDatabase
   /// transactions, and a single concurrent write transaction. Write transactions
   /// do not block read transactions, and read transactions will see the state
   /// from the last committed write transaction.
-  ///
-  /// A maximum of [maxReaders] concurrent read transactions are allowed.
   factory SqliteDatabase(
-      {required String path,
-      int maxReaders = SqliteDatabase.defaultMaxReaders,
-      SqliteOptions options = const SqliteOptions.defaults()}) {
-    return SqliteDatabaseImpl(
-        path: path, maxReaders: maxReaders, options: options);
+      {required String path, SqliteOptions options = const SqliteOptions()}) {
+    return SqliteDatabase.withFactory(
+      SqliteOpenFactory(path: path, options: options),
+    );
   }
 
   /// Advanced: Open a database with a specified factory.
@@ -80,10 +77,8 @@ abstract class SqliteDatabase
   ///  2. Running additional per-connection PRAGMA statements on each connection.
   ///  3. Creating custom SQLite functions.
   ///  4. Creating temporary views or triggers.
-  factory SqliteDatabase.withFactory(
-      AbstractDefaultSqliteOpenFactory openFactory,
-      {int maxReaders = SqliteDatabase.defaultMaxReaders}) {
-    return SqliteDatabaseImpl.withFactory(openFactory, maxReaders: maxReaders);
+  factory SqliteDatabase.withFactory(SqliteOpenFactory openFactory) {
+    return platform.openDatabaseWithFactory(openFactory);
   }
 
   /// Opens a [SqliteDatabase] that only wraps an underlying connection.
@@ -105,4 +100,10 @@ abstract class SqliteDatabase
   factory SqliteDatabase.singleConnection(SqliteConnection connection) {
     return SingleConnectionDatabase(connection);
   }
+}
+
+/// Internal superclass for all [SqliteDatabase] implementations.
+@internal
+abstract base class SqliteDatabaseImpl extends SqliteDatabase {
+  SqliteDatabaseImpl() : super._();
 }

@@ -1,45 +1,25 @@
-import 'package:sqlite_async/sqlite3_common.dart';
+import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-
-class TestDefaultSqliteOpenFactory extends DefaultSqliteOpenFactory {
-  final String sqlitePath;
-
-  TestDefaultSqliteOpenFactory(
-      {required super.path, super.sqliteOptions, this.sqlitePath = ''});
-
-  Future<CommonDatabase> openDatabaseForSingleConnection() async {
-    return openDB(SqliteOpenOptions(primaryConnection: true, readOnly: false));
-  }
-}
 
 abstract class AbstractTestUtils {
   String dbPath();
 
-  /// Generates a test open factory
-  Future<TestDefaultSqliteOpenFactory> testFactory(
-      {String? path,
-      String sqlitePath = '',
-      List<String> initStatements = const [],
-      SqliteOptions options = const SqliteOptions.defaults()}) async {
-    return TestDefaultSqliteOpenFactory(
-      path: path ?? dbPath(),
-      sqliteOptions: options,
-    );
+  Future<CommonDatabase> openDatabaseForSingleConnection();
+
+  Future<SqliteOpenFactory> testFactory(
+      {String? path, SqliteOptions options = const SqliteOptions()}) async {
+    return SqliteOpenFactory(path: path ?? dbPath(), options: options);
   }
 
   /// Creates a SqliteDatabaseConnection
-  Future<SqliteDatabase> setupDatabase(
-      {String? path,
-      List<String> initStatements = const [],
-      int maxReaders = SqliteDatabase.defaultMaxReaders}) async {
-    final db = SqliteDatabase.withFactory(await testFactory(path: path),
-        maxReaders: maxReaders);
-    await db.initialize();
-    return db;
+  Future<SqliteDatabase> setupDatabase({
+    String? path,
+    SqliteOptions options = const SqliteOptions(),
+  }) async {
+    final factory = await testFactory(path: path, options: options);
+    return SqliteDatabase.withFactory(factory);
   }
 
   /// Deletes any DB data
   Future<void> cleanDb({required String path});
-
-  List<String> findSqliteLibraries();
 }

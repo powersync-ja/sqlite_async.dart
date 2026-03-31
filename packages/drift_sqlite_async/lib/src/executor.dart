@@ -2,7 +2,7 @@ import 'dart:async';
 
 import 'package:drift/backends.dart';
 import 'package:drift/drift.dart';
-import 'package:sqlite_async/sqlite3_common.dart';
+import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 
 // Ends with " RETURNING *", or starts with insert/update/delete.

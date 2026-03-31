@@ -1,7 +1,10 @@
+/// @docImport 'common/sqlite_database.dart';
+library;
+
 import 'dart:async';
 
 import 'package:sqlite3/common.dart' as sqlite;
-import 'package:sqlite_async/sqlite3_common.dart';
+import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 
 import 'common/connection/sync_sqlite_connection.dart';

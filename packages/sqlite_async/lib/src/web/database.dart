@@ -2,20 +2,21 @@ import 'dart:async';
 import 'dart:developer';
 import 'dart:js_interop';
 
+import 'package:meta/meta.dart';
 import 'package:sqlite3/common.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
-import 'package:sqlite_async/web.dart';
+import '../common/sqlite_database.dart';
 import '../common/timeouts.dart';
 import '../impl/context.dart';
+import 'connection.dart';
 import 'protocol.dart';
 import 'web_mutex.dart';
 
-class WebDatabase
-    with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase, WebSqliteConnection {
+final class WebDatabase extends SqliteDatabaseImpl
+    implements WebSqliteConnection {
   final Database _database;
   final Mutex? _mutex;
   final bool profileQueries;
@@ -30,6 +31,7 @@ class WebDatabase
   @override
   bool closed = false;
 
+  @internal
   WebDatabase(
     this._database,
     this._mutex, {

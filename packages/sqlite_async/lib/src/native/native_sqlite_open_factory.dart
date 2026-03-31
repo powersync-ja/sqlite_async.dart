@@ -1,22 +1,13 @@
-import 'package:sqlite_async/sqlite3.dart' as sqlite;
-import 'package:sqlite_async/sqlite3_common.dart';
+import 'package:sqlite3/sqlite3.dart' as sqlite;
 
-import 'package:sqlite_async/src/common/abstract_open_factory.dart';
-import 'package:sqlite_async/src/sqlite_connection.dart';
-import 'package:sqlite_async/src/sqlite_options.dart';
+import '../common/abstract_open_factory.dart';
 
-/// Native implementation of [AbstractDefaultSqliteOpenFactory]
-class DefaultSqliteOpenFactory extends AbstractDefaultSqliteOpenFactory {
-  const DefaultSqliteOpenFactory(
-      {required super.path,
-      super.sqliteOptions = const SqliteOptions.defaults()});
-
-  @override
-  CommonDatabase openDB(SqliteOpenOptions options) {
-    final mode = options.openMode;
-    var db = sqlite.sqlite3.open(path, mode: mode, mutex: false);
-    return db;
-  }
+/// [SqliteOpenFactory] implementation for native platforms.
+///
+/// This class can be extended to customize how databases are opened on native
+/// platforms.
+base class NativeSqliteOpenFactory extends InternalOpenFactory {
+  NativeSqliteOpenFactory({required super.path, super.sqliteOptions});
 
   @override
   List<String> pragmaStatements(SqliteOpenOptions options) {
@@ -45,10 +36,39 @@ class DefaultSqliteOpenFactory extends AbstractDefaultSqliteOpenFactory {
     return statements;
   }
 
-  @override
-  SqliteConnection openConnection(SqliteOpenOptions options) {
-    // TODO: Refactor open factories to remove this method.
-    throw UnsupportedError(
-        'openConnection() is not supported on native platforms, open factories can only open pools.');
+  /// Opens a new native [Database] connection and runs pragma statements via
+  /// [configureConnection].
+  sqlite.Database openNativeConnection(SqliteOpenOptions options) {
+    final mode = options.openMode;
+    final db = sqlite.sqlite3.open(path, mode: mode, mutex: false);
+
+    try {
+      configureConnection(db, options);
+    } on Object {
+      db.close();
+      rethrow;
+    }
+    return db;
+  }
+
+  /// Runs [pragmaStatements] for a freshly opened connection,
+  void configureConnection(
+      sqlite.Database database, SqliteOpenOptions options) {
+    // Pragma statements don't have the same BUSY_TIMEOUT behavior as normal statements.
+    // We add a manual retry loop for those.
+    for (var statement in pragmaStatements(options)) {
+      for (var tries = 0; tries < 30; tries++) {
+        try {
+          database.execute(statement);
+          break;
+        } on sqlite.SqliteException catch (e) {
+          if (e.resultCode == sqlite.SqlError.SQLITE_BUSY && tries < 29) {
+            continue;
+          } else {
+            rethrow;
+          }
+        }
+      }
+    }
   }
 }
