@@ -26,7 +26,8 @@ import 'worker.dart';
 /// It is safe to use multiple instances backed by the same database file. In
 /// that case, update notifications and connection locks are automatically
 /// shared between instances. This also works if the instances are opened on
-/// different
+/// different isolates or Dart/Flutter engines in the same process without prior
+/// coordination.
 class SqliteDatabaseImpl
     with SqliteQueries, SqliteDatabaseMixin
     implements SqliteDatabase {
@@ -52,8 +53,6 @@ class SqliteDatabaseImpl
           .map((changedTables) => UpdateNotification(changedTables.toSet())));
 
   /// Open a SqliteDatabase.
-  ///
-  /// Only a single SqliteDatabase per [path] should be opened at a time.
   ///
   /// A connection pool is used by default, allowing multiple concurrent read
   /// transactions, and a single concurrent write transaction. Write transactions
