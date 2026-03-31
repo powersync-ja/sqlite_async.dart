@@ -1,5 +1,5 @@
 import 'dart:async';
-import 'package:sqlite_async/sqlite3_common.dart';
+import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
@@ -258,8 +258,7 @@ void main() {
     });
 
     test('can use raw database instance', () async {
-      final factory = await testUtils.testFactory();
-      final raw = await factory.openDatabaseForSingleConnection();
+      final raw = await testUtils.openDatabaseForSingleConnection();
       // Creating a fuction ensures that this database is actually used - if
       // a connection were set up in a background isolate, it wouldn't have this
       // function.
@@ -381,8 +380,8 @@ void main() {
       final maxReaders = _isWeb ? 0 : 3;
 
       final db = SqliteDatabase.withFactory(
-        await testUtils.testFactory(path: path),
-        maxReaders: maxReaders,
+        await testUtils.testFactory(
+            path: path, options: SqliteOptions(maxReaders: maxReaders)),
       );
       await db.initialize();
       await createTables(db);

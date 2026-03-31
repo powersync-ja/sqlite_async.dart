@@ -2,7 +2,7 @@ import 'dart:async';
 import 'dart:js_interop';
 import 'dart:math';
 
-import 'package:sqlite_async/sqlite3_wasm.dart';
+import 'package:sqlite3/wasm.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 import 'package:web/web.dart' show Blob, BlobPart, BlobPropertyBag;
@@ -13,23 +13,9 @@ external String _createObjectURL(Blob blob);
 
 String? _dbPath;
 
-class TestSqliteOpenFactory extends TestDefaultSqliteOpenFactory {
-  TestSqliteOpenFactory(
-      {required super.path, super.sqliteOptions, super.sqlitePath = ''});
-
-  @override
-  Future<CommonDatabase> openDatabaseForSingleConnection() async {
-    final sqlite = await WasmSqlite3.loadFromUrl(
-        Uri.parse(sqliteOptions.webSqliteOptions.wasmUri));
-    sqlite.registerVirtualFileSystem(InMemoryFileSystem(), makeDefault: true);
-
-    return sqlite.openInMemory();
-  }
-}
-
 class TestUtils extends AbstractTestUtils {
   late Future<void> _isInitialized;
-  late final SqliteOptions webOptions;
+  late final WebSqliteOptions webOptions;
 
   TestUtils() {
     _isInitialized = _init();
@@ -46,9 +32,8 @@ class TestUtils extends AbstractTestUtils {
         BlobPropertyBag(type: 'application/javascript'));
     sqliteUri = _createObjectURL(blob);
 
-    webOptions = SqliteOptions(
-        webSqliteOptions: WebSqliteOptions(
-            wasmUri: sqliteWasmUri.toString(), workerUri: sqliteUri));
+    webOptions = WebSqliteOptions(
+        wasmUri: sqliteWasmUri.toString(), workerUri: sqliteUri);
   }
 
   @override
@@ -70,30 +55,22 @@ class TestUtils extends AbstractTestUtils {
   Future<void> cleanDb({required String path}) async {}
 
   @override
-  Future<TestDefaultSqliteOpenFactory> testFactory(
-      {String? path,
-      String sqlitePath = '',
-      List<String> initStatements = const [],
-      SqliteOptions options = const SqliteOptions.defaults()}) async {
+  Future<SqliteOpenFactory> testFactory({
+    String? path,
+    SqliteOptions options = const SqliteOptions.defaults(),
+  }) async {
     await _isInitialized;
-    return TestSqliteOpenFactory(
-      path: path ?? dbPath(),
-      sqlitePath: sqlitePath,
-      sqliteOptions: webOptions,
+    return super.testFactory(
+      path: path,
+      options: options.copyWith(webSqliteOptions: webOptions),
     );
   }
 
   @override
-  Future<SqliteDatabase> setupDatabase(
-      {String? path,
-      List<String> initStatements = const [],
-      int maxReaders = SqliteDatabase.defaultMaxReaders}) async {
-    await _isInitialized;
-    return super.setupDatabase(path: path);
-  }
+  Future<CommonDatabase> openDatabaseForSingleConnection() async {
+    final sqlite = await WasmSqlite3.loadFromUrl(Uri.parse(webOptions.wasmUri));
+    sqlite.registerVirtualFileSystem(InMemoryFileSystem(), makeDefault: true);
 
-  @override
-  List<String> findSqliteLibraries() {
-    return ['sqlite3.wasm'];
+    return sqlite.openInMemory();
   }
 }

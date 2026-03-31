@@ -6,6 +6,7 @@ import 'dart:isolate';
 import 'dart:math';
 
 import 'package:sqlite3/common.dart';
+import 'package:sqlite_async/native.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 import 'package:test/test.dart';
@@ -24,18 +25,11 @@ void main() {
       await testUtils.cleanDb(path: path);
     });
 
-    generateSourceTableTests(testUtils.findSqliteLibraries(),
-        (String sqlitePath) async {
-      final db =
-          SqliteDatabase.withFactory(await testUtils.testFactory(path: path));
-      await db.initialize();
-      return db;
-    });
-
     test('raw update notifications', () async {
-      final factory = await testUtils.testFactory(path: path);
-      final db = factory
-          .openDB(SqliteOpenOptions(primaryConnection: true, readOnly: false));
+      final factory =
+          (await testUtils.testFactory(path: path)) as NativeSqliteOpenFactory;
+      final db = factory.openNativeConnection(
+          SqliteOpenOptions(primaryConnection: true, readOnly: false));
 
       db.execute('CREATE TABLE a (bar INTEGER);');
       db.execute('CREATE TABLE b (bar INTEGER);');

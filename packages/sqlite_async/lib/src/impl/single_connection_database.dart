@@ -1,5 +1,6 @@
-import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
+
+import '../common/sqlite_database.dart';
 
 /// A database implementation that delegates everything to a single connection.
 ///
@@ -7,9 +8,7 @@ import 'package:sqlite_async/sqlite_async.dart';
 /// management, but it can still be useful in cases like unit tests where those
 /// features might not be necessary. Since only a single sqlite connection is
 /// used internally, this also allows using in-memory databases.
-final class SingleConnectionDatabase
-    with SqliteQueries, SqliteDatabaseMixin
-    implements SqliteDatabase {
+final class SingleConnectionDatabase extends SqliteDatabaseImpl {
   final SqliteConnection connection;
 
   SingleConnectionDatabase(this.connection);
@@ -30,8 +29,7 @@ final class SingleConnectionDatabase
   int get maxReaders => 1;
 
   @override
-  AbstractDefaultSqliteOpenFactory<CommonDatabase> get openFactory =>
-      throw UnimplementedError();
+  SqliteOpenFactory get openFactory => throw UnimplementedError();
 
   @override
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,

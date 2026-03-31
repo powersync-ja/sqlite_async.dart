@@ -1,3 +1,5 @@
+import 'package:sqlite3/src/database.dart';
+
 import 'abstract_test_utils.dart';
 
 class TestUtils extends AbstractTestUtils {
@@ -12,7 +14,7 @@ class TestUtils extends AbstractTestUtils {
   }
 
   @override
-  List<String> findSqliteLibraries() {
+  Future<CommonDatabase> openDatabaseForSingleConnection() {
     throw UnimplementedError();
   }
 }

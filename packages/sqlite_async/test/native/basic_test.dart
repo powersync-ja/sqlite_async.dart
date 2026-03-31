@@ -5,6 +5,7 @@ import 'dart:async';
 
 import 'package:sqlite3/common.dart' as sqlite;
 import 'package:sqlite3_connection_pool/sqlite3_connection_pool.dart';
+import 'package:sqlite_async/native.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
@@ -55,8 +56,9 @@ void main() {
     // Manually verified
     test('Concurrency', () async {
       final db = SqliteDatabase.withFactory(
-          await testUtils.testFactory(path: path),
-          maxReaders: 3);
+        await testUtils.testFactory(
+            path: path, options: SqliteOptions(maxReaders: 3)),
+      );
       await db.initialize();
       await createTables(db);
 
@@ -86,8 +88,9 @@ void main() {
 
     test('prevent opening new readers while in withAllConnections', () async {
       final db = SqliteDatabase.withFactory(
-          await testUtils.testFactory(path: path),
-          maxReaders: 3);
+        await testUtils.testFactory(
+            path: path, options: SqliteOptions(maxReaders: 3)),
+      );
       await db.initialize();
       await createTables(db);
 
@@ -323,7 +326,8 @@ void main() {
     });
 
     test('lockTimeout', () async {
-      final db = await testUtils.setupDatabase(path: path, maxReaders: 2);
+      final db = await testUtils.setupDatabase(
+          path: path, options: SqliteOptions(maxReaders: 2));
       await db.initialize();
 
       final f1 = db.readTransaction((tx) async {
@@ -367,8 +371,8 @@ void ignore(Future future) {
   future.then((_) {}, onError: (_) {});
 }
 
-class _InvalidPragmaOnOpenFactory extends DefaultSqliteOpenFactory {
-  const _InvalidPragmaOnOpenFactory({required super.path});
+final class _InvalidPragmaOnOpenFactory extends NativeSqliteOpenFactory {
+  _InvalidPragmaOnOpenFactory({required super.path});
 
   @override
   List<String> pragmaStatements(SqliteOpenOptions options) {
