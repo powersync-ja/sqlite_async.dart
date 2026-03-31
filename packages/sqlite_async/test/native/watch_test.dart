@@ -105,9 +105,8 @@ void main() {
 
       inserts();
 
-      final factory = db.isolateConnectionFactory();
-
-      var l = await inIsolateWatch(factory, numberOfQueries, throttleDuration);
+      var l = await inIsolateWatch(
+          db.openFactory.path, numberOfQueries, throttleDuration);
 
       var results = l[0] as List<ResultSet>;
       var times = l[1] as List<DateTime>;
@@ -139,10 +138,10 @@ void main() {
   });
 }
 
-Future<List<Object>> inIsolateWatch(IsolateConnectionFactory factory,
-    int numberOfQueries, Duration throttleDuration) async {
+Future<List<Object>> inIsolateWatch(
+    String path, int numberOfQueries, Duration throttleDuration) async {
   return await Isolate.run(() async {
-    final db = factory.open();
+    final db = SqliteDatabase(path: path);
 
     final stream = db.watch(
         'SELECT count() AS count FROM assets INNER JOIN customers ON customers.id = assets.customer_id',

@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:math';
 
 import 'package:meta/meta.dart';
-import 'package:mutex/mutex.dart' as mutex;
 import 'dart:js_interop';
 // This allows for checking things like hasProperty without the need for depending on the `js` package
 import 'dart:js_interop_unsafe';
@@ -14,11 +13,11 @@ import 'package:sqlite_async/src/common/mutex.dart';
 external Navigator get _navigator;
 
 /// Web implementation of [Mutex]
-class MutexImpl implements Mutex {
-  late final mutex.Mutex fallback;
+class WebMutexImpl implements Mutex {
+  final Mutex fallback = Mutex.simple();
   final String resolvedIdentifier;
 
-  MutexImpl({String? identifier})
+  WebMutexImpl({String? identifier})
 
       /// On web a lock name is required for Navigator locks.
       /// Having exclusive Mutex instances requires a somewhat unique lock name.
@@ -28,14 +27,7 @@ class MutexImpl implements Mutex {
       ///      This would add another package dependency to `sqlite_async` which is potentially unnecessary at this point.
       /// An identifier should be supplied for better exclusion.
       : resolvedIdentifier = identifier ??
-            "${DateTime.now().microsecondsSinceEpoch}-${Random().nextDouble()}" {
-    fallback = mutex.Mutex();
-  }
-
-  @override
-  Future<void> close() async {
-    // This isn't relevant for web at the moment.
-  }
+            "${DateTime.now().microsecondsSinceEpoch}-${Random().nextDouble()}";
 
   @override
   Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) {
@@ -49,33 +41,7 @@ class MutexImpl implements Mutex {
   /// Locks the callback with a standard Mutex from the `mutex` package
   Future<T> _fallbackLock<T>(Future<T> Function() callback,
       {Duration? timeout}) {
-    final completer = Completer<T>();
-    // Need to implement timeout manually for this
-    bool isTimedOut = false;
-    Timer? timer;
-    if (timeout != null) {
-      timer = Timer(timeout, () {
-        isTimedOut = true;
-        completer
-            .completeError(TimeoutException('Failed to acquire lock', timeout));
-      });
-    }
-
-    fallback.protect(() async {
-      try {
-        if (isTimedOut) {
-          // Don't actually run logic
-          return;
-        }
-        timer?.cancel();
-        final result = await callback();
-        completer.complete(result);
-      } catch (ex) {
-        completer.completeError(ex);
-      }
-    });
-
-    return completer.future;
+    return fallback.lock(callback, timeout: timeout);
   }
 
   /// Locks the callback with web Navigator locks
@@ -128,11 +94,6 @@ class MutexImpl implements Mutex {
     // There should not be any other unhandled lock errors.
     promise.toDart.catchError((error) => null);
     return gotLock.future;
-  }
-
-  @override
-  Mutex open() {
-    return this;
   }
 }
 

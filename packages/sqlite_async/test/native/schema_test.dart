@@ -69,7 +69,7 @@ void main() {
       // Start a read transaction
       db.readTransaction((tx) async {
         completer1.complete();
-        await tx.get('select test_sleep(2000)');
+        await Future.delayed(const Duration(seconds: 2));
 
         transactionCompleted = true;
       });

@@ -2,16 +2,12 @@
 library;
 
 import 'dart:async';
-import 'dart:io';
-import 'dart:math';
 
-import 'package:collection/collection.dart';
-import 'package:path/path.dart' show join;
 import 'package:sqlite3/common.dart' as sqlite;
+import 'package:sqlite3_connection_pool/sqlite3_connection_pool.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
 
-import '../utils/abstract_test_utils.dart';
 import '../utils/test_utils_impl.dart';
 
 final testUtils = TestUtils();
@@ -64,85 +60,52 @@ void main() {
       await db.initialize();
       await createTables(db);
 
-      print("${DateTime.now()} start");
-      var futures = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) => db.get(
-          'SELECT ? as i, test_sleep(?) as sleep, test_connection_name() as connection',
-          [i, 5 + Random().nextInt(10)]));
-      await for (var result in Stream.fromFutures(futures)) {
-        print("${DateTime.now()} $result");
+      final hasConcurrentTransactions = Completer();
+      final releaseConnections = Completer();
+      var startedTransactions = 0;
+      for (var i = 0; i < 3; i++) {
+        final tx = db.readTransaction((tx) async {
+          startedTransactions++;
+          if (startedTransactions == 3) {
+            hasConcurrentTransactions.complete();
+          }
+
+          await releaseConnections.future;
+          expect(await tx.getAll('SELECT * FROM test_data'), hasLength(0));
+        });
+        expectLater(tx, completes);
       }
-    });
 
-    test('Concurrency 2', () async {
-      final db1 = await testUtils.setupDatabase(path: path, maxReaders: 3);
-      final db2 = await testUtils.setupDatabase(path: path, maxReaders: 3);
+      await hasConcurrentTransactions.future;
 
-      await db1.initialize();
-      await createTables(db1);
-      await db2.initialize();
-      print("${DateTime.now()} start");
-
-      var futures1 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) {
-        return db1.execute(
-            "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 1 ' || datetime() as connection RETURNING *",
-            [
-              i,
-              5 + Random().nextInt(20)
-            ]).then((value) => print("${DateTime.now()} $value"));
-      }).toList();
-
-      var futures2 = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].map((i) {
-        return db2.execute(
-            "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 2 ' || datetime() as connection RETURNING *",
-            [
-              i,
-              5 + Random().nextInt(20)
-            ]).then((value) => print("${DateTime.now()} $value"));
-      }).toList();
-      await Future.wait(futures1);
-      await Future.wait(futures2);
-      print("${DateTime.now()} done");
+      // Ensure we can write while read transactions are active.
+      await db
+          .execute('INSERT INTO test_data (description) VALUES (?)', ['test']);
+      releaseConnections.complete();
     });
 
     test('prevent opening new readers while in withAllConnections', () async {
-      final sharedStateDir = Directory.systemTemp.createTempSync();
-      addTearDown(() => sharedStateDir.deleteSync(recursive: true));
-
-      final File sharedStateFile =
-          File(join(sharedStateDir.path, 'shared-state.txt'));
-
-      sharedStateFile.writeAsStringSync('initial');
-
       final db = SqliteDatabase.withFactory(
-          _TestSqliteOpenFactoryWithSharedStateFile(
-              path: path, sharedStateFilePath: sharedStateFile.path),
+          await testUtils.testFactory(path: path),
           maxReaders: 3);
       await db.initialize();
       await createTables(db);
 
-      // The writer saw 'initial' in the file when opening the connection
-      expect(
-        await db
-            .writeLock((c) => c.get('SELECT file_contents_on_open() AS state')),
-        {'state': 'initial'},
-      );
-
+      final hasAllConnectionsCompleter = Completer<void>();
       final withAllConnectionsCompleter = Completer<void>();
 
       final withAllConnsFut = db.withAllConnections((writer, readers) async {
-        expect(readers.length, 0); // No readers yet
-
-        // Simulate some work until the file is updated
-        await Future.delayed(const Duration(milliseconds: 200));
-        sharedStateFile.writeAsStringSync('updated');
+        expect(readers.length, 3);
+        hasAllConnectionsCompleter.complete();
 
         await withAllConnectionsCompleter.future;
       });
 
+      await hasAllConnectionsCompleter.future;
+
       // Start a reader that gets the contents of the shared file
       bool readFinished = false;
-      final someReadFut =
-          db.get('SELECT file_contents_on_open() AS state', []).then((r) {
+      final someReadFut = db.get('SELECT 1', []).then((r) {
         readFinished = true;
         return r;
       });
@@ -155,73 +118,8 @@ void main() {
       withAllConnectionsCompleter.complete();
       await withAllConnsFut;
 
-      final readerInfo = await someReadFut;
+      await someReadFut;
       expect(readFinished, isTrue);
-      // The read should see the updated value in the file. This checks
-      // that a reader doesn't spawn while running withAllConnections
-      expect(readerInfo, {'state': 'updated'});
-    });
-
-    test('with all connections', () async {
-      final maxReaders = 3;
-
-      final db = SqliteDatabase.withFactory(
-        await testUtils.testFactory(path: path),
-        maxReaders: maxReaders,
-      );
-      await db.initialize();
-      await createTables(db);
-
-      Future<sqlite.Row> readWithRandomDelay(
-          SqliteReadContext ctx, int id) async {
-        return await ctx.get(
-            'SELECT ? as i, test_sleep(?) as sleep, test_connection_name() as connection',
-            [id, 5 + Random().nextInt(10)]);
-      }
-
-      // Warm up to spawn the max readers
-      await Future.wait(
-        [1, 2, 3, 4, 5, 6, 7, 8].map((i) => readWithRandomDelay(db, i)),
-      );
-
-      bool finishedWithAllConns = false;
-
-      late Future<void> readsCalledWhileWithAllConnsRunning;
-
-      print("${DateTime.now()} start");
-      await db.withAllConnections((writer, readers) async {
-        expect(readers.length, maxReaders);
-
-        // Run some reads during the block that they should run after the block finishes and releases
-        // all locks
-        readsCalledWhileWithAllConnsRunning = Future.wait(
-          [1, 2, 3, 4, 5, 6, 7, 8].map((i) async {
-            final r = await db.readLock((c) async {
-              expect(finishedWithAllConns, isTrue);
-              return await readWithRandomDelay(c, i);
-            });
-            print(
-                "${DateTime.now()} After withAllConnections, started while running $r");
-          }),
-        );
-
-        await Future.wait([
-          writer.execute(
-              "INSERT OR REPLACE INTO test_data(id, description) SELECT ? as i, test_sleep(?) || ' ' || test_connection_name() || ' 1 ' || datetime() as connection RETURNING *",
-              [
-                123,
-                5 + Random().nextInt(20)
-              ]).then((value) =>
-              print("${DateTime.now()} withAllConnections writer done $value")),
-          ...readers
-              .mapIndexed((i, r) => readWithRandomDelay(r, i).then((results) {
-                    print(
-                        "${DateTime.now()} withAllConnections readers done $results");
-                  }))
-        ]);
-      }).then((_) => finishedWithAllConns = true);
-
-      await readsCalledWhileWithAllConnsRunning;
     });
 
     test('read-only transactions', () async {
@@ -236,10 +134,8 @@ void main() {
         await db
             .getAll('INSERT INTO test_data(description) VALUES(?)', ['test']);
       },
-          throwsA((e) =>
-              e is sqlite.SqliteException &&
-              e.message
-                  .contains('attempt to write in a read-only transaction')));
+          throwsA(isA<sqlite.SqliteException>().having((e) => e.message,
+              'message', contains('attempt to write a readonly database'))));
 
       // Can use WITH ... SELECT
       await db.getAll("WITH test AS (SELECT 1 AS one) SELECT * FROM test");
@@ -249,10 +145,8 @@ void main() {
         await db.getAll(
             "WITH test AS (SELECT 1 AS one) INSERT INTO test_data(description) SELECT one FROM test");
       },
-          throwsA((e) =>
-              e is sqlite.SqliteException &&
-              e.message
-                  .contains('attempt to write in a read-only transaction')));
+          throwsA(isA<sqlite.SqliteException>().having((e) => e.message,
+              'message', contains('attempt to write a readonly database'))));
 
       await db.writeTransaction((tx) async {
         // Within a write transaction, this is fine
@@ -359,9 +253,18 @@ void main() {
     test('should error on dangling transactions', () async {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
-      await expectLater(() async {
-        await db.execute('BEGIN');
-      }, throwsA((e) => e is sqlite.SqliteException));
+
+      await expectLater(
+          db.execute('BEGIN'), throwsA((e) => e is sqlite.SqliteException));
+      expect(await db.getAutoCommit(), isTrue);
+
+      await expectLater(db.writeLock((ctx) async {
+        expect(await ctx.getAutoCommit(), isTrue);
+        await ctx.execute('BEGIN');
+        expect(await ctx.getAutoCommit(), isFalse);
+      }), throwsA(isA<sqlite.SqliteException>()));
+
+      expect(await db.getAutoCommit(), isTrue);
     });
 
     test('should handle uncaught errors', () async {
@@ -378,10 +281,8 @@ void main() {
         caughtError = error;
       });
       // The specific error message may change
-      expect(
-          caughtError.toString(),
-          equals(
-              "IsolateError in sqlite-writer: Invalid argument(s): uncaught async error"));
+      expect(caughtError.toString(),
+          equals("Invalid argument(s): uncaught async error"));
 
       // Check that we can still continue afterwards
       final computed = await db.computeWithDatabase((db) async {
@@ -408,10 +309,8 @@ void main() {
           caughtError = error;
         });
         // The specific message may change
-        expect(
-            caughtError.toString(),
-            matches(RegExp(
-                r'IsolateError in sqlite-\d+: Invalid argument\(s\): uncaught async error')));
+        expect(caughtError.toString(),
+            contains('Invalid argument(s): uncaught async error'));
       }
 
       // Check that we can still continue afterwards
@@ -423,48 +322,24 @@ void main() {
       expect(computed, equals(5));
     });
 
-    test('closing', () async {
-      // Test race condition in SqliteConnectionPool:
-      // 1. Open two concurrent queries, which opens two connection.
-      // 2. Second connection takes longer to open than first.
-      // 3. Call db.close().
-      // 4. Now second connection is ready. Second query has two connections to choose from.
-      // 5. However, first connection is closed, so it's removed from the pool.
-      // 6. Triggers `Concurrent modification during iteration: Instance(length:1) of '_GrowableList'`
-      final db = SqliteDatabase.withFactory(
-          await testUtils.testFactory(path: path, initStatements: [
-        // Second connection to sleep more than first connection
-        'SELECT test_sleep(test_connection_number() * 10)'
-      ]));
-      await db.initialize();
-
-      final future1 = db.get('SELECT test_sleep(10) as sleep');
-      final future2 = db.get('SELECT test_sleep(10) as sleep');
-
-      await db.close();
-
-      await future1;
-      await future2;
-    });
-
     test('lockTimeout', () async {
       final db = await testUtils.setupDatabase(path: path, maxReaders: 2);
       await db.initialize();
 
       final f1 = db.readTransaction((tx) async {
-        await tx.get('select test_sleep(100)');
+        await Future.delayed(const Duration(milliseconds: 100));
       }, lockTimeout: const Duration(milliseconds: 200));
 
       final f2 = db.readTransaction((tx) async {
-        await tx.get('select test_sleep(100)');
+        await Future.delayed(const Duration(milliseconds: 100));
       }, lockTimeout: const Duration(milliseconds: 200));
 
       // At this point, both read connections are in use
       await expectLater(() async {
         await db.readLock((tx) async {
-          await tx.get('select test_sleep(10)');
+          await tx.get('select 1');
         }, lockTimeout: const Duration(milliseconds: 2));
-      }, throwsA((e) => e is TimeoutException));
+      }, throwsA(isA<PoolAbortException>()));
 
       await Future.wait([f1, f2]);
     });
@@ -501,33 +376,5 @@ class _InvalidPragmaOnOpenFactory extends DefaultSqliteOpenFactory {
       'invalid syntax to fail open in test',
       ...super.pragmaStatements(options),
     ];
-  }
-}
-
-class _TestSqliteOpenFactoryWithSharedStateFile
-    extends TestDefaultSqliteOpenFactory {
-  final String sharedStateFilePath;
-
-  _TestSqliteOpenFactoryWithSharedStateFile(
-      {required super.path, required this.sharedStateFilePath});
-
-  @override
-  sqlite.CommonDatabase open(SqliteOpenOptions options) {
-    final File sharedStateFile = File(sharedStateFilePath);
-    final String sharedState = sharedStateFile.readAsStringSync();
-
-    final db = super.open(options);
-
-    // Function to return the contents of the shared state file at the time of opening
-    // so that we know at which point the factory was called.
-    db.createFunction(
-      functionName: 'file_contents_on_open',
-      argumentCount: const sqlite.AllowedArgumentCount(0),
-      function: (args) {
-        return sharedState;
-      },
-    );
-
-    return db;
   }
 }

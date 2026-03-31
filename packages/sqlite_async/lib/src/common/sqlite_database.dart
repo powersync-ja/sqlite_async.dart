@@ -2,7 +2,6 @@ import 'dart:async';
 
 import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
-import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
 import 'package:sqlite_async/src/impl/single_connection_database.dart';
 import 'package:sqlite_async/src/impl/sqlite_database_impl.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
@@ -34,11 +33,6 @@ mixin SqliteDatabaseMixin implements SqliteConnection, SqliteQueries {
   Future<void> initialize() async {
     await isInitialized;
   }
-
-  /// A connection factory that can be passed to different isolates.
-  ///
-  /// Use this to access the database in background isolates.
-  IsolateConnectionFactory isolateConnectionFactory();
 
   /// Locks all underlying connections making up this database, and gives [block] access to all of them at once.
   /// This can be useful to run the same statement on all connections. For instance,

@@ -1,11 +1,11 @@
 import 'dart:async';
 
 import 'package:sqlite3/common.dart' as sqlite;
-import 'package:sqlite_async/mutex.dart';
 import 'package:sqlite_async/sqlite3_common.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 
 import 'common/connection/sync_sqlite_connection.dart';
+import 'common/mutex.dart';
 
 /// Abstract class representing calls available in a read-only or read-write context.
 abstract interface class SqliteReadContext {
@@ -116,7 +116,7 @@ abstract interface class SqliteConnection extends SqliteWriteContext {
   /// release builds, queries are posted to the `dart:developer` timeline).
   factory SqliteConnection.synchronousWrapper(CommonDatabase raw,
       {Mutex? mutex, bool? profileQueries}) {
-    return SyncSqliteConnection(raw, mutex ?? Mutex(),
+    return SyncSqliteConnection(raw, mutex ?? Mutex.simple(),
         profileQueries: profileQueries);
   }
 

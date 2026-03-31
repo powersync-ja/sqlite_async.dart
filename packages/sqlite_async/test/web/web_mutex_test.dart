@@ -1,4 +1,7 @@
-import 'package:sqlite_async/sqlite_async.dart';
+@TestOn('browser')
+library;
+
+import 'package:sqlite_async/src/web/web_mutex.dart';
 import 'package:test/test.dart';
 
 import '../utils/test_utils_impl.dart';
@@ -8,8 +11,8 @@ final testUtils = TestUtils();
 void main() {
   group('Web Mutex Tests', () {
     test('Web should share locking with identical identifiers', () async {
-      final m1 = Mutex(identifier: 'sync');
-      final m2 = Mutex(identifier: 'sync');
+      final m1 = WebMutexImpl(identifier: 'sync');
+      final m2 = WebMutexImpl(identifier: 'sync');
 
       final results = [];
       final p1 = m1.lock(() async {

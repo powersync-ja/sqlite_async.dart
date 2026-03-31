@@ -2,7 +2,6 @@ import 'dart:async';
 import 'dart:js_interop';
 
 import 'package:meta/meta.dart';
-import 'package:mutex/mutex.dart';
 import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite3_web/protocol_utils.dart' as proto;
@@ -48,10 +47,6 @@ class AsyncSqliteDatabase extends WorkerDatabase {
   final CommonDatabase database;
   final Stream<Set<String>> _updates;
 
-  // This mutex is only used for lock requests from clients. Clients only send
-  // these requests for shared workers, so we can assume each database is only
-  // opened once and we don't need web locks here.
-  final mutex = ReadWriteMutex();
   final Map<ClientConnection, _ConnectionState> _state = {};
 
   AsyncSqliteDatabase({required this.database})
@@ -67,9 +62,6 @@ class AsyncSqliteDatabase extends WorkerDatabase {
       state.hasOnCloseListener = true;
       connection.closed.then((_) {
         state.unsubscribeUpdates();
-        if (state.holdsMutex) {
-          mutex.release();
-        }
       });
     }
   }
@@ -137,7 +129,6 @@ class AsyncSqliteDatabase extends WorkerDatabase {
 
 final class _ConnectionState {
   bool hasOnCloseListener = false;
-  bool holdsMutex = false;
   StreamSubscription<Set<String>>? updatesNotification;
 
   void unsubscribeUpdates() {

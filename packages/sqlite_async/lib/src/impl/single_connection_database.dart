@@ -27,13 +27,6 @@ final class SingleConnectionDatabase
   Future<void> get isInitialized => Future.value();
 
   @override
-  IsolateConnectionFactory<CommonDatabase> isolateConnectionFactory() {
-    throw UnsupportedError(
-        "SqliteDatabase.singleConnection instances can't be used across "
-        'isolates.');
-  }
-
-  @override
   int get maxReaders => 1;
 
   @override

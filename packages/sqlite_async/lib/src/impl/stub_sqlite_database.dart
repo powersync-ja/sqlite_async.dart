@@ -1,5 +1,4 @@
 import 'package:meta/meta.dart';
-import 'package:sqlite_async/src/common/isolate_connection_factory.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
@@ -52,11 +51,6 @@ class SqliteDatabaseImpl
 
   @override
   Future<void> close() {
-    throw UnimplementedError();
-  }
-
-  @override
-  IsolateConnectionFactory isolateConnectionFactory() {
     throw UnimplementedError();
   }
 

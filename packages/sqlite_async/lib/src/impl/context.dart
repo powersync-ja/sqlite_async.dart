@@ -23,6 +23,30 @@ abstract base class UnscopedContext implements SqliteReadContext {
   UnscopedContext interceptOutermostTransaction() {
     return this;
   }
+
+  @override
+  Future<Row> get(String sql, [List<Object?> parameters = const []]) async {
+    final results = await getAll(sql, parameters);
+    return results.first;
+  }
+
+  @override
+  Future<Row?> getOptional(String sql,
+      [List<Object?> parameters = const []]) async {
+    final results = await getAll(sql, parameters);
+    return results.firstOrNull;
+  }
+
+  Future<void> checkNotInTransaction() async {
+    if (!await getAutoCommit()) {
+      throw SqliteException(
+        extendedResultCode: 0,
+        message: 'Dangling transaction detected. If you want to use BEGIN '
+            'statements manually, COMMIT or ROLLBACK them before returning '
+            'from writeLock.',
+      );
+    }
+  }
 }
 
 /// A view over an [UnscopedContext] implementing [SqliteReadContext].
@@ -207,7 +231,9 @@ final class ScopedWriteContext extends ScopedReadContext
   ) async {
     final scoped = ScopedWriteContext(unsafe);
     try {
-      return await callback(scoped);
+      final result = await callback(scoped);
+      await unsafe.checkNotInTransaction();
+      return result;
     } finally {
       scoped.invalidate();
     }

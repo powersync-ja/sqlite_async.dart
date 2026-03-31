@@ -3,7 +3,6 @@ import 'package:meta/meta.dart';
 import 'package:sqlite_async/src/common/abstract_open_factory.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/sqlite_queries.dart';
-import 'package:sqlite_async/src/web/web_isolate_connection_factory.dart';
 import 'package:sqlite_async/src/common/sqlite_database.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
@@ -161,11 +160,6 @@ class SqliteDatabaseImpl
     _broadcastUpdatesSubscription?.cancel();
     updatesController.close();
     return _connection.close();
-  }
-
-  @override
-  IsolateConnectionFactoryImpl isolateConnectionFactory() {
-    throw UnimplementedError();
   }
 
   @override
