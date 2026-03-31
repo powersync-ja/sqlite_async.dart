@@ -14,6 +14,7 @@
   - Instead of `package:sqlite_async/sqlite3_common.dart`, import `package:sqlite3/common.dart`.
   - Instead of `package:sqlite_async/sqlite3_wasm.dart`, import `package:sqlite3/wasm.dart`.
   - Instead of `package:sqlite_async/sqlite3_web.dart`, import `package:sqlite3_web/sqlite3_web.dart`.
+- __Breaking__: Remove `SqliteDatabaseMixin` and `SqliteQueries`. Extend `SqliteConnection` instead.
 
 
 ## 0.13.1

@@ -160,19 +160,19 @@ abstract class SqliteConnection implements SqliteWriteContext {
 
   /// Create a Stream of changes to any of the specified tables.
   ///
-  /// This is preferred over [watch] when multiple queries need to be performed
-  /// together when data is changed, e.g. like this:
+  /// Example to get the same effect as [watch]:
   ///
   /// ```dart
-  /// var subscription = db.onChange({'users', 'groups'}).asyncMap((event) async {
-  ///   await db.readTransaction((tx) async {
-  ///     var data = await tx.getAll('SELECT * ROM users');
-  ///     var moreData = await tx.getAll('SELECT * ROM groups');
-  ///
-  ///     // Handle data here...
-  ///   });
+  /// var subscription = db.onChange({'mytable'}).asyncMap((event) async {
+  ///   var data = await db.getAll('SELECT * FROM mytable');
+  ///   return data;
+  /// }).listen((data) {
+  ///   // Do something with the data here
   /// });
   /// ```
+  ///
+  /// This is preferred over [watch] when multiple queries need to be performed
+  /// together when data is changed.
   Stream<UpdateNotification> onChange(Iterable<String>? tables,
       {Duration throttle = const Duration(milliseconds: 30),
       bool triggerImmediately = true}) {
