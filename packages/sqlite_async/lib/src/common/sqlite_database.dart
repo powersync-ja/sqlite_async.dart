@@ -62,8 +62,7 @@ abstract base class SqliteDatabase
   /// do not block read transactions, and read transactions will see the state
   /// from the last committed write transaction.
   factory SqliteDatabase(
-      {required String path,
-      SqliteOptions options = const SqliteOptions.defaults()}) {
+      {required String path, SqliteOptions options = const SqliteOptions()}) {
     return SqliteDatabase.withFactory(
       SqliteOpenFactory(path: path, options: options),
     );

@@ -32,8 +32,7 @@ base class WebSqliteOpenFactory extends InternalOpenFactory {
   });
 
   WebSqliteOpenFactory(
-      {required super.path,
-      super.sqliteOptions = const SqliteOptions.defaults()}) {
+      {required super.path, super.sqliteOptions = const SqliteOptions()}) {
     // Make sure initializer starts running immediately
     _initialized;
   }

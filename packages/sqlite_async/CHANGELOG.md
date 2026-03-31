@@ -5,6 +5,9 @@
 - __Breaking__: Rewrite the native connection pool implementation.
   - Remove isolate connection factories. Simply open the same database on another isolate, it's safe to do so now.
   - It is no longer possible to register user-defined functions in Dart. Extensions providing functions in native code can still be used.
+- __Breaking__: Remove `AbstractDefaultSqliteOpenFactory` and `DefaultSqliteOpenFactory`. Use `SqliteOpenFactory` instead.
+  To provide a custom open factory, import `NativeSqliteOpenFactory` or `WebSqliteOpenFactory` with a platform-specific
+  import and extend those classes.
 - __Breaking__: Remove the `maxReaders` parameter on `SqliteDatabase`. Set that parameter on `SqliteOptions` instead.
 - __Breaking__: Remove libraries exporting the `sqlite3` package:
   - Instead of `package:sqlite_async/sqlite3.dart`, import `package:sqlite3/sqlite3.dart`.

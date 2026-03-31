@@ -7,8 +7,7 @@ abstract class AbstractTestUtils {
   Future<CommonDatabase> openDatabaseForSingleConnection();
 
   Future<SqliteOpenFactory> testFactory(
-      {String? path,
-      SqliteOptions options = const SqliteOptions.defaults()}) async {
+      {String? path, SqliteOptions options = const SqliteOptions()}) async {
     return SqliteOpenFactory(path: path ?? dbPath(), options: options);
   }
 

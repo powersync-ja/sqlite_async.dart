@@ -2,9 +2,8 @@ final class WebSqliteOptions {
   final String workerUri;
   final String wasmUri;
 
-  const WebSqliteOptions.defaults()
-      : workerUri = 'db_worker.js',
-        wasmUri = 'sqlite3.wasm';
+  @Deprecated('Use default WebSqliteOptions constructor instead')
+  const factory WebSqliteOptions.defaults() = WebSqliteOptions;
 
   const WebSqliteOptions(
       {this.wasmUri = 'sqlite3.wasm', this.workerUri = 'db_worker.js'});
@@ -51,7 +50,7 @@ final class SqliteOptions {
     this.journalMode = SqliteJournalMode.wal,
     this.journalSizeLimit = 6 * 1024 * 1024,
     this.synchronous = SqliteSynchronous.normal,
-    this.webSqliteOptions = const WebSqliteOptions.defaults(),
+    this.webSqliteOptions = const WebSqliteOptions(),
     this.lockTimeout = const Duration(seconds: 30),
     this.profileQueries = _profileQueriesByDefault,
     this.maxReaders = defaultMaxReaders,

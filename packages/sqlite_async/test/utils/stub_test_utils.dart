@@ -1,4 +1,4 @@
-import 'package:sqlite3/src/database.dart';
+import 'package:sqlite3/common.dart';
 
 import 'abstract_test_utils.dart';
 

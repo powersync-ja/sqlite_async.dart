@@ -1,8 +1,8 @@
 import 'dart:async';
 import 'dart:io';
 
+import 'package:sqlite3/common.dart';
 import 'package:sqlite3/sqlite3.dart';
-import 'package:sqlite3/src/database.dart';
 import 'package:test_descriptor/test_descriptor.dart' as d;
 
 import 'abstract_test_utils.dart';

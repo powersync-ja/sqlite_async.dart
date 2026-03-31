@@ -57,7 +57,7 @@ class TestUtils extends AbstractTestUtils {
   @override
   Future<SqliteOpenFactory> testFactory({
     String? path,
-    SqliteOptions options = const SqliteOptions.defaults(),
+    SqliteOptions options = const SqliteOptions(),
   }) async {
     await _isInitialized;
     return super.testFactory(

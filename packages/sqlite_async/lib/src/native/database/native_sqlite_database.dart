@@ -30,8 +30,7 @@ import 'worker.dart';
 final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   @override
   final NativeSqliteOpenFactory openFactory;
-  late final Future<SqliteConnectionPool> _pool =
-      _openNativePool(openFactory, maxReaders);
+  late final Future<SqliteConnectionPool> _pool = _openNativePool(openFactory);
   bool _isClosed = false;
   final _lockGuard = Object();
 
@@ -290,11 +289,11 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
 
   static Future<SqliteConnectionPool> _openNativePool(
     NativeSqliteOpenFactory openFactory,
-    int maxReaders,
   ) {
     // We want to open pools asynchronously since running pragma statements as
     // part of openFactory.open might do IO. openAsync spawn a temporary isolate
     // for that.
+    final maxReaders = openFactory.sqliteOptions.maxReaders;
     return SqliteConnectionPool.openAsync(
       name: openFactory.path,
       openConnections: () {

@@ -7,6 +7,7 @@ import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/web.dart' hide WebDatabaseEndpoint;
 
+import '../connection.dart';
 import '../database.dart';
 
 /// A [SqliteDatabase] implemented by delegating to a [WebDatabase] opened

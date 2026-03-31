@@ -8,28 +8,12 @@ import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
-import 'package:web/web.dart';
 import '../common/sqlite_database.dart';
 import '../common/timeouts.dart';
 import '../impl/context.dart';
 import 'connection.dart';
 import 'protocol.dart';
 import 'web_mutex.dart';
-
-/// An endpoint that can be used, by any running JavaScript context in the same
-/// website, to connect to an existing [WebDatabase].
-///
-/// These endpoints are created by calling [WebDatabase.exposeEndpoint]
-/// and consist of a [MessagePort] and two [String]s internally identifying the
-/// connection. Both objects can be transferred over send ports towards another
-/// worker or context. That context can then use
-/// [WebDatabase.connectToEndpoint] to connect to the port already
-/// opened.
-typedef WebDatabaseEndpoint = ({
-  MessagePort connectPort,
-  String connectName,
-  String? lockName,
-});
 
 final class WebDatabase extends SqliteDatabaseImpl
     implements WebSqliteConnection {
