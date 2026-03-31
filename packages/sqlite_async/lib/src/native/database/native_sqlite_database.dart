@@ -109,6 +109,10 @@ class SqliteDatabaseImpl
     _isClosed = true;
     final pool = await _pool;
     pool.close();
+
+    while (_workers.isNotEmpty) {
+      _workers.removeFirst().close();
+    }
   }
 
   /// Open a read-only transaction.
