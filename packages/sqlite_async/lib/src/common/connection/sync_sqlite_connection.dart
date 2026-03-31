@@ -4,7 +4,6 @@ import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/src/common/mutex.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 import 'package:sqlite_async/src/sqlite_options.dart';
-import 'package:sqlite_async/src/sqlite_queries.dart';
 import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 
@@ -12,7 +11,7 @@ import '../../impl/context.dart';
 
 /// A simple "synchronous" connection which provides the async SqliteConnection
 /// implementation using a synchronous SQLite connection
-class SyncSqliteConnection with SqliteQueries implements SqliteConnection {
+final class SyncSqliteConnection extends SqliteConnection {
   final CommonDatabase db;
   final Mutex mutex;
   @override

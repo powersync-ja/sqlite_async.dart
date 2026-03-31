@@ -22,7 +22,7 @@ class SqliteAsyncDriftConnection extends DatabaseConnection {
     bool logStatements = false,
     Set<TableUpdate> Function(UpdateNotification)? transformTableUpdates,
   }) : super(SqliteAsyncQueryExecutor(db, logStatements: logStatements)) {
-    _updateSubscription = (db as SqliteQueries).updates!.listen((event) {
+    _updateSubscription = db.updates.listen((event) {
       final Set<TableUpdate> setUpdates;
       if (transformTableUpdates != null) {
         setUpdates = transformTableUpdates(event);

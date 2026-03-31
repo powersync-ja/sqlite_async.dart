@@ -39,8 +39,7 @@ final class SingleConnectionDatabase extends SqliteDatabaseImpl {
   }
 
   @override
-  Stream<UpdateNotification> get updates =>
-      connection.updates ?? const Stream.empty();
+  Stream<UpdateNotification> get updates => connection.updates;
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,

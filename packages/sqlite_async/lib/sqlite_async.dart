@@ -10,6 +10,5 @@ export 'src/common/sqlite_database.dart' hide SqliteDatabaseImpl;
 export 'src/sqlite_connection.dart';
 export 'src/sqlite_migrations.dart';
 export 'src/sqlite_options.dart';
-export 'src/sqlite_queries.dart';
 export 'src/update_notification.dart';
 export 'src/utils.dart';
