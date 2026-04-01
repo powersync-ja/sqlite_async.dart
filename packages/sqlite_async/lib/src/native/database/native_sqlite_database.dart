@@ -30,7 +30,16 @@ import 'worker.dart';
 final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   @override
   final NativeSqliteOpenFactory openFactory;
-  late final Future<SqliteConnectionPool> _pool = _openNativePool(openFactory);
+  late final Future<SqliteConnectionPool> _pool =
+      _openNativePool(openFactory).then((pool) {
+    // Pipe updates into a stream controller as soon as the pool is opened to
+    // avoid missing updates if the stream is only listened to later.
+    _updates.addStream(pool.updatedTables.map((e) {
+      return UpdateNotification(e.toSet());
+    }));
+
+    return pool;
+  });
   bool _isClosed = false;
   final _lockGuard = Object();
 
@@ -43,10 +52,11 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
 
   final Queue<IsolateWorker> _workers;
 
+  final StreamController<UpdateNotification> _updates =
+      StreamController.broadcast(sync: true);
+
   @override
-  late final Stream<UpdateNotification> updates = Stream.fromFuture(_pool)
-      .asyncExpand((pool) => pool.updatedTables
-          .map((changedTables) => UpdateNotification(changedTables.toSet())));
+  Stream<UpdateNotification> get updates => _updates.stream;
 
   NativeSqliteDatabaseImpl(this.openFactory)
       :
