@@ -68,7 +68,7 @@ final class WebDatabase extends SqliteDatabaseImpl
   @override
 
   /// Not supported on web. There is only 1 connection.
-  int get maxReaders => throw UnimplementedError();
+  int get maxReaders => 0;
 
   @override
 

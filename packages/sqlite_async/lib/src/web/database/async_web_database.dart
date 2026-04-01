@@ -29,7 +29,7 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
   late Stream<UpdateNotification> updates;
 
   @override
-  int get maxReaders => openFactory.sqliteOptions.maxReaders;
+  int get maxReaders => 0;
 
   @override
   @protected

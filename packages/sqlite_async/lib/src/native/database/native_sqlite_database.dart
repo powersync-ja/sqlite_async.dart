@@ -94,58 +94,6 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
     }
   }
 
-  /// Open a read-only transaction.
-  ///
-  /// Up to [maxReaders] read transactions can run concurrently.
-  /// After that, read transactions are queued.
-  ///
-  /// Read transactions can run concurrently to a write transaction.
-  ///
-  /// Changes from any write transaction are not visible to read transactions
-  /// started before it.
-  @override
-  Future<T> readTransaction<T>(
-      Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout}) async {
-    return _useConnection(
-      writer: false,
-      abortTrigger: lockTimeout?.asTimeout,
-      debugContext: 'readTransaction',
-      (context) {
-        return _transactionInLease(context, callback);
-      },
-    );
-  }
-
-  /// Open a read-write transaction.
-  ///
-  /// Only a single write transaction can run at a time - any concurrent
-  /// transactions are queued.
-  ///
-  /// The write transaction is automatically committed when the callback finishes,
-  /// or rolled back on any error.
-  @override
-  Future<T> writeTransaction<T>(
-      Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout}) {
-    return _useConnection(
-      writer: true,
-      abortTrigger: lockTimeout?.asTimeout,
-      debugContext: 'writeTransaction',
-      (context) {
-        return _transactionInLease(context, callback);
-      },
-    );
-  }
-
-  Future<T> _transactionInLease<T>(
-    _LeasedContext context,
-    Future<T> Function(SqliteWriteContext tx) callback,
-  ) {
-    final ctx = ScopedWriteContext(context);
-    return ctx.writeTransaction(callback).whenComplete(ctx.invalidate);
-  }
-
   @override
   Future<T> abortableReadLock<T>(
       Future<T> Function(SqliteReadContext tx) callback,
