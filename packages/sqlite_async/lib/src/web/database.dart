@@ -4,7 +4,8 @@ import 'dart:js_interop';
 
 import 'package:meta/meta.dart';
 import 'package:sqlite3/common.dart';
-import 'package:sqlite3_web/sqlite3_web.dart';
+import 'package:sqlite3_web/sqlite3_web.dart' hide AbortException;
+import 'package:sqlite3_web/sqlite3_web.dart' as sqlite_web;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
@@ -89,8 +90,10 @@ final class WebDatabase extends SqliteDatabaseImpl
   }
 
   @override
-  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+  Future<T> abortableReadLock<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext}) {
     // Since there is only a single physical connection per database on the web,
     // we can't enable concurrent readers to a writer. Even supporting multiple
     // readers alone isn't safe, since these readers could start read
@@ -98,7 +101,7 @@ final class WebDatabase extends SqliteDatabaseImpl
     // `COMMIT` statements if they were to start their own transactions.
     return _lockInternal(
       (unscoped) => ScopedReadContext.assumeReadLock(unscoped, callback),
-      lockTimeout: lockTimeout,
+      abortTrigger: abortTrigger,
       debugContext: debugContext,
       flush: false,
     );
@@ -119,31 +122,45 @@ final class WebDatabase extends SqliteDatabaseImpl
         );
       },
       flush: flush ?? true,
-      lockTimeout: lockTimeout,
+      abortTrigger: lockTimeout?.asTimeout,
     );
   }
 
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext, bool? flush}) async {
+      {Duration? lockTimeout, String? debugContext, bool? flush}) {
+    return abortableWriteLock(
+      callback,
+      abortTrigger: lockTimeout?.asTimeout,
+      debugContext: debugContext,
+      flush: flush,
+    );
+  }
+
+  @override
+  Future<T> abortableWriteLock<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext,
+      bool? flush}) async {
     return await _lockInternal(
       (unscoped) {
         return ScopedWriteContext.assumeWriteLock(unscoped, callback);
       },
       flush: flush ?? true,
       debugContext: debugContext,
-      lockTimeout: lockTimeout,
+      abortTrigger: abortTrigger,
     );
   }
 
   Future<T> _lockInternal<T>(
     Future<T> Function(_UnscopedContext) callback, {
     required bool flush,
-    Duration? lockTimeout,
+    Future<void>? abortTrigger,
     String? debugContext,
   }) async {
     if (_mutex case var mutex?) {
-      return await mutex.lock(timeout: lockTimeout, () async {
+      return await mutex.lock(abortTrigger: abortTrigger, () async {
         final context = _UnscopedContext(this, null);
         try {
           return await callback(context);
@@ -154,7 +171,7 @@ final class WebDatabase extends SqliteDatabaseImpl
         }
       });
     } else {
-      return await _database.requestLock(abortTrigger: lockTimeout?.asTimeout,
+      return await _database.requestLock(abortTrigger: abortTrigger,
           (token) async {
         final context = _UnscopedContext(this, token);
         try {
@@ -164,7 +181,7 @@ final class WebDatabase extends SqliteDatabaseImpl
             await this.flush();
           }
         }
-      });
+      }).translateAbortExceptions(debugContext ?? 'lock');
     }
   }
 
@@ -320,5 +337,12 @@ Future<T> wrapSqliteException<T>(Future<T> Function() callback) async {
       );
     }
     rethrow;
+  }
+}
+
+extension<T> on Future<T> {
+  Future<T> translateAbortExceptions(String debugContext) {
+    return onError<sqlite_web.AbortException>(
+        (e, s) => Error.throwWithStackTrace(AbortException(debugContext), s));
   }
 }

@@ -36,8 +36,10 @@ final class SyncSqliteConnection extends SqliteConnection {
   }
 
   @override
-  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
+  Future<T> abortableReadLock<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext}) {
     final task = profileQueries ? TimelineTask() : null;
     task?.start('${profilerPrefix}mutex_lock');
 
@@ -49,13 +51,15 @@ final class SyncSqliteConnection extends SqliteConnection {
           callback,
         );
       },
-      timeout: lockTimeout,
+      abortTrigger: abortTrigger,
     );
   }
 
   @override
-  Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
+  Future<T> abortableWriteLock<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext}) {
     final task = profileQueries ? TimelineTask() : null;
     task?.start('${profilerPrefix}mutex_lock');
 
@@ -67,7 +71,7 @@ final class SyncSqliteConnection extends SqliteConnection {
           callback,
         );
       },
-      timeout: lockTimeout,
+      abortTrigger: abortTrigger,
     );
   }
 

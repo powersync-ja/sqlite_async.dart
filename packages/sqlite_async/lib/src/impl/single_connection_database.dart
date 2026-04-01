@@ -32,20 +32,24 @@ final class SingleConnectionDatabase extends SqliteDatabaseImpl {
   SqliteOpenFactory get openFactory => throw UnimplementedError();
 
   @override
-  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
-    return connection.readLock(callback,
-        lockTimeout: lockTimeout, debugContext: debugContext);
+  Future<T> abortableReadLock<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext}) {
+    return connection.abortableReadLock(callback,
+        abortTrigger: abortTrigger, debugContext: debugContext);
   }
 
   @override
   Stream<UpdateNotification> get updates => connection.updates;
 
   @override
-  Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) {
-    return connection.writeLock(callback,
-        lockTimeout: lockTimeout, debugContext: debugContext);
+  Future<T> abortableWriteLock<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext}) {
+    return connection.abortableWriteLock(callback,
+        abortTrigger: abortTrigger, debugContext: debugContext);
   }
 
   @override

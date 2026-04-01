@@ -292,14 +292,32 @@ void main() {
       await expectLater(
         () => db.writeLock(
             lockTimeout: Duration(milliseconds: 200), (_) async => {}),
-        throwsA(anything),
+        throwsAbortException,
       );
 
       await completion;
-    }, onPlatform: {
-      'browser': Skip(
-        'Web locks are managed with a shared worker, which does not support timeouts',
-      )
+    });
+
+    test('custom abort triggers', () async {
+      final releaseLock = Completer<void>();
+      final hasLock = Completer<void>();
+
+      final db = await testUtils.setupDatabase(path: path);
+      db.withAllConnections((writer, readers) async {
+        hasLock.complete();
+        await releaseLock.future;
+      });
+
+      await hasLock.future;
+
+      await expectLater(
+        db.abortableReadLock((_) async {}, abortTrigger: Future.value(null)),
+        throwsAbortException,
+      );
+      await expectLater(
+        db.abortableWriteLock((_) async {}, abortTrigger: Future.value(null)),
+        throwsAbortException,
+      );
     });
 
     test('execute single statement with RETURNING populates ResultSet',

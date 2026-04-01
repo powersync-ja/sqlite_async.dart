@@ -32,19 +32,22 @@ void main() {
     });
   });
 
-  test('Timeout should throw a TimeoutException', () async {
+  test('abort should throw a AbortException', () async {
     final m = Mutex.simple();
     m.lock(() async {
       await Future.delayed(Duration(milliseconds: 300));
     });
 
     await expectLater(
-        m.lock(() async {
+      m.lock(
+        () async {
           print('This should not get executed');
-        }, timeout: Duration(milliseconds: 200)),
-        throwsA((e) =>
-            e is TimeoutException &&
-            e.message!.contains('Failed to acquire lock')));
+        },
+        abortTrigger: Future.delayed(const Duration(milliseconds: 200)),
+      ),
+      throwsA(isAbortException().having((e) => e.toString(), 'toString()',
+          contains('A call to lock has been aborted'))),
+    );
   });
 
   test('In-time timeout should function normally', () async {
@@ -57,7 +60,7 @@ void main() {
 
     await m.lock(() async {
       results.add(2);
-    }, timeout: Duration(milliseconds: 200));
+    }, abortTrigger: Future.delayed(const Duration(milliseconds: 200)));
 
     expect(results, equals([1, 2]));
   });

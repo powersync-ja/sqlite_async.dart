@@ -1,4 +1,5 @@
 /// @docImport 'common/sqlite_database.dart';
+/// @docImport 'common/timeouts.dart';
 library;
 
 import 'dart:async';
@@ -9,6 +10,7 @@ import 'package:sqlite_async/src/update_notification.dart';
 
 import 'common/connection/sync_sqlite_connection.dart';
 import 'common/mutex.dart';
+import 'common/timeouts.dart';
 import 'utils/shared_utils.dart';
 
 /// Abstract class representing calls available in a read-only or read-write context.
@@ -251,8 +253,27 @@ abstract class SqliteConnection implements SqliteWriteContext {
   /// connections may hold read locks at the same time.
   ///
   /// In most cases, [readTransaction] should be used instead.
+  ///
+  /// If a timeout is set and no read connection becomes available in time, an
+  /// [AbortException] will be thrown.
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext});
+      {Duration? lockTimeout, String? debugContext}) {
+    return abortableReadLock(callback,
+        debugContext: debugContext, abortTrigger: lockTimeout?.asTimeout);
+  }
+
+  /// Takes a read lock, without starting a transaction.
+  ///
+  /// The lock only applies to a single [SqliteConnection], and multiple
+  /// connections may hold read locks at the same time.
+  ///
+  /// If [abortTrigger] is set and completes before the database was able to
+  /// obtain a read lock, an [AbortException] will be thrown.
+  Future<T> abortableReadLock<T>(
+    Future<T> Function(SqliteReadContext tx) callback, {
+    Future<void>? abortTrigger,
+    String? debugContext,
+  });
 
   /// Takes a global lock, without starting a transaction.
   ///
@@ -261,8 +282,27 @@ abstract class SqliteConnection implements SqliteWriteContext {
   /// The lock applies to all [SqliteConnection] instances for a [SqliteDatabase].
   /// Locks for separate [SqliteDatabase] instances on the same database file
   /// may be held concurrently.
+  ///
+  /// If a timeout is set and no read connection becomes available in time, an
+  /// [AbortException] will be thrown.
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext});
+      {Duration? lockTimeout, String? debugContext}) {
+    return abortableWriteLock(callback,
+        debugContext: debugContext, abortTrigger: lockTimeout?.asTimeout);
+  }
+
+  /// Takes a global lock, without starting a transaction.
+  ///
+  /// The lock applies to all [SqliteConnection] instances for a [SqliteDatabase].
+  /// Locks for separate [SqliteDatabase] instances on the same database file
+  /// may be held concurrently.
+  ///
+  /// If [abortTrigger] is set and completes before the database was able to
+  /// obtain a read lock, an [AbortException] will be thrown.
+  Future<T> abortableWriteLock<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext});
 
   Future<void> close();
 

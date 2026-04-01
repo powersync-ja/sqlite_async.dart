@@ -15,9 +15,12 @@
   - Instead of `package:sqlite_async/sqlite3_wasm.dart`, import `package:sqlite3/wasm.dart`.
   - Instead of `package:sqlite_async/sqlite3_web.dart`, import `package:sqlite3_web/sqlite3_web.dart`.
 - __Breaking__: Remove `SqliteDatabaseMixin` and `SqliteQueries`. Extend `SqliteConnection` instead.
+- __Breaking__: Calls locking the database that file with a timeout now throw an `AbortException` instead of a
+  `TimeoutException`.
 - The `throttle` parameter on `watch` and `onChange` can now be set to `null`. This also introduces `watchUnthrottled`
   and `onChangeUnthrottled`, which only buffer on paused subscriptions instead of applying a static timeout.
-
+- Add `abortableReadLock` and `abortableWriteLock`. The methods can be used to acquire a read/write context with a flexible
+  abort signal instead of a static timeout.
 
 ## 0.13.1
 

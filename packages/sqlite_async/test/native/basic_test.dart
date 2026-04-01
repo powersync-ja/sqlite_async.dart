@@ -4,7 +4,6 @@ library;
 import 'dart:async';
 
 import 'package:sqlite3/common.dart' as sqlite;
-import 'package:sqlite3_connection_pool/sqlite3_connection_pool.dart';
 import 'package:sqlite_async/native.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
@@ -343,7 +342,7 @@ void main() {
         await db.readLock((tx) async {
           await tx.get('select 1');
         }, lockTimeout: const Duration(milliseconds: 2));
-      }, throwsA(isA<PoolAbortException>()));
+      }, throwsAbortException);
 
       await Future.wait([f1, f2]);
     });

@@ -9,6 +9,8 @@ import 'package:web/web.dart';
 
 import 'package:sqlite_async/src/common/mutex.dart';
 
+import '../common/timeouts.dart';
+
 @JS('navigator')
 external Navigator get _navigator;
 
@@ -30,24 +32,25 @@ class WebMutexImpl implements Mutex {
             "${DateTime.now().microsecondsSinceEpoch}-${Random().nextDouble()}";
 
   @override
-  Future<T> lock<T>(Future<T> Function() callback, {Duration? timeout}) {
+  Future<T> lock<T>(Future<T> Function() callback,
+      {Future<void>? abortTrigger}) {
     if (_navigator.has('locks')) {
-      return _webLock(callback, timeout: timeout);
+      return _webLock(callback, abortTrigger: abortTrigger);
     } else {
-      return _fallbackLock(callback, timeout: timeout);
+      return _fallbackLock(callback, abortTrigger: abortTrigger);
     }
   }
 
   /// Locks the callback with a standard Mutex from the `mutex` package
   Future<T> _fallbackLock<T>(Future<T> Function() callback,
-      {Duration? timeout}) {
-    return fallback.lock(callback, timeout: timeout);
+      {Future<void>? abortTrigger}) {
+    return fallback.lock(callback, abortTrigger: abortTrigger);
   }
 
   /// Locks the callback with web Navigator locks
   Future<T> _webLock<T>(Future<T> Function() callback,
-      {Duration? timeout}) async {
-    final lock = await _getWebLock(timeout);
+      {Future<void>? abortTrigger}) async {
+    final lock = await _getWebLock(abortTrigger);
     try {
       final result = await callback();
       return result;
@@ -61,28 +64,31 @@ class WebMutexImpl implements Mutex {
   /// which is represented as a [HeldLock]. This hold can be used when wrapping the Dart
   /// callback to manage the JS lock.
   /// This is inspired and adapted from https://github.com/simolus3/sqlite3.dart/blob/7bdca77afd7be7159dbef70fd1ac5aa4996211a9/sqlite3_web/lib/src/locks.dart#L6
-  Future<HeldLock> _getWebLock(Duration? timeout) {
+  Future<HeldLock> _getWebLock(Future<void>? abortTrigger) {
     final gotLock = Completer<HeldLock>.sync();
     // Navigator locks can be timed out by using an AbortSignal
     final controller = AbortController();
 
-    Timer? timer;
-
-    if (timeout != null) {
-      timer = Timer(timeout, () {
-        gotLock
-            .completeError(TimeoutException('Failed to acquire lock', timeout));
-        controller.abort('Timeout'.toJS);
+    if (abortTrigger != null) {
+      abortTrigger.whenComplete(() {
+        if (!gotLock.isCompleted) {
+          gotLock.completeError(AbortException('getWebLock'));
+          controller.abort('aborted in Dart'.toJS);
+        }
       });
     }
 
     // If timeout occurred before the lock is available, then this callback should not be called.
     JSPromise jsCallback(JSAny lock) {
-      timer?.cancel();
-
       // Give the Held lock something to mark this Navigator lock as completed
-      final jsCompleter = Completer.sync();
-      gotLock.complete(HeldLock._(jsCompleter));
+      final jsCompleter = Completer<void>.sync();
+      if (!gotLock.isCompleted) {
+        gotLock.complete(HeldLock._(jsCompleter));
+      } else {
+        // Already aborted, return the navigator lock asap,
+        jsCompleter.complete();
+      }
+
       return jsCompleter.future.toJS;
     }
 

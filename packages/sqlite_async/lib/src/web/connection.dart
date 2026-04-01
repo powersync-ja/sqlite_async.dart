@@ -79,6 +79,13 @@ abstract class WebSqliteConnection implements SqliteConnection {
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout, String? debugContext, bool? flush});
 
+  @override
+  Future<T> abortableWriteLock<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext,
+      bool? flush});
+
   /// Same as [SqliteConnection.writeTransaction].
   ///
   /// Has an additional [flush] (defaults to true). This can be set to false

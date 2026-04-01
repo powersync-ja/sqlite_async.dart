@@ -84,12 +84,14 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
   }
 
   @override
-  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+  Future<T> abortableReadLock<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext}) async {
     await isInitialized;
     return _runZoned(() {
-      return _connection.readLock(callback,
-          lockTimeout: lockTimeout, debugContext: debugContext);
+      return _connection.abortableReadLock(callback,
+          abortTrigger: abortTrigger, debugContext: debugContext);
     }, debugContext: debugContext ?? 'execute()');
   }
 
@@ -100,6 +102,19 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
     return _runZoned(() {
       return _connection.writeLock(callback,
           lockTimeout: lockTimeout, debugContext: debugContext, flush: flush);
+    }, debugContext: debugContext ?? 'execute()');
+  }
+
+  @override
+  Future<T> abortableWriteLock<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext,
+      bool? flush}) async {
+    await isInitialized;
+    return _runZoned(() {
+      return _connection.abortableWriteLock(callback,
+          abortTrigger: abortTrigger, debugContext: debugContext, flush: flush);
     }, debugContext: debugContext ?? 'execute()');
   }
 
