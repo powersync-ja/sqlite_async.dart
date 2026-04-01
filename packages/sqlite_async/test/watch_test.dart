@@ -31,6 +31,19 @@ void main() {
       await testUtils.cleanDb(path: path);
     });
 
+    test('is broadcast stream', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+
+      expect(db.updates.isBroadcast, isTrue);
+      var events = 0;
+
+      db.updates.listen((_) => events++);
+      db.updates.listen((_) => events++);
+      await db.execute('INSERT INTO assets DEFAULT VALUES');
+      expect(events, 2);
+    });
+
     test('watch', () async {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);

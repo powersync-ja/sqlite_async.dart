@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:isolate';
 import 'dart:math';
 
+import 'package:async/async.dart';
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/native.dart';
 import 'package:sqlite_async/sqlite_async.dart';
@@ -23,6 +24,16 @@ void main() {
     setUp(() async {
       path = testUtils.dbPath();
       await testUtils.cleanDb(path: path);
+    });
+
+    test('emits updates if stream is listened to before pool is opened',
+        () async {
+      final db = await testUtils.setupDatabase();
+      final updates = StreamQueue(db.updates);
+
+      await db.execute('CREATE TABLE a (bar INTEGER);');
+      await db.execute('INSERT INTO a DEFAULT VALUES');
+      await expectLater(updates, emits(UpdateNotification({'a'})));
     });
 
     test('raw update notifications', () async {
