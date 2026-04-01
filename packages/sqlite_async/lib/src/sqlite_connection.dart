@@ -177,10 +177,10 @@ abstract class SqliteConnection implements SqliteWriteContext {
   /// together when data is changed.
   ///
   /// While the stream can efficiently handle backpressure (paused subscriptions
-  /// will not be notified multiple times afer resuming, they'll receive a
+  /// will not be notified multiple times after resuming, they'll receive a
   /// single aggregated event instead), it also installs a throttle of 30 during
-  /// which the stream will be paused automtically. To disable this behavior,
-  /// pass `null` for `throttle` or se [onChangeUnthrottled] explicitly.
+  /// which the stream will be paused automatically. To disable this behavior,
+  /// pass `null` for `throttle` or use [onChangeUnthrottled] explicitly.
   Stream<UpdateNotification> onChange(Iterable<String>? tables,
       {Duration? throttle = const Duration(milliseconds: 30),
       bool triggerImmediately = true}) {
@@ -298,7 +298,7 @@ abstract class SqliteConnection implements SqliteWriteContext {
   /// may be held concurrently.
   ///
   /// If [abortTrigger] is set and completes before the database was able to
-  /// obtain a read lock, an [AbortException] will be thrown.
+  /// obtain the write lock, an [AbortException] will be thrown.
   Future<T> abortableWriteLock<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Future<void>? abortTrigger,
