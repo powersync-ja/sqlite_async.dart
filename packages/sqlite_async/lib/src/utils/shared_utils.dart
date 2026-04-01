@@ -8,7 +8,7 @@ import '../sqlite_connection.dart';
 Future<T> internalReadTransaction<T>(SqliteReadContext ctx,
     Future<T> Function(SqliteReadContext tx) callback) async {
   try {
-    await ctx.getAll('BEGIN');
+    await ctx.getAll('BEGIN IMMEDIATE');
     final result = await callback(ctx);
     await ctx.getAll('END TRANSACTION');
     return result;
