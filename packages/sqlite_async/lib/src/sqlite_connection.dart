@@ -173,8 +173,14 @@ abstract class SqliteConnection implements SqliteWriteContext {
   ///
   /// This is preferred over [watch] when multiple queries need to be performed
   /// together when data is changed.
+  ///
+  /// While the stream can efficiently handle backpressure (paused subscriptions
+  /// will not be notified multiple times afer resuming, they'll receive a
+  /// single aggregated event instead), it also installs a throttle of 30 during
+  /// which the stream will be paused automtically. To disable this behavior,
+  /// pass `null` for `throttle` or se [onChangeUnthrottled] explicitly.
   Stream<UpdateNotification> onChange(Iterable<String>? tables,
-      {Duration throttle = const Duration(milliseconds: 30),
+      {Duration? throttle = const Duration(milliseconds: 30),
       bool triggerImmediately = true}) {
     final filteredStream = tables != null
         ? updates.transform(UpdateNotification.filterTablesTransformer(tables))
@@ -185,15 +191,28 @@ abstract class SqliteConnection implements SqliteWriteContext {
     return throttledStream;
   }
 
+  /// Like [onChange], but without a defaut throttle duration.
+  ///
+  /// The stream still respects backpressure for paused subscriptions with an
+  /// efficient internal buffer of update notifications.
+  Stream<UpdateNotification> onChangeUnthrottled(Iterable<String>? tables,
+      {bool triggerImmediately = true}) {
+    return onChange(tables,
+        triggerImmediately: triggerImmediately, throttle: null);
+  }
+
   /// Execute a read query every time the source tables are modified.
   ///
-  /// Use [throttle] to specify the minimum interval between queries.
+  /// Use [throttle] to specify the minimum interval between queries. It can
+  /// also be set to `null`, in which case the stream will only be throttled
+  /// when its subscription is paused. [watchUnthrottled] can also be used to
+  /// make that more explicit.
   ///
   /// Source tables are automatically detected using `EXPLAIN QUERY PLAN`.
   Stream<sqlite.ResultSet> watch(
     String sql, {
     List<Object?> parameters = const [],
-    Duration throttle = const Duration(milliseconds: 30),
+    Duration? throttle = const Duration(milliseconds: 30),
     Iterable<String>? triggerOnTables,
   }) {
     Stream<sqlite.ResultSet> watchInner(Iterable<String> trigger) {
@@ -210,6 +229,20 @@ abstract class SqliteConnection implements SqliteWriteContext {
       return Stream.fromFuture(getSourceTables(this, sql, parameters))
           .asyncExpand(watchInner);
     }
+  }
+
+  /// Like [watch], but without a default throttle.
+  Stream<sqlite.ResultSet> watchUnthrottled(
+    String sql, {
+    List<Object?> parameters = const [],
+    Iterable<String>? triggerOnTables,
+  }) {
+    return watch(
+      sql,
+      parameters: parameters,
+      triggerOnTables: triggerOnTables,
+      throttle: null,
+    );
   }
 
   /// Takes a read lock, without starting a transaction.

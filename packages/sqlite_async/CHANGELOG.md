@@ -15,6 +15,8 @@
   - Instead of `package:sqlite_async/sqlite3_wasm.dart`, import `package:sqlite3/wasm.dart`.
   - Instead of `package:sqlite_async/sqlite3_web.dart`, import `package:sqlite3_web/sqlite3_web.dart`.
 - __Breaking__: Remove `SqliteDatabaseMixin` and `SqliteQueries`. Extend `SqliteConnection` instead.
+- The `throttle` parameter on `watch` and `onChange` can now be set to `null`. This also introduces `watchUnthrottled`
+  and `onChangeUnthrottled`, which only buffer on paused subscriptions instead of applying a static timeout.
 
 
 ## 0.13.1

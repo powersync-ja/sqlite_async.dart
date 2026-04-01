@@ -50,7 +50,7 @@ class UpdateNotification {
   ///
   /// Use [addOne] to immediately send one update to the output stream.
   static Stream<UpdateNotification> throttleStream(
-      Stream<UpdateNotification> input, Duration timeout,
+      Stream<UpdateNotification> input, Duration? timeout,
       {UpdateNotification? addOne}) {
     return _throttleStream(
       input: input,
@@ -70,8 +70,11 @@ class UpdateNotification {
   }
 }
 
-/// Throttles an [input] stream to not emit events more often than with a
-/// frequency of 1/[timeout].
+/// Throttles stream with by efficiently buffering upstream events while a
+/// downstream subscription is paused.
+///
+/// Additionally, if a [timeout] is set, the [input] stream is throttled to not
+/// emit events more often than with a frequency of 1/[timeout].
 ///
 /// When an event is received and no timeout window is active, it is forwarded
 /// downstream and a timeout window is started. For events received within a
@@ -89,7 +92,7 @@ class UpdateNotification {
 /// earlier than after [timeout]).
 Stream<T> _throttleStream<T extends Object>({
   required Stream<T> input,
-  required Duration timeout,
+  required Duration? timeout,
   required bool throttleFirst,
   required T Function(T, T) add,
   required T? addOne,
@@ -135,10 +138,12 @@ Stream<T> _throttleStream<T extends Object>({
     }
 
     setTimeout = () {
-      activeTimeoutWindow = Timer(timeout, () {
-        activeTimeoutWindow = null;
-        maybeEmit();
-      });
+      if (timeout != null) {
+        activeTimeoutWindow = Timer(timeout, () {
+          activeTimeoutWindow = null;
+          maybeEmit();
+        });
+      }
     };
 
     void onData(T data) {
