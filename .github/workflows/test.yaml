@@ -85,9 +85,8 @@ jobs:
           enableCrossOsArchive: true
 
       - name: "Get dependencies"
-        # Passing --offline here asserts that dependencies have been cached properly.
         run: |
-          dart pub get --offline
+          dart pub get
           dart pub global activate pana
 
       - name: Setup

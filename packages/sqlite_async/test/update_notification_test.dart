@@ -187,6 +187,59 @@ void main() {
           expect(control.pendingTimers, isEmpty);
         });
       });
+
+      group('without timeout', () {
+        test('can forward notifications unchanged', () {
+          fakeAsync((control) {
+            final source = StreamController<UpdateNotification>(sync: true);
+            final a = UpdateNotification({'a'});
+            final b = UpdateNotification({'b'});
+            final c = UpdateNotification({'c'});
+
+            final received = <UpdateNotification>[];
+            UpdateNotification.throttleStream(source.stream, null)
+                .listen(received.add);
+            expect(received, isEmpty);
+
+            source.add(a);
+            expect(identical(received.last, a), isTrue);
+            source.add(b);
+            expect(identical(received.last, b), isTrue);
+            source.add(c);
+            expect(identical(received.last, c), isTrue);
+          });
+        });
+
+        test('can accumulate results while listener is paused', () {
+          fakeAsync((control) {
+            final source = StreamController<UpdateNotification>(sync: true);
+            final received = <UpdateNotification>[];
+            final subscription =
+                UpdateNotification.throttleStream(source.stream, null)
+                    .listen(received.add);
+            expect(source.hasListener, isTrue);
+
+            subscription.pause();
+            // We should keep the source subscription active since we want to
+            // buffer update notifications in throttleStream.
+            expect(source.isPaused, isFalse);
+
+            source.add(UpdateNotification({'a'}));
+            source.add(UpdateNotification({'a', 'b'}));
+            source.add(UpdateNotification({'a'}));
+
+            control.flushTimers();
+            expect(received, isEmpty);
+
+            subscription.resume();
+            expect(received, isEmpty);
+            control.flushMicrotasks();
+            expect(received, [
+              UpdateNotification({'a', 'b'})
+            ]);
+          });
+        });
+      });
     });
 
     test('filter tables', () async {

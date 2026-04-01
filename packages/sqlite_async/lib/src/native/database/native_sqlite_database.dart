@@ -99,7 +99,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
       {Duration? lockTimeout}) async {
     return _useConnection(
       writer: false,
-      lockTimeout: lockTimeout,
+      abortTrigger: lockTimeout?.asTimeout,
       debugContext: 'readTransaction',
       (context) {
         return _transactionInLease(context, callback);
@@ -120,7 +120,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
       {Duration? lockTimeout}) {
     return _useConnection(
       writer: true,
-      lockTimeout: lockTimeout,
+      abortTrigger: lockTimeout?.asTimeout,
       debugContext: 'writeTransaction',
       (context) {
         return _transactionInLease(context, callback);
@@ -137,23 +137,27 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   }
 
   @override
-  Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+  Future<T> abortableReadLock<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext}) async {
     return _useConnection(
       writer: false,
       debugContext: debugContext ?? 'readLock',
-      lockTimeout: lockTimeout,
+      abortTrigger: abortTrigger,
       (context) => ScopedReadContext.assumeReadLock(context, callback),
     );
   }
 
   @override
-  Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext}) async {
+  Future<T> abortableWriteLock<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext}) async {
     return _useConnection(
       writer: true,
       debugContext: debugContext ?? 'writeLock',
-      lockTimeout: lockTimeout,
+      abortTrigger: abortTrigger,
       (context) => ScopedWriteContext.assumeWriteLock(context, callback),
     );
   }
@@ -162,14 +166,14 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
     Future<T> Function(_LeasedContext context) callback, {
     required bool writer,
     required String debugContext,
-    Duration? lockTimeout,
+    Future<void>? abortTrigger,
   }) {
-    final timeout = lockTimeout?.asTimeout;
     return _runInLockContext(debugContext, () async {
       final pool = await _pool;
       final connection = await (writer
-          ? pool.writer(abortSignal: timeout)
-          : pool.reader(abortSignal: timeout));
+              ? pool.writer(abortSignal: abortTrigger)
+              : pool.reader(abortSignal: abortTrigger))
+          .translateAbortExceptions(debugContext);
 
       try {
         final context = _LeasedContext(
@@ -445,5 +449,12 @@ final class _LeasedContext extends UnscopedContext {
 
   static void Function(PoolConnection) _selectMultiple(String sql) {
     return (db) => db.execute(sql);
+  }
+}
+
+extension<T> on Future<T> {
+  Future<T> translateAbortExceptions(String debugContext) {
+    return onError<PoolAbortException>(
+        (e, s) => Error.throwWithStackTrace(AbortException(debugContext), s));
   }
 }

@@ -1,4 +1,5 @@
 /// @docImport 'common/sqlite_database.dart';
+/// @docImport 'common/timeouts.dart';
 library;
 
 import 'dart:async';
@@ -9,6 +10,7 @@ import 'package:sqlite_async/src/update_notification.dart';
 
 import 'common/connection/sync_sqlite_connection.dart';
 import 'common/mutex.dart';
+import 'common/timeouts.dart';
 import 'utils/shared_utils.dart';
 
 /// Abstract class representing calls available in a read-only or read-write context.
@@ -173,8 +175,14 @@ abstract class SqliteConnection implements SqliteWriteContext {
   ///
   /// This is preferred over [watch] when multiple queries need to be performed
   /// together when data is changed.
+  ///
+  /// While the stream can efficiently handle backpressure (paused subscriptions
+  /// will not be notified multiple times after resuming, they'll receive a
+  /// single aggregated event instead), it also installs a throttle of 30 during
+  /// which the stream will be paused automatically. To disable this behavior,
+  /// pass `null` for `throttle` or use [onChangeUnthrottled] explicitly.
   Stream<UpdateNotification> onChange(Iterable<String>? tables,
-      {Duration throttle = const Duration(milliseconds: 30),
+      {Duration? throttle = const Duration(milliseconds: 30),
       bool triggerImmediately = true}) {
     final filteredStream = tables != null
         ? updates.transform(UpdateNotification.filterTablesTransformer(tables))
@@ -185,15 +193,28 @@ abstract class SqliteConnection implements SqliteWriteContext {
     return throttledStream;
   }
 
+  /// Like [onChange], but without a defaut throttle duration.
+  ///
+  /// The stream still respects backpressure for paused subscriptions with an
+  /// efficient internal buffer of update notifications.
+  Stream<UpdateNotification> onChangeUnthrottled(Iterable<String>? tables,
+      {bool triggerImmediately = true}) {
+    return onChange(tables,
+        triggerImmediately: triggerImmediately, throttle: null);
+  }
+
   /// Execute a read query every time the source tables are modified.
   ///
-  /// Use [throttle] to specify the minimum interval between queries.
+  /// Use [throttle] to specify the minimum interval between queries. It can
+  /// also be set to `null`, in which case the stream will only be throttled
+  /// when its subscription is paused. [watchUnthrottled] can also be used to
+  /// make that more explicit.
   ///
   /// Source tables are automatically detected using `EXPLAIN QUERY PLAN`.
   Stream<sqlite.ResultSet> watch(
     String sql, {
     List<Object?> parameters = const [],
-    Duration throttle = const Duration(milliseconds: 30),
+    Duration? throttle = const Duration(milliseconds: 30),
     Iterable<String>? triggerOnTables,
   }) {
     Stream<sqlite.ResultSet> watchInner(Iterable<String> trigger) {
@@ -212,14 +233,47 @@ abstract class SqliteConnection implements SqliteWriteContext {
     }
   }
 
+  /// Like [watch], but without a default throttle.
+  Stream<sqlite.ResultSet> watchUnthrottled(
+    String sql, {
+    List<Object?> parameters = const [],
+    Iterable<String>? triggerOnTables,
+  }) {
+    return watch(
+      sql,
+      parameters: parameters,
+      triggerOnTables: triggerOnTables,
+      throttle: null,
+    );
+  }
+
   /// Takes a read lock, without starting a transaction.
   ///
   /// The lock only applies to a single [SqliteConnection], and multiple
   /// connections may hold read locks at the same time.
   ///
   /// In most cases, [readTransaction] should be used instead.
+  ///
+  /// If a timeout is set and no read connection becomes available in time, an
+  /// [AbortException] will be thrown.
   Future<T> readLock<T>(Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout, String? debugContext});
+      {Duration? lockTimeout, String? debugContext}) {
+    return abortableReadLock(callback,
+        debugContext: debugContext, abortTrigger: lockTimeout?.asTimeout);
+  }
+
+  /// Takes a read lock, without starting a transaction.
+  ///
+  /// The lock only applies to a single [SqliteConnection], and multiple
+  /// connections may hold read locks at the same time.
+  ///
+  /// If [abortTrigger] is set and completes before the database was able to
+  /// obtain a read lock, an [AbortException] will be thrown.
+  Future<T> abortableReadLock<T>(
+    Future<T> Function(SqliteReadContext tx) callback, {
+    Future<void>? abortTrigger,
+    String? debugContext,
+  });
 
   /// Takes a global lock, without starting a transaction.
   ///
@@ -228,8 +282,27 @@ abstract class SqliteConnection implements SqliteWriteContext {
   /// The lock applies to all [SqliteConnection] instances for a [SqliteDatabase].
   /// Locks for separate [SqliteDatabase] instances on the same database file
   /// may be held concurrently.
+  ///
+  /// If a timeout is set and no read connection becomes available in time, an
+  /// [AbortException] will be thrown.
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext});
+      {Duration? lockTimeout, String? debugContext}) {
+    return abortableWriteLock(callback,
+        debugContext: debugContext, abortTrigger: lockTimeout?.asTimeout);
+  }
+
+  /// Takes a global lock, without starting a transaction.
+  ///
+  /// The lock applies to all [SqliteConnection] instances for a [SqliteDatabase].
+  /// Locks for separate [SqliteDatabase] instances on the same database file
+  /// may be held concurrently.
+  ///
+  /// If [abortTrigger] is set and completes before the database was able to
+  /// obtain the write lock, an [AbortException] will be thrown.
+  Future<T> abortableWriteLock<T>(
+      Future<T> Function(SqliteWriteContext tx) callback,
+      {Future<void>? abortTrigger,
+      String? debugContext});
 
   Future<void> close();
 
