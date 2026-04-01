@@ -1,4 +1,8 @@
-## 0.14.0-wip
+## 0.14.0-wip.0
+
+__Note__: This version of `sqlite_async` is still in development and there might be additional
+API changes between this release and the final `0.14.0` version. This release is mostly meant for
+internal testing.
 
 - Support versions 3.x of the `sqlite3` package and 0.6.0 of `sqlite3_web`.
 - Remove the `sqlite3_open.dart` library, SQLite libraries are no longer loaded through Dart.
