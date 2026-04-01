@@ -7,6 +7,7 @@ import 'package:sqlite_async/src/sqlite_options.dart';
 import 'package:sqlite_async/src/sqlite_connection.dart';
 
 import '../impl/platform.dart' as platform;
+import '../utils/shared_utils.dart';
 
 /// A SQLite database instance.
 ///
@@ -96,4 +97,14 @@ abstract base class SqliteDatabase extends SqliteConnection {
 @internal
 abstract base class SqliteDatabaseImpl extends SqliteDatabase {
   SqliteDatabaseImpl() : super._();
+
+  @override
+  Future<T> readTransaction<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Duration? lockTimeout}) {
+    return readLock((ctx) async {
+      return await internalReadTransaction(ctx, callback,
+          isDedicatedReadConnection: maxReaders > 0);
+    }, lockTimeout: lockTimeout, debugContext: 'readTransaction()');
+  }
 }

@@ -136,11 +136,7 @@ abstract class SqliteConnection implements SqliteWriteContext {
   /// instance will error.
   Future<T> readTransaction<T>(
       Future<T> Function(SqliteReadContext tx) callback,
-      {Duration? lockTimeout}) {
-    return readLock((ctx) async {
-      return await internalReadTransaction(ctx, callback);
-    }, lockTimeout: lockTimeout, debugContext: 'readTransaction()');
-  }
+      {Duration? lockTimeout});
 
   /// Open a read-write transaction.
   ///

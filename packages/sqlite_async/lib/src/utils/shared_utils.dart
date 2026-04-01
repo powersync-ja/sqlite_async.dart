@@ -5,10 +5,35 @@ import 'package:sqlite3/common.dart';
 
 import '../sqlite_connection.dart';
 
-Future<T> internalReadTransaction<T>(SqliteReadContext ctx,
-    Future<T> Function(SqliteReadContext tx) callback) async {
+Future<T> internalReadTransaction<T>(
+  SqliteReadContext ctx,
+  Future<T> Function(SqliteReadContext tx) callback, {
+  required bool isDedicatedReadConnection,
+}) async {
   try {
-    await ctx.getAll('BEGIN');
+    // We want read transactions to observe the state of the database at the
+    // time they've been opened. By default however, SQLite only starts the
+    // transaction on the first statement (BEGIN just sets a bit to disable
+    // autocommit). This is a problem for snippets like:
+    //
+    // await db.readTransaction((tx) async {
+    //   // point in time 1.
+    //   await longDelay();
+    //   await readFromDb(tx); // should read state from point in time 1!
+    // });
+    //
+    // With a write concurrent to `longDelay()`, the actual transaction would
+    // start too late and observe state from after it was opened in Dart. This
+    // is why we use BEGIN IMMEDIATE instead of BEGIN. However, we only need
+    // this for read connections: If the database "pool" is backed by a single
+    // connection (e.g. on the web), using BEGIN IMMEDIATE would be fairly
+    // expensive for a read. A concurrent write wouldn't be a concern there
+    // because the read context blocks the single connection.
+    // Either way, this is not a consistency issue. Transactions observe a
+    // single consistent snapshot either way, we just want them to observe an
+    // earlier snapshot in some cases.
+
+    await ctx.getAll(isDedicatedReadConnection ? 'BEGIN IMMEDIATE' : 'BEGIN');
     final result = await callback(ctx);
     await ctx.getAll('END TRANSACTION');
     return result;

@@ -8,6 +8,7 @@ import 'package:sqlite_async/src/update_notification.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
 
 import '../../impl/context.dart';
+import '../../utils/shared_utils.dart';
 
 /// A simple "synchronous" connection which provides the async SqliteConnection
 /// implementation using a synchronous SQLite connection
@@ -33,6 +34,16 @@ final class SyncSqliteConnection extends SqliteConnection {
         return UpdateNotification({event.tableName});
       },
     );
+  }
+
+  @override
+  Future<T> readTransaction<T>(
+      Future<T> Function(SqliteReadContext tx) callback,
+      {Duration? lockTimeout}) {
+    return readLock((ctx) async {
+      return await internalReadTransaction(ctx, callback,
+          isDedicatedReadConnection: false);
+    }, lockTimeout: lockTimeout, debugContext: 'readTransaction()');
   }
 
   @override
