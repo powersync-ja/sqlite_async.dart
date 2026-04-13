@@ -83,7 +83,9 @@ class AsyncSqliteDatabase extends WorkerDatabase {
           if (data.requireTransaction.toDart && database.autocommit) {
             throw SqliteException(
               extendedResultCode: 0,
-              message: 'Not in a transaction',
+              message:
+                  'Transaction rolled back by earlier statement. Cannot execute',
+              causingStatement: data.rawSql.toDart,
             );
           }
 
