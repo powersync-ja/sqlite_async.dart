@@ -8,12 +8,35 @@ import 'package:sqlite3_web/protocol_utils.dart' as proto;
 enum CustomDatabaseMessageKind {
   ok,
   getAutoCommit,
-  executeBatchInTransaction,
+  executeBatch,
   updateSubscriptionManagement,
   notifyUpdates,
 }
 
-extension type CustomDatabaseMessage._raw(JSObject _) implements JSObject {
+extension type BaseCustomDatabaseMessage._raw(JSObject _) implements JSObject {
+  external JSString get rawKind;
+
+  external factory BaseCustomDatabaseMessage({required JSString rawKind});
+
+  factory BaseCustomDatabaseMessage.getAutoCommit() {
+    return BaseCustomDatabaseMessage(
+      rawKind: CustomDatabaseMessageKind.getAutoCommit.name.toJS,
+    );
+  }
+
+  factory BaseCustomDatabaseMessage.okResponse() {
+    return BaseCustomDatabaseMessage(
+      rawKind: CustomDatabaseMessageKind.ok.name.toJS,
+    );
+  }
+
+  CustomDatabaseMessageKind get kind {
+    return CustomDatabaseMessageKind.values.byName(rawKind.toDart);
+  }
+}
+
+extension type CustomDatabaseMessage._raw(JSObject _)
+    implements BaseCustomDatabaseMessage {
   external factory CustomDatabaseMessage._({
     required JSString rawKind,
     JSString rawSql,
@@ -38,16 +61,55 @@ extension type CustomDatabaseMessage._raw(JSObject _) implements JSObject {
     );
   }
 
-  external JSString get rawKind;
-
   external JSString get rawSql;
 
   external JSArray get rawParameters;
 
   /// Not set in earlier versions of this package.
   external JSArrayBuffer? get typeInfo;
+}
 
-  CustomDatabaseMessageKind get kind {
-    return CustomDatabaseMessageKind.values.byName(rawKind.toDart);
+extension type RunBatchRequest._raw(JSObject _)
+    implements BaseCustomDatabaseMessage {
+  external factory RunBatchRequest._({
+    required JSString rawKind,
+    required JSString rawSql,
+    required JSArray<BatchParameters> parameters,
+    required JSBoolean requireTransaction,
+  });
+
+  factory RunBatchRequest({
+    required String sql,
+    required List<List<Object?>> parameters,
+    required bool requireTransaction,
+  }) {
+    return RunBatchRequest._(
+      rawKind: CustomDatabaseMessageKind.executeBatch.name.toJS,
+      rawSql: sql.toJS,
+      parameters: parameters.map(BatchParameters.new).toList().toJS,
+      requireTransaction: requireTransaction.toJS,
+    );
   }
+
+  external JSString get rawSql;
+  external JSArray<BatchParameters> get parameters;
+  external JSBoolean get requireTransaction;
+}
+
+extension type BatchParameters._raw(JSObject _) implements JSObject {
+  external JSArray get parameters;
+  external JSArrayBuffer get parameterTypes;
+
+  external factory BatchParameters._({
+    required JSArray parameters,
+    required JSArrayBuffer parameterTypes,
+  });
+
+  factory BatchParameters(List<Object?> parameters) {
+    final (params, types) = proto.serializeParameters(parameters);
+    return BatchParameters._(parameters: params, parameterTypes: types);
+  }
+
+  List<Object?> get decodedParameters =>
+      proto.deserializeParameters(parameters, parameterTypes);
 }

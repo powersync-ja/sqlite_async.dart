@@ -52,8 +52,8 @@ final class WebDatabase extends SqliteDatabaseImpl
 
   @override
   Future<bool> getAutoCommit() async {
-    final response = await _database.customRequest(
-        CustomDatabaseMessage(CustomDatabaseMessageKind.getAutoCommit));
+    final response = await _database
+        .customRequest(BaseCustomDatabaseMessage.getAutoCommit());
     return (response as JSBoolean?)?.toDart ?? false;
   }
 
@@ -274,16 +274,14 @@ final class _UnscopedContext extends UnscopedContext {
   Future<void> executeBatch(String sql, List<List<Object?>> parameterSets) {
     return _task.timeAsync('executeBatch', sql: sql, () {
       return wrapSqliteException(() async {
-        for (final set in parameterSets) {
-          // use execute instead of select to avoid transferring rows from the
-          // worker to this context.
-          await _database._database.execute(
-            sql,
-            parameters: set,
-            token: _lock,
-            checkInTransaction: _checkInTransaction,
-          );
-        }
+        await _database._database.customRequest(
+          RunBatchRequest(
+            sql: sql,
+            parameters: parameterSets,
+            requireTransaction: _checkInTransaction,
+          ),
+          token: _lock,
+        );
       });
     });
   }

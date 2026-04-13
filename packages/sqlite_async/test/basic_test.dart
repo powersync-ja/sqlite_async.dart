@@ -348,6 +348,50 @@ void main() {
       expect(result.rows[0][1], equals('test returning without params'));
     });
 
+    group('executeBatch', () {
+      late SqliteDatabase db;
+
+      setUp(() async {
+        db = await testUtils.setupDatabase(path: path);
+      });
+
+      tearDown(() => db.close());
+
+      test('can execute multiple times', () async {
+        await createTables(db);
+
+        await db
+            .executeBatch('INSERT INTO test_data (description) VALUES (?)', [
+          ['foo'],
+          ['bar']
+        ]);
+
+        final results =
+            await db.getAll('SELECT description FROM test_data ORDER BY id');
+        expect(results.length, equals(2));
+        expect(results.rows[0], equals(['foo']));
+        expect(results.rows[1], equals(['bar']));
+      });
+
+      test('can execute in transaction', () async {
+        await createTables(db);
+        const exception = 'exception thrown for rollback';
+
+        await expectLater(db.writeTransaction((tx) async {
+          await tx
+              .executeBatch('INSERT INTO test_data (description) VALUES (?)', [
+            ['foo'],
+            ['bar']
+          ]);
+
+          expect(await tx.getAll('SELECT * FROM test_data'), hasLength(2));
+          throw exception;
+        }), throwsA(exception));
+
+        expect(await db.getAll('SELECT * FROM test_data'), isEmpty);
+      });
+    });
+
     test('executeMultiple handles multiple statements', () async {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
