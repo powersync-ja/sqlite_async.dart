@@ -4,7 +4,6 @@ import 'dart:js_interop';
 import 'package:meta/meta.dart';
 import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
-import 'package:sqlite3_web/protocol_utils.dart' as proto;
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 
 import '../protocol.dart';
@@ -35,7 +34,7 @@ base class AsyncSqliteController extends DatabaseController {
 
   @override
   Future<JSAny?> handleCustomRequest(
-      ClientConnection connection, JSAny? request) {
+      ClientConnection connection, CustomClientRequest request) {
     throw UnimplementedError();
   }
 }
@@ -68,8 +67,8 @@ class AsyncSqliteDatabase extends WorkerDatabase {
 
   @override
   Future<JSAny?> handleCustomRequest(
-      ClientConnection connection, JSAny? request) async {
-    final message = request as CustomDatabaseMessage;
+      ClientConnection connection, CustomClientDatabaseRequest request) async {
+    final message = request.request as BaseCustomDatabaseMessage;
 
     switch (message.kind) {
       case CustomDatabaseMessageKind.ok:
@@ -77,20 +76,30 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         throw UnsupportedError('This is a response, not a request');
       case CustomDatabaseMessageKind.getAutoCommit:
         return database.autocommit.toJS;
-      case CustomDatabaseMessageKind.executeBatchInTransaction:
-        final sql = message.rawSql.toDart;
-        final parameters = proto.deserializeParameters(
-            message.rawParameters, message.typeInfo);
-        if (database.autocommit) {
-          throw SqliteException(
-            extendedResultCode: 0,
-            message:
-                'Transaction rolled back by earlier statement. Cannot execute',
-            causingStatement: sql,
-          );
-        }
-        database.execute(sql, parameters);
+      case CustomDatabaseMessageKind.executeBatch:
+        final data = message as RunBatchRequest;
+
+        await request.useLock(() {
+          if (data.requireTransaction.toDart && database.autocommit) {
+            throw SqliteException(
+              extendedResultCode: 0,
+              message:
+                  'Transaction rolled back by earlier statement. Cannot execute',
+              causingStatement: data.rawSql.toDart,
+            );
+          }
+
+          final stmt = database.prepare(data.rawSql.toDart);
+          try {
+            for (final parameter in data.parameters.toDart) {
+              stmt.execute(parameter.decodedParameters);
+            }
+          } finally {
+            stmt.close();
+          }
+        });
       case CustomDatabaseMessageKind.updateSubscriptionManagement:
+        message as CustomDatabaseMessage;
         final shouldSubscribe =
             (message.rawParameters.toDart[0] as JSBoolean).toDart;
         final id = message.rawSql.toDart;
@@ -113,7 +122,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         }
     }
 
-    return CustomDatabaseMessage(CustomDatabaseMessageKind.ok);
+    return BaseCustomDatabaseMessage.okResponse();
   }
 
   Map<String, dynamic> resultSetToMap(ResultSet resultSet) {

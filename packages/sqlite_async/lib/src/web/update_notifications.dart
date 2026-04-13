@@ -20,8 +20,9 @@ final class UpdateNotificationStreams {
   final Map<String, StreamController<UpdateNotification>> _updates = {};
 
   Future<JSAny?> handleRequest(JSAny? request) async {
-    final customRequest = request as CustomDatabaseMessage;
+    final customRequest = request as BaseCustomDatabaseMessage;
     if (customRequest.kind == CustomDatabaseMessageKind.notifyUpdates) {
+      customRequest as CustomDatabaseMessage;
       final notification = UpdateNotification(customRequest.rawParameters.toDart
           .map((e) => (e as JSString).toDart)
           .toSet());
