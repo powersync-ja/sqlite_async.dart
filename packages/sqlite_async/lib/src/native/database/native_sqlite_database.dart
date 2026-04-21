@@ -314,13 +314,24 @@ final class _LeasedContext extends UnscopedContext {
     pool._returnIsolateWorker(worker);
   }
 
-  Future<T> _runOnWorker<T>(FutureOr<T> Function(PoolConnection db) compute) {
-    return inner.unsafeAccess((connection) {
+  Future<T> _runOnWorker<T>(
+      FutureOr<T> Function(PoolConnection db) compute) async {
+    final (result, autocommit) = await inner.unsafeAccess((connection) async {
       final ptr = connection.unsafePointer.address;
       final checkInTransaction = verifyInTransaction;
 
-      return worker.run(_wrapDbClosure(ptr, checkInTransaction, compute));
+      final result =
+          await worker.run(_wrapDbClosure(ptr, checkInTransaction, compute));
+      return (result, connection.database.autocommit);
     });
+
+    if (autocommit) {
+      if (inner case final ConnectionLease lease) {
+        await lease.notifyUpdates();
+      }
+    }
+
+    return result;
   }
 
   @override

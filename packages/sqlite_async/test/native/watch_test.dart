@@ -140,6 +140,23 @@ void main() {
         lastTime = r;
       }
     });
+
+    test('receives notifications before write lock returns', () async {
+      final db = await testUtils.setupDatabase(path: path);
+      await createTables(db);
+
+      final reads = StreamQueue(db.updates);
+      final first = reads.next;
+
+      db.writeLock((ctx) async {
+        await ctx.execute('INSERT INTO customer(name) VALUES (?)', ['test']);
+        // Because we're not in a transaction, this should emit an update. We
+        // shouldn't just collect updates at the end of writeLock to avoid
+        // long-running writers never emitting updates.
+        await first;
+      });
+      reads.cancel();
+    });
   });
 }
 

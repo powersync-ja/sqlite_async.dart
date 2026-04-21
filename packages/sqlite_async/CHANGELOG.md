@@ -1,3 +1,7 @@
+## 0.14.1
+
+- Fix update notifications sometimes firing before a write has completed.
+
 ## 0.14.0
 
 - Support versions 3.x of the `sqlite3` package and 0.7.x of `sqlite3_web`.

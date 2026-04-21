@@ -41,6 +41,7 @@ void main() {
       db.updates.listen((_) => events++);
       db.updates.listen((_) => events++);
       await db.execute('INSERT INTO assets DEFAULT VALUES');
+      await pumpEventQueue();
       expect(events, 2);
     });
 
