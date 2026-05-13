@@ -1,3 +1,11 @@
+## 0.14.2-wip
+
+- Web: fix uncaught error from `BroadcastUpdates` when a peer publishes a
+  message that does not deserialise into an `UpdateNotification`. The bare
+  `.cast()` after `.where()` is now typed explicitly, and a defensive
+  `onError` handler is attached to the broadcast subscription so malformed
+  peer payloads degrade silently instead of crashing the host application.
+
 ## 0.14.1
 
 - Fix update notifications sometimes firing before a write has completed.

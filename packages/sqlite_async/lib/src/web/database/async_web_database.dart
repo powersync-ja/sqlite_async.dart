@@ -70,6 +70,12 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
       _broadcastUpdatesSubscription =
           broadcastUpdates.updates.listen((updates) {
         updatesController.add(updates);
+      }, onError: (Object error, StackTrace stackTrace) {
+        // Cross-tab BroadcastChannel may deliver payloads that do not
+        // deserialise into an UpdateNotification (legacy storage mode,
+        // malformed peer messages, SharedWorker fallback). Drop them
+        // rather than crashing the host application via an uncaught
+        // error on the root zone.
       });
     }
   }
