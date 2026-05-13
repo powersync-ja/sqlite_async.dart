@@ -25,7 +25,7 @@ class BroadcastUpdates {
           }
         })
         .where((e) => e != null)
-        .cast();
+        .cast<UpdateNotification>();
   }
 
   void send(UpdateNotification notification) {
