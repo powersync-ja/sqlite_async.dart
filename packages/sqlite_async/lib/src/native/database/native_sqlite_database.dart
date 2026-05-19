@@ -320,8 +320,8 @@ final class _LeasedContext extends UnscopedContext {
       final ptr = connection.unsafePointer.address;
       final checkInTransaction = verifyInTransaction;
 
-      final result =
-          await worker.run(_wrapDbClosure(ptr, checkInTransaction, compute));
+      final result = await worker.run(
+          _wrapDbClosure(ptr, inner.serialize(), checkInTransaction, compute));
       return (result, connection.database.autocommit);
     });
 
@@ -383,17 +383,29 @@ final class _LeasedContext extends UnscopedContext {
 
   // Static helper methods to create closures we can send across isolates.
 
-  static T Function() _wrapDbClosure<T>(
-      int ptr, bool checkInTransaction, T Function(PoolConnection) inner) {
-    return () {
+  static Future<T> Function() _wrapDbClosure<T>(
+      int ptr,
+      SerializedPoolLease serialized,
+      bool checkInTransaction,
+      FutureOr<T> Function(PoolConnection) inner) {
+    return () async {
+      final restore = serialized.unsafeRestore();
+      if (restore == null) {
+        throw StateError('Pool request closed before isolate was spawned');
+      }
+
       // This pointer is safe: _wrapDbClosure is only called from within an
       // unsafeAccess block (so there's no concurrency). This call is also
       // awaited in the outer isolate, so the reference to the PoolConnection
       // stays alive until we've returned here.
       final conn = PoolConnection.unsafeFromPointer(Pointer.fromAddress(ptr));
-      if (checkInTransaction) _checkInTransaction(conn.database);
 
-      return inner(conn);
+      try {
+        if (checkInTransaction) _checkInTransaction(conn.database);
+        return inner(conn);
+      } finally {
+        restore.close();
+      }
     };
   }
 
