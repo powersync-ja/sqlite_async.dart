@@ -98,7 +98,8 @@ jobs:
         working-directory: packages/sqlite_async
         run: |
           dart test -p chrome,vm --compiler dart2js,dart2wasm
-          dart run build_runner test -- -p chrome
+# TODO: Re-enable after https://github.com/dart-lang/build/issues/4944 gets fixed.
+#          dart run build_runner test -- -p chrome
 
       - name: Test drift_sqlite_async
         working-directory: packages/drift_sqlite_async
