@@ -45,9 +45,9 @@ base class WebSqliteOpenFactory extends InternalOpenFactory {
   /// when provided with the same [options] again.
   Future<WebSqlite> openWebSqlite(WebSqliteOptions options) async {
     return WebSqlite.open(
-      wasmModule: Uri.parse(sqliteOptions.webSqliteOptions.wasmUri),
+      wasmModule: sqliteOptions.webSqliteOptions.wasmUri,
       workers: WorkerConnector.defaultWorkers(
-          Uri.parse(sqliteOptions.webSqliteOptions.workerUri)),
+          sqliteOptions.webSqliteOptions.workerUri),
       controller: AsyncSqliteController(),
       handleCustomRequest: handleCustomRequest,
     );

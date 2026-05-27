@@ -55,7 +55,11 @@ extension TimeSync on TimelineTask? {
       if (parameters != null)
         'parameters': [
           for (final parameter in parameters)
-            if (parameter is List) '<blob>' else parameter
+            switch (parameter) {
+              List() => '<blob>',
+              BigInt() => parameter.toString(),
+              _ => parameter,
+            }
         ],
     }
   );

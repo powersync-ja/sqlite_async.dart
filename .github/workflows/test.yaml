@@ -92,7 +92,7 @@ jobs:
       - name: Setup
         run: |
           dart run tool/sqlite3_wasm_download.dart
-          dart compile js -O4 --no-minify -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart
+          dart compile js -O4 --no-minify -Dsqlite3.dartbigints=false -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart
 
       - name: Test sqlite_async
         working-directory: packages/sqlite_async

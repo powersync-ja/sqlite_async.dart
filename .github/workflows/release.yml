@@ -25,7 +25,7 @@ jobs:
       - name: Compile web worker
         run: |
           dart pub get
-          dart compile js -O4 -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart
+          dart compile js -O4 -Dsqlite3.dartbigints=false -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart
 
       - name: Set tag name
         id: tag
