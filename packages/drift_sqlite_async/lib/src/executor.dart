@@ -74,11 +74,19 @@ class _SqliteAsyncQueryDelegate extends QueryDelegate {
   @override
   Future<void> runBatched(BatchedStatements statements) async {
     return writeLock((tx) async {
-      // sqlite_async's batch functionality doesn't have enough flexibility to support
-      // this with prepared statements yet.
-      for (final arg in statements.arguments) {
-        await tx.execute(
-            statements.statements[arg.statementIndex], arg.arguments);
+      final args = statements.arguments;
+      var i = 0;
+      // The statements must be run in order, so we can't group all arguments by
+      // their statement index up front. Instead we batch runs of consecutive
+      // arguments that share a statement index, preserving execution order.
+      while (i < args.length) {
+        final stmtIndex = args[i].statementIndex;
+        final paramSets = <List<Object?>>[];
+        while (i < args.length && args[i].statementIndex == stmtIndex) {
+          paramSets.add(args[i].arguments);
+          i++;
+        }
+        await tx.executeBatch(statements.statements[stmtIndex], paramSets);
       }
     });
   }

@@ -1,3 +1,7 @@
+## 0.3.1
+
+- Batch consecutive `runBatched` statements that share a statement index into a single `executeBatch` call instead of running one write per argument set.
+
 ## 0.3.0
 
 - Support versions 3.x of the `sqlite3` package.

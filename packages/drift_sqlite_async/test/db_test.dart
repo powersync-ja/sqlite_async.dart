@@ -147,5 +147,32 @@ void main() {
       final items = await dbu.todoItems.all().get();
       expect(items.map((e) => e.description).toSet(), {'root', 'tx0', 'tx1'});
     });
+
+    test('batch insert', () async {
+      await dbu.batch((batch) {
+        batch.insertAll(dbu.todoItems, [
+          for (var i = 0; i < 10; i++)
+            TodoItemsCompanion.insert(description: 'desc $i'),
+        ]);
+      });
+
+      final items = await dbu.todoItems.all().get();
+      expect(items.map((e) => e.description),
+          [for (var i = 0; i < 10; i++) 'desc $i']);
+    });
+
+    test('batch preserves statement order', () async {
+      await dbu.batch((batch) {
+        batch.insert(dbu.todoItems,
+            TodoItemsCompanion.insert(id: Value(1), description: 'a'));
+        batch.update(dbu.todoItems, TodoItemsCompanion(description: Value('b')),
+            where: (t) => t.id.equals(1));
+        batch.insert(dbu.todoItems,
+            TodoItemsCompanion.insert(id: Value(2), description: 'c'));
+      });
+
+      final items = await dbu.todoItems.all().get();
+      expect(items.map((e) => (e.id, e.description)), [(1, 'b'), (2, 'c')]);
+    });
   });
 }
