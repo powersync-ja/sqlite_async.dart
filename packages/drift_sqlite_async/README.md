@@ -10,6 +10,12 @@ Supported functionality:
 4. Select queries can run concurrently with writes and other select statements.
 5. Drift migrations are supported (optional).
 
+This package is developed by PowerSync.
+
+<p align="center">
+  <a href="https://www.powersync.com" target="_blank"><img src="https://github.com/powersync-ja/.github/assets/7372448/d2538c43-c1a0-4c47-9a76-41462dba484f"/></a>
+</p>
+
 ## Usage
 
 Use `SqliteAsyncDriftConnection` to create a DatabaseConnection / QueryExecutor for Drift from the sqlite_async SqliteDatabase:

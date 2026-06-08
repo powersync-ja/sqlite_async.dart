@@ -25,6 +25,11 @@ query access.
 
 See this [blog post](https://www.powersync.co/blog/sqlite-optimizations-for-ultra-high-performance),
 explaining why these features are important for using SQLite.
+This package is developed by PowerSync.
+
+<p align="center">
+  <a href="https://www.powersync.com" target="_blank"><img src="https://github.com/powersync-ja/.github/assets/7372448/d2538c43-c1a0-4c47-9a76-41462dba484f"/></a>
+</p>
 
 ## Installation
 
