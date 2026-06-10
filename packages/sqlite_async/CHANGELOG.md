@@ -1,7 +1,11 @@
+## 0.14.4 (unreleased)
+
+- Web: Stop leaking dedicated web workers when databases are closed.
+
 ## 0.14.3
 
 - Include identifier of mutexes when a navigator lock attempt is aborted.
-- Support versions `0.9.x` of `package:sqlite3_web`.
+- Web: Stop leaking dedicated web workers when databases are closed.
 
 ## 0.14.2
 
