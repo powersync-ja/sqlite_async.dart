@@ -72,7 +72,8 @@ class WebMutexImpl implements Mutex {
     if (abortTrigger != null) {
       abortTrigger.whenComplete(() {
         if (!gotLock.isCompleted) {
-          gotLock.completeError(AbortException('getWebLock'));
+          gotLock
+              .completeError(AbortException('getWebLock($resolvedIdentifier)'));
           controller.abort('aborted in Dart'.toJS);
         }
       });

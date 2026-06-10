@@ -1,3 +1,7 @@
+## 0.14.3 (unreleased)
+
+- Include identifier of mutexes when a navigator lock attempt is aborted.
+
 ## 0.14.2
 
 - Support versions `0.8.x` of `package:sqlite3_web`.
