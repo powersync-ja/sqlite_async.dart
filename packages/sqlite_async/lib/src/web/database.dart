@@ -13,6 +13,7 @@ import '../common/sqlite_database.dart';
 import '../common/timeouts.dart';
 import '../impl/context.dart';
 import 'connection.dart';
+import 'finalizer.dart';
 import 'protocol.dart';
 import 'web_mutex.dart';
 
@@ -29,6 +30,12 @@ final class WebDatabase extends SqliteDatabaseImpl
   /// web broadcast channels to forward local update events to other tabs.
   final BroadcastUpdates? broadcastUpdates;
 
+  /// The [WebSqlite] wrapper from which this database instance is derived.
+  ///
+  /// When all databases derived from the same [WebSqlite] instances are closed
+  /// or no longer referenced, this automatically invoked [WebSqlite.close].
+  final FinalizableWebSqliteResource? _finalizableSource;
+
   @override
   bool closed = false;
 
@@ -39,11 +46,13 @@ final class WebDatabase extends SqliteDatabaseImpl
     required this.profileQueries,
     required this.updates,
     this.broadcastUpdates,
-  });
+    FinalizableWebSqliteResource? finalizable,
+  }) : _finalizableSource = finalizable;
 
   @override
   Future<void> close() async {
     await _database.dispose();
+    _finalizableSource?.close();
     closed = true;
   }
 

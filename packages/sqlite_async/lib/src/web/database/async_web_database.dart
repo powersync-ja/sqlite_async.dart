@@ -51,15 +51,27 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
     _connection = await openFactory.openConnection(
         SqliteOpenOptions(primaryConnection: true, readOnly: false));
 
-    final broadcastUpdates = _connection.broadcastUpdates;
+    _broadcastUpdatesSubscription =
+        _installUpdatesListener(_connection, updatesController);
+  }
+
+  // The updated might be coming from a single static stream controller, we want
+  // to avoid capturing `this` in a subscription.
+  static StreamSubscription<UpdateNotification>? _installUpdatesListener(
+      WebDatabase connection,
+      StreamController<UpdateNotification> updatesController) {
+    final broadcastUpdates = connection.broadcastUpdates;
+    final localUpdates = updatesController;
+    StreamSubscription<UpdateNotification>? broadcastUpdatesSubscription;
+
     if (broadcastUpdates == null) {
       // We can use updates directly from the database.
-      _connection.updates.forEach((update) {
-        updatesController.add(update);
+      connection.updates.forEach((update) {
+        localUpdates.add(update);
       });
     } else {
-      _connection.updates.forEach((update) {
-        updatesController.add(update);
+      connection.updates.forEach((update) {
+        localUpdates.add(update);
 
         // Share local updates with other tabs
         broadcastUpdates.send(update);
@@ -67,11 +79,12 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
 
       // Also add updates from other tabs, note that things we send aren't
       // received by our tab.
-      _broadcastUpdatesSubscription =
-          broadcastUpdates.updates.listen((updates) {
-        updatesController.add(updates);
+      broadcastUpdatesSubscription = broadcastUpdates.updates.listen((updates) {
+        localUpdates.add(updates);
       });
     }
+
+    return broadcastUpdatesSubscription;
   }
 
   T _runZoned<T>(T Function() callback, {required String debugContext}) {

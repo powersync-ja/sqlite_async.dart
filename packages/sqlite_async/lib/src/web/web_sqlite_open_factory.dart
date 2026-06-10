@@ -8,33 +8,25 @@ import 'package:sqlite_async/src/web/web_mutex.dart';
 
 import '../common/abstract_open_factory.dart';
 import 'database.dart';
+import 'finalizer.dart';
 import 'update_notifications.dart';
 import 'worker/worker_utils.dart';
 
 final UpdateNotificationStreams _updateStreams = UpdateNotificationStreams();
-Map<String, FutureOr<WebSqlite>> _webSQLiteImplementations = {};
 
 /// [SqliteOpenFactory] implementation for the web.
 ///
 /// This class can be extended to customize how databases are opened on the web.
 base class WebSqliteOpenFactory extends InternalOpenFactory {
-  late final Future<WebSqlite> _initialized = Future.sync(() {
-    final cacheKey = sqliteOptions.webSqliteOptions.wasmUri +
-        sqliteOptions.webSqliteOptions.workerUri;
-
-    if (_webSQLiteImplementations.containsKey(cacheKey)) {
-      return _webSQLiteImplementations[cacheKey]!;
-    }
-
-    _webSQLiteImplementations[cacheKey] =
-        openWebSqlite(sqliteOptions.webSqliteOptions);
-    return _webSQLiteImplementations[cacheKey]!;
-  });
+  late final _openedWebSqlite = resolveWebSqliteResource(
+    sqliteOptions.webSqliteOptions,
+    () => openWebSqlite(sqliteOptions.webSqliteOptions),
+  );
 
   WebSqliteOpenFactory(
       {required super.path, super.sqliteOptions = const SqliteOptions()}) {
     // Make sure initializer starts running immediately
-    _initialized;
+    _openedWebSqlite;
   }
 
   /// Opens a [WebSqlite] instance for the given [options].
@@ -73,7 +65,7 @@ base class WebSqliteOpenFactory extends InternalOpenFactory {
   /// Due to being asynchronous, the under laying CommonDatabase is not
   /// accessible
   Future<WebDatabase> openConnection(SqliteOpenOptions options) async {
-    final workers = await _initialized;
+    final workers = await _openedWebSqlite.sqlite;
     final connection = await connectToWorker(workers, path);
 
     final pragmaStatements = this.pragmaStatements(options);
@@ -116,6 +108,7 @@ base class WebSqliteOpenFactory extends InternalOpenFactory {
       broadcastUpdates: broadcastUpdates,
       profileQueries: sqliteOptions.profileQueries,
       updates: updatesFor(connection.database),
+      finalizable: _openedWebSqlite.clone(),
     );
   }
 
