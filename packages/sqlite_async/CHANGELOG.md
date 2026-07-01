@@ -3,6 +3,7 @@
 - Native: Add the `NativeSqliteOpenFactory.beforeOpen` method, which can be overridden to configure
   SQLite asynchronously before opening databases.
 - Web: Upgrade `package:sqlite3_web` to flush IndexedDB writes automatically, deprecate `flush()`.
+- Add `SqliteOptions.preparedStatementCacheSize` to cache prepared statements.
 
 ## 0.14.3
 

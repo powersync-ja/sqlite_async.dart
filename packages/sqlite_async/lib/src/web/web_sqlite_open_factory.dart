@@ -64,7 +64,8 @@ base class WebSqliteOpenFactory extends InternalOpenFactory {
   /// can customize the behavior where needed.
   Future<ConnectToRecommendedResult> connectToWorker(
       WebSqlite sqlite, String name) {
-    return sqlite.connectToRecommended(name);
+    return sqlite.connectToRecommended(name,
+        preparedStatementCacheSize: sqliteOptions.preparedStatementCacheSize);
   }
 
   /// Currently this only uses the SQLite Web WASM implementation.

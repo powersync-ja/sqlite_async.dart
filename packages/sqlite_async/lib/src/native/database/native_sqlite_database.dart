@@ -272,7 +272,8 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
           [
             for (var i = 0; i < maxReaders; i++) openConnection(isWriter: false)
           ],
-          // TODO: Option to enable prepared statement cache.
+          preparedStatementCacheSize:
+              openFactory.sqliteOptions.preparedStatementCacheSize,
         );
       },
     );
