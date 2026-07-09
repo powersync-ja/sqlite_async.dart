@@ -251,7 +251,9 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
 
   static Future<SqliteConnectionPool> _openNativePool(
     NativeSqliteOpenFactory openFactory,
-  ) {
+  ) async {
+    await openFactory.beforeOpen();
+
     // We want to open pools asynchronously since running pragma statements as
     // part of openFactory.open might do IO. openAsync spawn a temporary isolate
     // for that.

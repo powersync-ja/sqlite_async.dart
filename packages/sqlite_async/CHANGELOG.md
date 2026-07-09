@@ -1,3 +1,8 @@
+## 0.14.4
+
+- Native: Add the `NativeSqliteOpenFactory.beforeOpen` method, which can be overridden to configure
+  SQLite asynchronously before opening databases.
+
 ## 0.14.3
 
 - Include identifier of mutexes when a navigator lock attempt is aborted.

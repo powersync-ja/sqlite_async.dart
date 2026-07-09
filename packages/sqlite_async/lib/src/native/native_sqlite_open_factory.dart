@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:sqlite3/sqlite3.dart' as sqlite;
 
 import '../common/abstract_open_factory.dart';
@@ -8,6 +10,17 @@ import '../common/abstract_open_factory.dart';
 /// platforms.
 base class NativeSqliteOpenFactory extends InternalOpenFactory {
   NativeSqliteOpenFactory({required super.path, super.sqliteOptions});
+
+  /// A (potentially asynchronous) hook to invoke before opening databases for
+  /// a pool.
+  ///
+  /// This does nothing by default, but can be overridden to apply global
+  /// SQLite configuration options before databases are opened, e.g. to set
+  /// [sqlite.CommonSqlite3.tempDirectory].
+  ///
+  /// This method is invoked in the main isolate, not the background isolate
+  /// responsible for opening connections.
+  FutureOr<void> beforeOpen() {}
 
   @override
   List<String> pragmaStatements(SqliteOpenOptions options) {

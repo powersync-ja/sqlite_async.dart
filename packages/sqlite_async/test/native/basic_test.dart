@@ -362,6 +362,15 @@ void main() {
         ),
       );
     });
+
+    test('invokes beforeOpen callback on factories', () async {
+      final factoy = _BeforeSetupHook(path: path);
+      final db = SqliteDatabase.withFactory(factoy);
+      expect(factoy.didCallBeforeOpen, isFalse);
+      await db.initialize();
+
+      expect(factoy.didCallBeforeOpen, isTrue);
+    });
   });
 }
 
@@ -379,5 +388,16 @@ final class _InvalidPragmaOnOpenFactory extends NativeSqliteOpenFactory {
       'invalid syntax to fail open in test',
       ...super.pragmaStatements(options),
     ];
+  }
+}
+
+final class _BeforeSetupHook extends NativeSqliteOpenFactory {
+  var didCallBeforeOpen = false;
+
+  _BeforeSetupHook({required super.path});
+
+  @override
+  void beforeOpen() {
+    didCallBeforeOpen = true;
   }
 }
