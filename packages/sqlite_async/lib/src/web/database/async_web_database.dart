@@ -101,7 +101,7 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
     await isInitialized;
     return _runZoned(() {
       return _connection.writeLock(callback,
-          lockTimeout: lockTimeout, debugContext: debugContext, flush: flush);
+          lockTimeout: lockTimeout, debugContext: debugContext);
     }, debugContext: debugContext ?? 'execute()');
   }
 
@@ -114,7 +114,7 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
     await isInitialized;
     return _runZoned(() {
       return _connection.abortableWriteLock(callback,
-          abortTrigger: abortTrigger, debugContext: debugContext, flush: flush);
+          abortTrigger: abortTrigger, debugContext: debugContext);
     }, debugContext: debugContext ?? 'execute()');
   }
 
@@ -125,8 +125,7 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
       bool? flush}) async {
     await isInitialized;
     return _runZoned(
-        () => _connection.writeTransaction(callback,
-            lockTimeout: lockTimeout, flush: flush),
+        () => _connection.writeTransaction(callback, lockTimeout: lockTimeout),
         debugContext: 'writeTransaction()');
   }
 

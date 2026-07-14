@@ -13,8 +13,8 @@ topics:
   - flutter
 
 dependencies:
-  sqlite3: ^3.2.0
-  sqlite3_web: '>=0.8.0 <0.10.0'
+  sqlite3: ^3.4.0
+  sqlite3_web: ^0.9.3
   sqlite3_connection_pool: ^0.2.4
   async: ^2.10.0
   collection: ^1.17.0

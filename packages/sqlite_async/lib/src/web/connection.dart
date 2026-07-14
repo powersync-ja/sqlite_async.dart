@@ -6,6 +6,11 @@ import 'database.dart';
 import 'update_notifications.dart';
 import 'web_mutex.dart';
 
+const _deprecatedFlush = Deprecated(
+  'The flush parameter no longer does anything, IndexedDB databases are '
+  'persisted after each write lock.',
+);
+
 /// An endpoint that can be used, by any running JavaScript context in the same
 /// website, to connect to an existing [WebSqliteConnection].
 ///
@@ -74,17 +79,19 @@ abstract class WebSqliteConnection implements SqliteConnection {
   /// to delay flushing changes to the database file, losing durability guarantees.
   /// This only has an effect when IndexedDB storage is used.
   ///
-  /// See [flush] for details.
+  /// See [WebSqliteConnection.flush] for details.
   @override
   Future<T> writeLock<T>(Future<T> Function(SqliteWriteContext tx) callback,
-      {Duration? lockTimeout, String? debugContext, bool? flush});
+      {Duration? lockTimeout,
+      String? debugContext,
+      @_deprecatedFlush bool? flush});
 
   @override
   Future<T> abortableWriteLock<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Future<void>? abortTrigger,
       String? debugContext,
-      bool? flush});
+      @_deprecatedFlush bool? flush});
 
   /// Same as [SqliteConnection.writeTransaction].
   ///
@@ -92,18 +99,22 @@ abstract class WebSqliteConnection implements SqliteConnection {
   /// to delay flushing changes to the database file, losing durability guarantees.
   /// This only has an effect when IndexedDB storage is used.
   ///
-  /// See [flush] for details.
+  /// See [WebSqliteConnection.flush] for details.
   @override
   Future<T> writeTransaction<T>(
       Future<T> Function(SqliteWriteContext tx) callback,
       {Duration? lockTimeout,
-      bool? flush});
+      @_deprecatedFlush bool? flush});
 
   /// Flush changes to the underlying storage.
   ///
-  /// When this returns, all changes previously written will be persisted
-  /// to storage.
+  /// In older versions of the `sqlite3` package, writes on IndexedDB databases
+  /// used to be asynchronous and might not complete if a tab writing to a
+  /// database was closed shortly after making its write.
   ///
-  /// This only has an effect when IndexedDB storage is used.
+  /// This is no longer an issue, recent versions persist changes in an
+  /// IndexedDB transaction before the transaction completes. Thus, this method
+  /// is deprecated and should not be used anymore.
+  @_deprecatedFlush
   Future<void> flush();
 }

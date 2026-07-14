@@ -103,7 +103,6 @@ final class WebDatabase extends SqliteDatabaseImpl
       (unscoped) => ScopedReadContext.assumeReadLock(unscoped, callback),
       abortTrigger: abortTrigger,
       debugContext: debugContext,
-      flush: false,
     );
   }
 
@@ -121,7 +120,6 @@ final class WebDatabase extends SqliteDatabaseImpl
           },
         );
       },
-      flush: flush ?? true,
       abortTrigger: lockTimeout?.asTimeout,
     );
   }
@@ -133,7 +131,6 @@ final class WebDatabase extends SqliteDatabaseImpl
       callback,
       abortTrigger: lockTimeout?.asTimeout,
       debugContext: debugContext,
-      flush: flush,
     );
   }
 
@@ -147,7 +144,6 @@ final class WebDatabase extends SqliteDatabaseImpl
       (unscoped) {
         return ScopedWriteContext.assumeWriteLock(unscoped, callback);
       },
-      flush: flush ?? true,
       debugContext: debugContext,
       abortTrigger: abortTrigger,
     );
@@ -155,32 +151,19 @@ final class WebDatabase extends SqliteDatabaseImpl
 
   Future<T> _lockInternal<T>(
     Future<T> Function(_UnscopedContext) callback, {
-    required bool flush,
     Future<void>? abortTrigger,
     String? debugContext,
   }) async {
     if (_mutex case var mutex?) {
       return await mutex.lock(abortTrigger: abortTrigger, () async {
         final context = _UnscopedContext(this, null);
-        try {
-          return await callback(context);
-        } finally {
-          if (flush) {
-            await this.flush();
-          }
-        }
+        return await callback(context);
       });
     } else {
       return await _database.requestLock(abortTrigger: abortTrigger,
           (token) async {
         final context = _UnscopedContext(this, token);
-        try {
-          return await callback(context);
-        } finally {
-          if (flush) {
-            await this.flush();
-          }
-        }
+        return await callback(context);
       }).translateAbortExceptions(debugContext ?? 'lock');
     }
   }
