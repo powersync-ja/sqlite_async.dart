@@ -110,6 +110,6 @@ extension type BatchParameters._raw(JSObject _) implements JSObject {
     return BatchParameters._(parameters: params, parameterTypes: types);
   }
 
-  List<Object?> get decodedParameters =>
+  proto.DecodedTypedValues get decodedParameters =>
       proto.deserializeParameters(parameters, parameterTypes);
 }

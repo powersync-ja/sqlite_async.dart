@@ -480,6 +480,38 @@ void main() {
 
       await readsCalledWhileWithAllConnsRunning;
     });
+
+    group('preserves numeric types', () {
+      test('when binding parameters', () async {
+        final db = await testUtils.setupDatabase(path: path);
+        addTearDown(db.close);
+
+        final row = await db.get('SELECT typeof(?), typeof(?)', [3, 3.0]);
+        expect(row.values, ['integer', 'real']);
+
+        // This should also apply to the custom executeBatch() call.
+        await db.execute('CREATE TABLE inserted_types(type text);');
+        await db.executeBatch('INSERT INTO inserted_types VALUES (typeof(?))', [
+          [3],
+          [3.0],
+        ]);
+        final types =
+            await db.getAll('SELECT type from inserted_types order by rowid');
+        expect(types, [
+          {'type': 'integer'},
+          {'type': 'real'}
+        ]);
+      });
+
+      test('when mapping results', () async {
+        final db = await testUtils.setupDatabase(path: path);
+        addTearDown(db.close);
+
+        final row = await db.get('SELECT 3, 3.0');
+        expect(row.values, [3, 3.0]);
+        expect(row.values.map((e) => e.runtimeType), [int, double]);
+      });
+    }, skip: identical(0, 0.0) ? 'Requires 64-bit ints' : false);
   });
 }
 

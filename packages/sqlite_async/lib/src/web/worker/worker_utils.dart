@@ -92,7 +92,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
           final stmt = database.prepare(data.rawSql.toDart);
           try {
             for (final parameter in data.parameters.toDart) {
-              stmt.execute(parameter.decodedParameters);
+              stmt.executeWith(parameter.decodedParameters.asParameters);
             }
           } finally {
             stmt.close();
