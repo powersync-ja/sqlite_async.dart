@@ -1,3 +1,6 @@
+/// @docImport 'package:sqlite3/common.dart';
+library;
+
 final class WebSqliteOptions {
   final String workerUri;
   final String wasmUri;
@@ -49,6 +52,12 @@ final class SqliteOptions {
   /// will be cached in an LRU cache. This allows re-using prepared statements
   /// instead of parsing and optimizing them again, which improve performance
   /// for frequently-used statements like watched queries.
+  ///
+  /// Be aware that active prepared statements may alter the operation of the
+  /// database, for instance because they might keep some database resources
+  /// locked. Statements are [CommonPreparedStatement.reset] before being stored
+  /// in the cache, but enabling a statement cache is still something that
+  /// should be tested carefully.
   ///
   /// This is currently disabled by default (set to `0`).
   final int preparedStatementCacheSize;
