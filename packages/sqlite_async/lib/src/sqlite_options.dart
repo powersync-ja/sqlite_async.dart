@@ -50,7 +50,7 @@ final class SqliteOptions {
   ///
   /// For each SQLite connection, up to [preparedStatementCacheSize] statements
   /// will be cached in an LRU cache. This allows re-using prepared statements
-  /// instead of parsing and optimizing them again, which improve performance
+  /// instead of parsing and optimizing them again, which improves performance
   /// for frequently-used statements like watched queries.
   ///
   /// Be aware that active prepared statements may alter the operation of the
