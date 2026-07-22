@@ -23,8 +23,8 @@ abstract class AbstractTestUtils {
   /// Deletes any DB data
   Future<void> cleanDb({required String path});
 
-// Enable prepared statement cache in tests, we want to enable that option by
-// default eventually.
+  // Enable prepared statement cache in tests, we want to enable that option by
+  // default eventually.
   static const defaultTestOptions =
       SqliteOptions(preparedStatementCacheSize: 64);
 }
