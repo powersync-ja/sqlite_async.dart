@@ -1,3 +1,7 @@
+## 0.14.5
+
+- Throw when closed databases are used.
+
 ## 0.14.4
 
 - Native: Add the `NativeSqliteOpenFactory.beforeOpen` method, which can be overridden to configure
