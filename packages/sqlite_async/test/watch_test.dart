@@ -205,7 +205,7 @@ void main() {
 
       const numberOfQueries = 10;
 
-      final doneInserting = inserts();
+      final insertsDone = inserts();
       try {
         List<DateTime> times = [];
         final results = await stream.take(numberOfQueries).map((e) {
@@ -238,7 +238,7 @@ void main() {
       } finally {
         done = true;
       }
-      await doneInserting;
+      await insertsDone;
     });
 
     test('watch with transaction', () async {

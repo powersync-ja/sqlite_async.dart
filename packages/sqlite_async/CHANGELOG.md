@@ -1,6 +1,6 @@
 ## 0.14.5
 
-- Throw when closed databases are used.
+- Make `close()` wait for the database to actually be closed.
 
 ## 0.14.4
 
