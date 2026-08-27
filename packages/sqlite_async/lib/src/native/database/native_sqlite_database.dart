@@ -85,6 +85,8 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
 
   @override
   Future<void> close() {
+    _checkNotLocked('close');
+
     return _closing ??= Future.sync(() async {
       final pool = await _pool;
 
@@ -228,7 +230,6 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   }
 
   void _returnIsolateWorker(IsolateWorker worker) {
-    assert(_closing == null);
     _workers.addLast(worker);
   }
 

@@ -250,7 +250,7 @@ void main() {
       final db = await testUtils.setupDatabase(path: path);
       await createTables(db);
 
-      await ignore(db.execute(
+      ignore(db.execute(
           'INSERT INTO test_data(description) VALUES(json(?))', ['test3']));
     });
 
@@ -378,8 +378,8 @@ void main() {
 }
 
 // For some reason, future.ignore() doesn't actually ignore errors in these tests.
-Future<void> ignore(Future future) {
-  return future.then((_) {}, onError: (_) {});
+void ignore(Future future) {
+  future.then((_) {}, onError: (_) {});
 }
 
 final class _InvalidPragmaOnOpenFactory extends NativeSqliteOpenFactory {
