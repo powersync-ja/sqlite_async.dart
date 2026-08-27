@@ -1,5 +1,6 @@
 import 'package:sqlite3/common.dart';
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:test/scaffolding.dart';
 
 abstract class AbstractTestUtils {
   String dbPath();
@@ -15,9 +16,13 @@ abstract class AbstractTestUtils {
   Future<SqliteDatabase> setupDatabase({
     String? path,
     SqliteOptions options = defaultTestOptions,
+    bool closeOnTearDown = true,
   }) async {
     final factory = await testFactory(path: path, options: options);
-    return SqliteDatabase.withFactory(factory);
+    final db = SqliteDatabase.withFactory(factory);
+
+    if (closeOnTearDown) addTearDown(db.close);
+    return db;
   }
 
   /// Deletes any DB data

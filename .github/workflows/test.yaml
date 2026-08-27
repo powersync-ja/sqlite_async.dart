@@ -64,10 +64,14 @@ jobs:
 
   test:
     needs: [analyze]
-    runs-on: ubuntu-latest
-    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)  
+    runs-on: ${{ matrix.os }}
+    if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - uses: dart-lang/setup-dart@v1
         with:
           sdk: ${{ needs.analyze.outputs.dart-version }}
@@ -75,6 +79,7 @@ jobs:
         run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
         shell: bash
       - uses: actions/cache/restore@v5
+        if: runner.os != 'Windows'
         with:
           path: |
             ${{ env.PUB_CACHE }}
@@ -94,10 +99,16 @@ jobs:
           dart run tool/sqlite3_wasm_download.dart
           dart compile js -O4 --no-minify -Dsqlite3.dartbigints=false -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart
 
-      - name: Test sqlite_async
+      - name: Test sqlite_async on Dart VM
         working-directory: packages/sqlite_async
         run: |
-          dart test -p chrome,vm --compiler dart2js,dart2wasm
+          dart test -p vm
+
+      - name: Test sqlite_async on Chrome
+        if: runner.os == 'Linux'
+        working-directory: packages/sqlite_async
+        run: |
+          dart test -p chrome --compiler dart2js,dart2wasm
           dart run build_runner test -- -p chrome
 
       - name: Test drift_sqlite_async
@@ -105,6 +116,7 @@ jobs:
         run: dart test
 
       - name: Pana for sqlite_async
+        if: runner.os == 'Linux'
         run: dart pub global run pana --no-warning packages/sqlite_async
         # We don't run pana on drift_sqlite_async because it can depend on unpublished changes from
         # sqlite_async, causing it to fail all the time.

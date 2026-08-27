@@ -1,12 +1,14 @@
 import 'dart:io';
 
 import 'package:sqlite_async/sqlite_async.dart';
+import 'package:test_api/scaffolding.dart';
 import 'package:test_api/src/backend/invoker.dart';
 
 Future<SqliteDatabase> setupDatabase({String? path}) async {
   final db =
       SqliteDatabase.withFactory(SqliteOpenFactory(path: path ?? dbPath()));
   await db.initialize();
+  addTearDown(db.close);
   return db;
 }
 
