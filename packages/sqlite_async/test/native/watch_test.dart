@@ -41,6 +41,7 @@ void main() {
           (await testUtils.testFactory(path: path)) as NativeSqliteOpenFactory;
       final db = factory.openNativeConnection(
           SqliteOpenOptions(primaryConnection: true, readOnly: false));
+      addTearDown(db.close);
 
       db.execute('CREATE TABLE a (bar INTEGER);');
       db.execute('CREATE TABLE b (bar INTEGER);');

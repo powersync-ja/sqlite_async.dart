@@ -368,6 +368,7 @@ void main() {
     test('invokes beforeOpen callback on factories', () async {
       final factoy = _BeforeSetupHook(path: path);
       final db = SqliteDatabase.withFactory(factoy);
+      addTearDown(db.close);
       expect(factoy.didCallBeforeOpen, isFalse);
       await db.initialize();
 
