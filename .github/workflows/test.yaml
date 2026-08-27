@@ -12,6 +12,7 @@ jobs:
     if: github.event_name == 'push' || (github.event_name == 'pull_request' && github.event.pull_request.head.repo.full_name != github.repository)  
     outputs:
       dart-version: ${{ steps.dart.outputs.dart-version }}
+      pubspec-hash: ${{ steps.pubspec-hash.outputs.hash }}
     steps:
       - uses: actions/checkout@v6
       - uses: dart-lang/setup-dart@v1
@@ -19,6 +20,11 @@ jobs:
       - name: "Setup local pub cache folder"
         # Make pub cache folder consistent across OSes, so that we can share the cache.
         run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
+        shell: bash
+      - name: "Hash pubspec.yaml"
+        id: pubspec-hash
+        run: |
+          echo "hash=${{ hashFiles('pubspec.yaml') }}" >> $GITHUB_OUTPUT
         shell: bash
       # We need to update the cache whenever the pubspec.lock changes, as that
       # indicates a changed dependency after `pub upgrade`. However, we can't
@@ -30,7 +36,7 @@ jobs:
           path: |
             ${{ env.PUB_CACHE }}
             pubspec.lock
-          key: dart-deps-${{ steps.dart.outputs.dart-version }}-${{ hashFiles('pubspec.yaml') }}
+          key: dart-deps-${{ steps.dart.outputs.dart-version }}-${{ steps.pubspec-hash.outputs.hash }}
           restore-keys:
             dart-deps-${{ steps.dart.outputs.dart-version }}
             dart-deps-
@@ -59,7 +65,7 @@ jobs:
           path: |
             ${{ env.PUB_CACHE }}
             pubspec.lock
-          key: dart-deps-${{ steps.dart.outputs.dart-version }}-${{ hashFiles('pubspec.yaml') }}
+          key: dart-deps-${{ steps.dart.outputs.dart-version }}-${{ steps.pubspec-hash.outputs.hash }}
           enableCrossOsArchive: true
 
   test:
@@ -79,12 +85,11 @@ jobs:
         run: "echo PUB_CACHE=.dart_tool/pub-cache/ >> $GITHUB_ENV"
         shell: bash
       - uses: actions/cache/restore@v5
-        if: runner.os != 'Windows'
         with:
           path: |
             ${{ env.PUB_CACHE }}
             pubspec.lock
-          key: dart-deps-${{ needs.analyze.outputs.dart-version }}-${{ hashFiles('pubspec.yaml') }}
+          key: dart-deps-${{ needs.analyze.outputs.dart-version }}-${{ needs.analyze.outputs.pubspec-hash }}
           # Should be created by analyze run
           fail-on-cache-miss: true
           enableCrossOsArchive: true
@@ -95,9 +100,7 @@ jobs:
           dart pub global activate pana
 
       - name: Setup
-        run: |
-          dart run tool/sqlite3_wasm_download.dart
-          dart compile js -O4 --no-minify -Dsqlite3.dartbigints=false -o assets/db_worker.js packages/sqlite_async/lib/src/web/worker/worker.dart
+        run: dart run tool/sqlite3_wasm_download.dart
 
       - name: Test sqlite_async on Dart VM
         working-directory: packages/sqlite_async
@@ -108,6 +111,7 @@ jobs:
         if: runner.os == 'Linux'
         working-directory: packages/sqlite_async
         run: |
+          dart compile js -O4 --no-minify -Dsqlite3.dartbigints=false -o ../../assets/db_worker.js lib/src/web/worker/worker.dart
           dart test -p chrome --compiler dart2js,dart2wasm
           dart run build_runner test -- -p chrome
 
