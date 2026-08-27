@@ -75,7 +75,7 @@ void main() {
 
       const numberOfQueries = 10;
 
-      inserts();
+      final insertsDone = inserts();
       try {
         List<DateTime> times = [];
         final results = await stream.take(numberOfQueries).map((e) {
@@ -110,6 +110,8 @@ void main() {
       } finally {
         done = true;
       }
+
+      await insertsDone;
     });
 
     test('onChange', () async {
@@ -129,7 +131,7 @@ void main() {
         }
       }
 
-      inserts();
+      final insertsDone = inserts();
 
       final stream = db.onChange({'assets', 'customers'},
           throttle: throttleDuration).asyncMap((event) async {
@@ -147,6 +149,7 @@ void main() {
             UpdateNotification.single('assets'),
             UpdateNotification.single('assets')
           ]));
+      await insertsDone;
     });
 
     test('single onChange', () async {

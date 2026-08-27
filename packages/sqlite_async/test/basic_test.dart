@@ -303,7 +303,7 @@ void main() {
       final hasLock = Completer<void>();
 
       final db = await testUtils.setupDatabase(path: path);
-      db.withAllConnections((writer, readers) async {
+      final allConnections = db.withAllConnections((writer, readers) async {
         hasLock.complete();
         await releaseLock.future;
       });
@@ -320,6 +320,7 @@ void main() {
       );
 
       releaseLock.complete();
+      await allConnections;
     });
 
     test('execute single statement with RETURNING populates ResultSet',
@@ -447,6 +448,7 @@ void main() {
         await testUtils.testFactory(
             path: path, options: SqliteOptions(maxReaders: maxReaders)),
       );
+      addTearDown(db.close);
       await db.initialize();
       await createTables(db);
 

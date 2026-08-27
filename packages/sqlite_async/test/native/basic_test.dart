@@ -58,6 +58,7 @@ void main() {
         await testUtils.testFactory(
             path: path, options: SqliteOptions(maxReaders: 3)),
       );
+      addTearDown(db.close);
       await db.initialize();
       await createTables(db);
 
@@ -90,6 +91,7 @@ void main() {
         await testUtils.testFactory(
             path: path, options: SqliteOptions(maxReaders: 3)),
       );
+      addTearDown(db.close);
       await db.initialize();
       await createTables(db);
 

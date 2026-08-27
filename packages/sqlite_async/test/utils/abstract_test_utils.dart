@@ -16,12 +16,11 @@ abstract class AbstractTestUtils {
   Future<SqliteDatabase> setupDatabase({
     String? path,
     SqliteOptions options = defaultTestOptions,
-    bool closeOnTearDown = true,
   }) async {
     final factory = await testFactory(path: path, options: options);
     final db = SqliteDatabase.withFactory(factory);
 
-    if (closeOnTearDown) addTearDown(db.close);
+    addTearDown(db.close);
     return db;
   }
 
