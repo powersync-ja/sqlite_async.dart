@@ -516,6 +516,17 @@ void main() {
         expect(row.values.map((e) => e.runtimeType), [int, double]);
       });
     }, skip: identical(0, 0.0) ? 'Requires 64-bit ints' : false);
+
+    test('cannot use closed databases', () async {
+      final db = await testUtils.setupDatabase(path: path);
+
+      await db.initialize();
+      await db.close();
+      expect(db.closed, isTrue);
+
+      await expectLater(db.execute('SELECT 1'), throwsA(anything));
+      await expectLater(db.get('SELECT 1'), throwsA(anything));
+    });
   });
 }
 
