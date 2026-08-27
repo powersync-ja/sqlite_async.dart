@@ -11,14 +11,30 @@ import 'package:async/async.dart';
 final class IsolateWorker {
   final Isolate _isolate;
 
-  final ReceivePort _receiveResponses = ReceivePort('isolate worker');
+  final ReceivePort _receiveResponses;
   final SendPort _sendCommands;
 
   final Map<int, Completer<Object?>> _outstandingWorkItems = {};
   int _nextWorkItem = 0;
+  var _closeRequested = false;
+  late final Future<void> _closeAcknowledged;
 
-  IsolateWorker._(this._isolate, this._sendCommands) {
-    _receiveResponses.listen((Object? message) {
+  IsolateWorker._(this._isolate, this._sendCommands, this._receiveResponses) {
+    _closeAcknowledged = _receiveResponses.listen((Object? message) {
+      if (message == null) {
+        // Null message is the exit listener registered on the isolate.
+
+        for (final pending in _outstandingWorkItems.values) {
+          // This really shouldn't happen, but it's better than not having a future
+          // that doesn't complete.
+          pending.completeError(StateError('Worker closed'));
+        }
+        _outstandingWorkItems.clear();
+
+        _receiveResponses.close();
+        return;
+      }
+
       final WorkResult(:id, :result) = message as WorkResult;
       if (_outstandingWorkItems.remove(id) case final completer?) {
         switch (result) {
@@ -28,10 +44,12 @@ final class IsolateWorker {
             completer.completeError(error, stackTrace);
         }
       }
-    });
+    }).asFuture();
   }
 
   Future<T> run<T>(FutureOr<T> Function() task) async {
+    if (_closeRequested) throw StateError('Isolate worker closed');
+
     final id = _nextWorkItem++;
     final completer = _outstandingWorkItems[id] = Completer();
 
@@ -39,23 +57,25 @@ final class IsolateWorker {
     return (await completer.future) as T;
   }
 
-  void close() {
+  Future<void> close() {
+    _closeRequested = true;
     _isolate.kill();
-    for (final pending in _outstandingWorkItems.values) {
-      // This really shouldn't happen, but it's better than not having a future
-      // that doesn't complete.
-      pending.completeError(StateError('Worker closed'));
-    }
-    _outstandingWorkItems.clear();
-    _receiveResponses.close();
+
+    return _closeAcknowledged;
   }
 
   static Future<IsolateWorker> spawn() async {
     final receiveSendPort = ReceivePort();
-    final isolate = await Isolate.spawn(_entrypoint, receiveSendPort.sendPort);
+    final receiveResponses = ReceivePort('isolate worker');
+    final isolate = await Isolate.spawn(
+      _entrypoint,
+      receiveSendPort.sendPort,
+      onExit: receiveResponses.sendPort,
+    );
+
     final port = (await receiveSendPort.first) as SendPort;
 
-    return IsolateWorker._(isolate, port);
+    return IsolateWorker._(isolate, port, receiveResponses);
   }
 
   static void _entrypoint(SendPort sendPort) async {

@@ -318,6 +318,8 @@ void main() {
         db.abortableWriteLock((_) async {}, abortTrigger: Future.value(null)),
         throwsAbortException,
       );
+
+      releaseLock.complete();
     });
 
     test('execute single statement with RETURNING populates ResultSet',
