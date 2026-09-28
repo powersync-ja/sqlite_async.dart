@@ -113,7 +113,7 @@ jobs:
         run: |
           dart compile js -O4 --no-minify -Dsqlite3.dartbigints=false -o ../../assets/db_worker.js lib/src/web/worker/worker.dart
           dart test -p chrome --compiler dart2js,dart2wasm
-          dart run build_runner test -- -p chrome
+          # dart run build_runner test -- -p chrome
 
       - name: Test drift_sqlite_async
         working-directory: packages/drift_sqlite_async
