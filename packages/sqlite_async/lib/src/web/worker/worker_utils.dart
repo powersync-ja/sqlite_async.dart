@@ -79,11 +79,10 @@ base class AsyncSqliteDatabase extends WorkerDatabase {
     if (_broadcastUpdates == null) {
       final broadcast = _broadcastUpdates = BroadcastUpdates(name);
       // Share local updates with other tabs
-      localUpdates.listen(broadcast.send);
+      _subscriptions.add(localUpdates.listen(broadcast.send));
 
       // Also add updates from other tabs, note that things we send aren't
       // received by our tab.
-      _subscriptions.add(localUpdates.listen(_updates.add));
       _subscriptions.add(broadcast.updates.listen(_updates.add));
     }
   }
