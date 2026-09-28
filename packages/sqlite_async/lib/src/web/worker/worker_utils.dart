@@ -48,14 +48,13 @@ base class AsyncSqliteDatabase extends WorkerDatabase {
   final CommonDatabase database;
   final StreamController<UpdateNotification> _updates =
       StreamController.broadcast();
+  final List<StreamSubscription<UpdateNotification>> _subscriptions = [];
   BroadcastUpdates? _broadcastUpdates;
-  StreamSubscription<UpdateNotification>? _localUpdateSubscription;
-  StreamSubscription<UpdateNotification>? _remoteUpdateSubscription;
 
   final Map<ClientConnection, _ConnectionState> _state = {};
 
   AsyncSqliteDatabase({required this.database}) {
-    _localUpdateSubscription = localUpdates.listen(_updates.add);
+    _subscriptions.add(localUpdates.listen(_updates.add));
   }
 
   _ConnectionState _findState(ClientConnection connection) {
@@ -84,7 +83,8 @@ base class AsyncSqliteDatabase extends WorkerDatabase {
 
       // Also add updates from other tabs, note that things we send aren't
       // received by our tab.
-      _remoteUpdateSubscription = broadcast.updates.listen(_updates.add);
+      _subscriptions.add(localUpdates.listen(_updates.add));
+      _subscriptions.add(broadcast.updates.listen(_updates.add));
     }
   }
 
@@ -92,9 +92,11 @@ base class AsyncSqliteDatabase extends WorkerDatabase {
   void close() {
     super.close();
 
-    _localUpdateSubscription?.cancel();
-    _remoteUpdateSubscription?.cancel();
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
     _updates.close();
+    _broadcastUpdates?.close();
   }
 
   @override

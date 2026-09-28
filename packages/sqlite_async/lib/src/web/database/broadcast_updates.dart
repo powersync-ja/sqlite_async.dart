@@ -32,6 +32,8 @@ class BroadcastUpdates {
   void send(UpdateNotification notification) {
     _channel.postMessage(_BroadcastMessage.notifications(notification));
   }
+
+  void close() => _channel.close();
 }
 
 @JS()

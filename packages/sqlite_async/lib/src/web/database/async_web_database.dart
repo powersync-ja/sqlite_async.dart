@@ -39,7 +39,6 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
   WebSqliteOpenFactory openFactory;
 
   late final WebDatabase _connection;
-  StreamSubscription? _broadcastUpdatesSubscription;
 
   AsyncWebDatabaseImpl(this.openFactory) {
     // This way the `updates` member is available synchronously
@@ -121,7 +120,6 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
   @override
   Future<void> close() async {
     await isInitialized;
-    _broadcastUpdatesSubscription?.cancel();
     updatesController.close();
     return _connection.close();
   }
