@@ -39,7 +39,6 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
   WebSqliteOpenFactory openFactory;
 
   late final WebDatabase _connection;
-  StreamSubscription? _broadcastUpdatesSubscription;
 
   AsyncWebDatabaseImpl(this.openFactory) {
     // This way the `updates` member is available synchronously
@@ -51,27 +50,10 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
     _connection = await openFactory.openConnection(
         SqliteOpenOptions(primaryConnection: true, readOnly: false));
 
-    final broadcastUpdates = _connection.broadcastUpdates;
-    if (broadcastUpdates == null) {
-      // We can use updates directly from the database.
-      _connection.updates.forEach((update) {
-        updatesController.add(update);
-      });
-    } else {
-      _connection.updates.forEach((update) {
-        updatesController.add(update);
-
-        // Share local updates with other tabs
-        broadcastUpdates.send(update);
-      });
-
-      // Also add updates from other tabs, note that things we send aren't
-      // received by our tab.
-      _broadcastUpdatesSubscription =
-          broadcastUpdates.updates.listen((updates) {
-        updatesController.add(updates);
-      });
-    }
+    // We can use updates directly from the database.
+    _connection.updates.forEach((update) {
+      updatesController.add(update);
+    });
   }
 
   T _runZoned<T>(T Function() callback, {required String debugContext}) {
@@ -138,7 +120,6 @@ final class AsyncWebDatabaseImpl extends SqliteDatabaseImpl
   @override
   Future<void> close() async {
     await isInitialized;
-    _broadcastUpdatesSubscription?.cancel();
     updatesController.close();
     return _connection.close();
   }

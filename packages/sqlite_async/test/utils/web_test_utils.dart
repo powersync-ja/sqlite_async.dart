@@ -36,6 +36,11 @@ class TestUtils extends AbstractTestUtils {
         wasmUri: sqliteWasmUri.toString(), workerUri: sqliteUri);
   }
 
+  Future<String> get sqliteWasmUri async {
+    await _isInitialized;
+    return webOptions.wasmUri;
+  }
+
   @override
   String dbPath() {
     if (_dbPath case final path?) {

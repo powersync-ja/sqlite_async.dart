@@ -1,3 +1,8 @@
+## 0.14.6 (unreleased)
+
+- Web: Fix updates on other tabs not reaching a connection created with
+  `connectToEndpoint`.
+
 ## 0.14.5
 
 - Make `close()` wait for the database to actually be closed.

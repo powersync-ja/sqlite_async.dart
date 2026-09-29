@@ -8,7 +8,6 @@ import 'package:sqlite3_web/sqlite3_web.dart' hide AbortException;
 import 'package:sqlite3_web/sqlite3_web.dart' as sqlite_web;
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:sqlite_async/src/utils/profiler.dart';
-import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import '../common/sqlite_database.dart';
 import '../common/timeouts.dart';
 import '../impl/context.dart';
@@ -25,10 +24,6 @@ final class WebDatabase extends SqliteDatabaseImpl
   @override
   final Stream<UpdateNotification> updates;
 
-  /// For persistent databases that aren't backed by a shared worker, we use
-  /// web broadcast channels to forward local update events to other tabs.
-  final BroadcastUpdates? broadcastUpdates;
-
   @override
   bool closed = false;
 
@@ -38,7 +33,6 @@ final class WebDatabase extends SqliteDatabaseImpl
     this._mutex, {
     required this.profileQueries,
     required this.updates,
-    this.broadcastUpdates,
   });
 
   @override
@@ -77,11 +71,10 @@ final class WebDatabase extends SqliteDatabaseImpl
 
   @override
   Future<WebDatabaseEndpoint> exposeEndpoint() async {
-    final endpoint = await _database.additionalConnection();
-
+    final (peer, peerLock) = await _database.additionalConnection();
     return (
-      connectPort: endpoint.$1,
-      connectName: endpoint.$2,
+      connectPort: peer,
+      connectName: peerLock,
       lockName: switch (_mutex) {
         WebMutexImpl(:final resolvedIdentifier) => resolvedIdentifier,
         _ => null,

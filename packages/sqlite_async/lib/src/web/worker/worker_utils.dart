@@ -6,6 +6,8 @@ import 'package:sqlite3/wasm.dart';
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/src/utils/shared_utils.dart';
 
+import '../../update_notification.dart';
+import '../database/broadcast_updates.dart';
 import '../protocol.dart';
 
 /// A base class for a web worker SQLite controller.
@@ -41,18 +43,26 @@ base class AsyncSqliteController extends DatabaseController {
 
 /// Worker database which handles custom requests. These requests are used for
 /// handling exclusive locks for shared web workers and custom SQL execution scripts.
-class AsyncSqliteDatabase extends WorkerDatabase {
+base class AsyncSqliteDatabase extends WorkerDatabase {
   @override
   final CommonDatabase database;
-  final Stream<Set<String>> _updates;
+  final StreamController<UpdateNotification> _updates =
+      StreamController.broadcast();
+  final List<StreamSubscription<UpdateNotification>> _subscriptions = [];
+  BroadcastUpdates? _broadcastUpdates;
 
   final Map<ClientConnection, _ConnectionState> _state = {};
 
-  AsyncSqliteDatabase({required this.database})
-      : _updates = database.updatedTables;
+  AsyncSqliteDatabase({required this.database}) {
+    _subscriptions.add(localUpdates.listen(_updates.add));
+  }
 
   _ConnectionState _findState(ClientConnection connection) {
     return _state.putIfAbsent(connection, _ConnectionState.new);
+  }
+
+  Stream<UpdateNotification> get localUpdates {
+    return database.updatedTables.map(UpdateNotification.new);
   }
 
   void _registerCloseListener(
@@ -63,6 +73,29 @@ class AsyncSqliteDatabase extends WorkerDatabase {
         state.unsubscribeUpdates();
       });
     }
+  }
+
+  void _enableBroadcastUpdates(String name) {
+    if (_broadcastUpdates == null) {
+      final broadcast = _broadcastUpdates = BroadcastUpdates(name);
+      // Share local updates with other tabs
+      _subscriptions.add(localUpdates.listen(broadcast.send));
+
+      // Also add updates from other tabs, note that things we send aren't
+      // received by our tab.
+      _subscriptions.add(broadcast.updates.listen(_updates.add));
+    }
+  }
+
+  @override
+  void close() {
+    super.close();
+
+    for (final sub in _subscriptions) {
+      sub.cancel();
+    }
+    _updates.close();
+    _broadcastUpdates?.close();
   }
 
   @override
@@ -110,16 +143,20 @@ class AsyncSqliteDatabase extends WorkerDatabase {
           _registerCloseListener(state, connection);
 
           late StreamSubscription<void> subscription;
-          subscription = state.updatesNotification = _updates.listen((tables) {
+          subscription = state.updatesNotification =
+              _updates.stream.listen((notification) {
             subscription.pause(connection.customRequest(CustomDatabaseMessage(
               CustomDatabaseMessageKind.notifyUpdates,
               id,
-              tables.toList(),
+              notification.tables.toList(),
             )));
           });
         } else {
           state.unsubscribeUpdates();
         }
+      case CustomDatabaseMessageKind.installBroadcastUpdates:
+        _enableBroadcastUpdates(
+            (message as InstallBroadcastUpdates).name.toDart);
     }
 
     return BaseCustomDatabaseMessage.okResponse();
@@ -138,7 +175,7 @@ class AsyncSqliteDatabase extends WorkerDatabase {
 
 final class _ConnectionState {
   bool hasOnCloseListener = false;
-  StreamSubscription<Set<String>>? updatesNotification;
+  StreamSubscription<UpdateNotification>? updatesNotification;
 
   void unsubscribeUpdates() {
     if (updatesNotification case final active?) {

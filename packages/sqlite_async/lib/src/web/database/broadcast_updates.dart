@@ -6,9 +6,10 @@ import 'package:web/web.dart' as web;
 /// Utility to share received [UpdateNotification]s with other tabs using
 /// broadcast channels.
 class BroadcastUpdates {
+  final String name;
   final web.BroadcastChannel _channel;
 
-  BroadcastUpdates(String name)
+  BroadcastUpdates(this.name)
       : _channel = web.BroadcastChannel('sqlite3_async_updates/$name');
 
   Stream<UpdateNotification> get updates {
@@ -31,6 +32,8 @@ class BroadcastUpdates {
   void send(UpdateNotification notification) {
     _channel.postMessage(_BroadcastMessage.notifications(notification));
   }
+
+  void close() => _channel.close();
 }
 
 @JS()

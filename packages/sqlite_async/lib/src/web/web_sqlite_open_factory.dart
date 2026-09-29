@@ -3,11 +3,11 @@ import 'dart:js_interop';
 
 import 'package:sqlite3_web/sqlite3_web.dart';
 import 'package:sqlite_async/sqlite_async.dart';
-import 'package:sqlite_async/src/web/database/broadcast_updates.dart';
 import 'package:sqlite_async/src/web/web_mutex.dart';
 
 import '../common/abstract_open_factory.dart';
 import 'database.dart';
+import 'protocol.dart';
 import 'update_notifications.dart';
 import 'worker/worker_utils.dart';
 
@@ -75,15 +75,16 @@ base class WebSqliteOpenFactory extends InternalOpenFactory {
   /// accessible
   Future<WebDatabase> openConnection(SqliteOpenOptions options) async {
     final workers = await _initialized;
-    final connection = await connectToWorker(workers, path);
+    final ConnectToRecommendedResult(:database, :access, :storage) =
+        await connectToWorker(workers, path);
 
     final pragmaStatements = this.pragmaStatements(options);
     if (pragmaStatements.isNotEmpty) {
       // The default implementation doesn't use pragmas on the web, but a
       // subclass might.
-      await connection.database.requestLock((token) async {
+      await database.requestLock((token) async {
         for (final stmt in pragmaStatements) {
-          await connection.database.execute(stmt, token: token);
+          await database.execute(stmt, token: token);
         }
       });
     }
@@ -97,26 +98,23 @@ base class WebSqliteOpenFactory extends InternalOpenFactory {
     // wrapping those in a mutex and flushing the file system helps a little bit
     // (still something we're trying to avoid).
     final hasSqliteWebMutex =
-        connection.access == AccessMode.throughSharedWorker ||
-            connection.storage == StorageMode.opfs;
+        access == AccessMode.throughSharedWorker || storage == StorageMode.opfs;
 
     final mutex = hasSqliteWebMutex
         ? null
         : WebMutexImpl(
             identifier: path); // Use the DB path as a mutex identifier
 
-    BroadcastUpdates? broadcastUpdates;
-    if (connection.access != AccessMode.throughSharedWorker &&
-        connection.storage != StorageMode.inMemory) {
-      broadcastUpdates = BroadcastUpdates(path);
+    if (access != AccessMode.throughSharedWorker &&
+        storage != StorageMode.inMemory) {
+      database.customRequest(InstallBroadcastUpdates(path));
     }
 
     return WebDatabase(
-      connection.database,
+      database,
       mutex,
-      broadcastUpdates: broadcastUpdates,
       profileQueries: sqliteOptions.profileQueries,
-      updates: updatesFor(connection.database),
+      updates: updatesFor(database),
     );
   }
 

@@ -11,6 +11,12 @@ enum CustomDatabaseMessageKind {
   executeBatch,
   updateSubscriptionManagement,
   notifyUpdates,
+
+  /// For persistent databases that aren't backed by a shared worker, we use
+  /// web broadcast channels to forward local update events to other tabs.
+  ///
+  /// Clients instruct workers to setup this broadcast channel.
+  installBroadcastUpdates,
 }
 
 extension type BaseCustomDatabaseMessage._raw(JSObject _) implements JSObject {
@@ -33,6 +39,19 @@ extension type BaseCustomDatabaseMessage._raw(JSObject _) implements JSObject {
   CustomDatabaseMessageKind get kind {
     return CustomDatabaseMessageKind.values.byName(rawKind.toDart);
   }
+}
+
+extension type InstallBroadcastUpdates._(JSObject _)
+    implements BaseCustomDatabaseMessage {
+  external factory InstallBroadcastUpdates._literal(
+      {required JSString rawKind, required JSString name});
+
+  external JSString get name;
+
+  factory InstallBroadcastUpdates(String name) =>
+      InstallBroadcastUpdates._literal(
+          rawKind: CustomDatabaseMessageKind.installBroadcastUpdates.name.toJS,
+          name: name.toJS);
 }
 
 extension type CustomDatabaseMessage._raw(JSObject _)
