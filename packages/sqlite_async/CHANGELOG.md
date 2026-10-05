@@ -1,7 +1,8 @@
-## 0.14.6 (unreleased)
+## 0.14.6
 
 - Web: Fix updates on other tabs not reaching a connection created with
   `connectToEndpoint`.
+- Native: Fix `close()` with an outstanding request leaking resources.
 
 ## 0.14.5
 

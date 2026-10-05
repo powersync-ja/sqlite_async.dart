@@ -93,7 +93,8 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
       // Acquire all connections to ensure this doesn't race with any leased
       // connection.
       final allConnections = await pool.exclusiveAccess();
-      pool.close(); // Prevent subsequent pool requests.
+      // Prevent subsequent pool requests, including those already in-flight.
+      await pool.close(abortOutstandingRequests: true);
 
       await _workers.map((e) => e.close()).wait;
       allConnections.close();
