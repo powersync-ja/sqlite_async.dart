@@ -75,7 +75,8 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   Future<bool> getAutoCommit() async {
     _checkNotLocked('getAutoCommit');
     final pool = await _pool;
-    final writer = await pool.writer();
+    final writer =
+        await pool.writer().translateAbortExceptions('getAutoCommit');
     try {
       return await writer.autocommit;
     } finally {
@@ -93,7 +94,8 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
       // Acquire all connections to ensure this doesn't race with any leased
       // connection.
       final allConnections = await pool.exclusiveAccess();
-      pool.close(); // Prevent subsequent pool requests.
+      // Prevent subsequent pool requests, including those already in-flight.
+      await pool.close(abortOutstandingRequests: true);
 
       await _workers.map((e) => e.close()).wait;
       allConnections.close();
@@ -172,7 +174,9 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
           block) async {
     final pool = await _pool;
     return _runInLockContext('withAllConnections', () async {
-      final exclusiveAccess = await pool.exclusiveAccess();
+      final exclusiveAccess = await pool
+          .exclusiveAccess()
+          .translateAbortExceptions('withAllConnections');
       try {
         final writeExecutor = _LeasedContext(
           inner: exclusiveAccess.writer,

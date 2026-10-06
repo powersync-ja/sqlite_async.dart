@@ -2,6 +2,7 @@
 library;
 
 import 'dart:async';
+import 'dart:io';
 
 import 'package:sqlite3/common.dart' as sqlite;
 import 'package:sqlite_async/native.dart';
@@ -366,13 +367,44 @@ void main() {
     });
 
     test('invokes beforeOpen callback on factories', () async {
-      final factoy = _BeforeSetupHook(path: path);
-      final db = SqliteDatabase.withFactory(factoy);
+      final factory = _BeforeSetupHook(path: path);
+      final db = SqliteDatabase.withFactory(factory);
       addTearDown(db.close);
-      expect(factoy.didCallBeforeOpen, isFalse);
+      expect(factory.didCallBeforeOpen, isFalse);
       await db.initialize();
 
-      expect(factoy.didCallBeforeOpen, isTrue);
+      expect(factory.didCallBeforeOpen, isTrue);
+    });
+
+    test('can close database with outstanding request', () async {
+      // Regression test for https://github.com/powersync-ja/sqlite_async.dart/issues/162
+      final dir = await Directory.systemTemp.createTemp('close-race-');
+      final db =
+          SqliteDatabase(path: '${dir.path}${Platform.pathSeparator}test.db');
+      await db.initialize();
+      await db.execute('CREATE TABLE t (x INTEGER)');
+
+      // A read lock in progress makes close() wait for exclusive access.
+      final release = Completer<void>();
+      final reading = db.readLock((tx) async {
+        await tx.get('SELECT 1');
+        await release.future;
+      });
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+      final closing = db.close();
+      await Future<void>.delayed(const Duration(milliseconds: 50));
+
+      // Requested while close() waits for exclusive access.
+      final pending =
+          expectLater(db.getAll('SELECT 1'), throwsA(isA<AbortException>()));
+
+      release.complete();
+      await reading;
+      await closing;
+      await pending;
+      // If the underlying database connection didn't close, this fails on
+      // Windows.
+      await dir.delete(recursive: true);
     });
   });
 }
