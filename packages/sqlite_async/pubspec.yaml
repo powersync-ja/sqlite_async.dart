@@ -12,6 +12,9 @@ topics:
   - sql
   - flutter
 
+funding:
+  - https://github.com/sponsors/powersync-ja
+
 dependencies:
   sqlite3: ^3.5.0
   sqlite3_web: ^0.9.5
