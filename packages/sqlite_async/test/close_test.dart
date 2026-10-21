@@ -40,26 +40,23 @@ void main() {
       await root.execute('CREATE TABLE test_rows (value INTEGER NOT NULL)');
       await root.execute('INSERT INTO test_rows VALUES (42)');
       await scheduled.get('SELECT 1');
-      final callerZone = Zone.current;
       final snapshotStarted = Completer<void>();
       final continueSnapshot = Completer<void>();
       final reading = root.readTransaction((tx) async {
         await tx.get('SELECT value FROM test_rows');
         snapshotStarted.complete();
         await continueSnapshot.future;
-        await callerZone.run(
-          () => root.writeTransaction(
-            (writer) => writer.execute('UPDATE test_rows SET value = 43'),
-            lockTimeout: const Duration(seconds: 1),
-          ),
-        );
         expect(await tx.get('SELECT value FROM test_rows'), {'value': 42});
       });
       await snapshotStarted.future;
       final closing = scheduled.close();
       await Future<void>.delayed(Duration.zero);
-      continueSnapshot.complete();
       try {
+        await root.writeTransaction(
+          (writer) => writer.execute('UPDATE test_rows SET value = 43'),
+          lockTimeout: const Duration(seconds: 1),
+        );
+        continueSnapshot.complete();
         await reading;
         await closing.timeout(const Duration(seconds: 5));
         expect(await root.get('SELECT value FROM test_rows'), {'value': 43});
@@ -67,6 +64,8 @@ void main() {
           'integrity_check': 'ok',
         });
       } finally {
+        if (!continueSnapshot.isCompleted) continueSnapshot.complete();
+        await reading;
         await closing;
         await root.close();
         await directory.delete(recursive: true);
