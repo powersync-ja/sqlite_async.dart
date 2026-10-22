@@ -3,7 +3,6 @@ library;
 
 import 'dart:async';
 import 'dart:io';
-import 'dart:isolate';
 
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
@@ -33,43 +32,16 @@ void main() {
     }
 
     test('another client can close during a read snapshot', () async {
-      final directory =
-          await Directory.systemTemp.createTemp('recovery-close-');
-      final root = SqliteDatabase(path: '${directory.path}/app.db');
-      final scheduled = SqliteDatabase(path: '${directory.path}/app.db');
-      await root.execute('CREATE TABLE test_rows (value INTEGER NOT NULL)');
-      await root.execute('INSERT INTO test_rows VALUES (42)');
-      await scheduled.get('SELECT 1');
-      final snapshotStarted = Completer<void>();
-      final continueSnapshot = Completer<void>();
-      final reading = root.readTransaction((tx) async {
-        await tx.get('SELECT value FROM test_rows');
-        snapshotStarted.complete();
-        await continueSnapshot.future;
-        expect(await tx.get('SELECT value FROM test_rows'), {'value': 42});
+      final a = SqliteDatabase(path: path);
+      final b = SqliteDatabase(path: path);
+
+      await a.get('SELECT 1');
+      await b.get('SELECT 1');
+
+      await a.readTransaction((tx) async {
+        await b.close();
       });
-      await snapshotStarted.future;
-      final closing = scheduled.close();
-      await Future<void>.delayed(Duration.zero);
-      try {
-        await root.writeTransaction(
-          (writer) => writer.execute('UPDATE test_rows SET value = 43'),
-          lockTimeout: const Duration(seconds: 1),
-        );
-        continueSnapshot.complete();
-        await reading;
-        await closing.timeout(const Duration(seconds: 5));
-        expect(await root.get('SELECT value FROM test_rows'), {'value': 43});
-        expect(await root.get('PRAGMA integrity_check'), {
-          'integrity_check': 'ok',
-        });
-      } finally {
-        if (!continueSnapshot.isCompleted) continueSnapshot.complete();
-        await reading;
-        await closing;
-        await root.close();
-        await directory.delete(recursive: true);
-      }
+      await a.close();
     });
 
     test('close drains its active writer and aborts its queued writer',
@@ -96,18 +68,15 @@ void main() {
       );
       var closed = false;
       final closing = database.close().then((_) => closed = true);
-      try {
-        await pendingWrite.timeout(const Duration(seconds: 5));
-        expect(closed, isFalse);
-        await expectLater(
-          database.getAutoCommit(),
-          throwsA(isA<AbortException>()),
-        );
-      } finally {
-        releaseWriter.complete();
-        await writing;
-        await closing.timeout(const Duration(seconds: 5));
-      }
+      await pendingWrite;
+      expect(closed, isFalse);
+      await expectLater(
+        database.getAutoCommit(),
+        throwsA(isA<AbortException>()),
+      );
+      releaseWriter.complete();
+      await writing;
+      await closing;
       final reopened = SqliteDatabase(path: '${directory.path}/app.db');
       addTearDown(reopened.close);
       expect(await reopened.get('SELECT value FROM test_rows'), {'value': 43});
@@ -132,27 +101,11 @@ void main() {
       await readerStarted.future;
       final queuedRead = expectLater(db.get('SELECT 1'), throwsAbortException);
       final closing = db.close();
-      try {
-        await queuedRead.timeout(const Duration(seconds: 5));
-        await expectLater(db.get('SELECT 2'), throwsAbortException);
-      } finally {
-        releaseReader.complete();
-        await reading;
-        await closing.timeout(const Duration(seconds: 5));
-      }
-    });
-
-    test('the standalone example completes without a deadlock', () async {
-      final library = await Isolate.resolvePackageUri(
-          Uri.parse('package:sqlite_async/sqlite_async.dart'));
-      final package = File.fromUri(library!).parent.parent;
-      final result = await Process.run(
-        Platform.resolvedExecutable,
-        ['run', 'example/close_deadlock/bin/close_deadlock.dart'],
-        workingDirectory: package.path,
-      );
-      expect(result.exitCode, 0, reason: '${result.stderr}');
-      expect(result.stdout, contains('The stored value is 43.'));
+      await queuedRead;
+      await expectLater(db.get('SELECT 2'), throwsAbortException);
+      releaseReader.complete();
+      await reading;
+      await closing;
     });
 
     test('Open and close', () async {

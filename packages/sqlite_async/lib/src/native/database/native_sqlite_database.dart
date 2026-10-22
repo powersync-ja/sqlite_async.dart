@@ -74,16 +74,11 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   /// Returns true if the _write_ connection is in auto-commit mode
   /// (no active transaction).
   @override
-  Future<bool> getAutoCommit() => _runInLockContext('getAutoCommit', () async {
-        final pool = await _pool;
-        final writer =
-            await pool.writer().translateAbortExceptions('getAutoCommit');
-        try {
-          return await writer.autocommit;
-        } finally {
-          writer.returnLease();
-        }
-      });
+  Future<bool> getAutoCommit() => _useConnection(
+        (context) => context.getAutoCommit(),
+        writer: true,
+        debugContext: 'getAutoCommit',
+      );
 
   @override
   Future<void> close() {
@@ -92,8 +87,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
     return _closing ??= Future.sync(() async {
       final pool = await _pool;
 
-      // Close this client's requests without reserving another client's writer.
-      // Its read snapshot can need that writer before it releases a reader.
+      // Avoid exclusive access because another Dart instance can use this pool.
       await [
         pool.close(abortOutstandingRequests: true),
         if (_activeOperations > 0)
