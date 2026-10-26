@@ -42,6 +42,8 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   });
   Future<void>? _closing;
   final _lockGuard = Object();
+  int _activeOperations = 0;
+  Completer<void>? _operationsDrained;
 
   @override
   int get maxReaders => openFactory.sqliteOptions.maxReaders;
@@ -72,17 +74,11 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   /// Returns true if the _write_ connection is in auto-commit mode
   /// (no active transaction).
   @override
-  Future<bool> getAutoCommit() async {
-    _checkNotLocked('getAutoCommit');
-    final pool = await _pool;
-    final writer =
-        await pool.writer().translateAbortExceptions('getAutoCommit');
-    try {
-      return await writer.autocommit;
-    } finally {
-      writer.returnLease();
-    }
-  }
+  Future<bool> getAutoCommit() => _useConnection(
+        (context) => context.getAutoCommit(),
+        writer: true,
+        debugContext: 'getAutoCommit',
+      );
 
   @override
   Future<void> close() {
@@ -91,14 +87,14 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
     return _closing ??= Future.sync(() async {
       final pool = await _pool;
 
-      // Acquire all connections to ensure this doesn't race with any leased
-      // connection.
-      final allConnections = await pool.exclusiveAccess();
-      // Prevent subsequent pool requests, including those already in-flight.
-      await pool.close(abortOutstandingRequests: true);
-
+      // Avoid exclusive access because another Dart instance can use this pool.
+      await [
+        pool.close(abortOutstandingRequests: true),
+        if (_activeOperations > 0)
+          (_operationsDrained ??= Completer<void>()).future,
+      ].wait;
+      // Active operations return their workers before shutdown closes them.
       await _workers.map((e) => e.close()).wait;
-      allConnections.close();
     });
   }
 
@@ -250,9 +246,19 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
     }
   }
 
-  T _runInLockContext<T>(String debugContext, T Function() inner) {
+  Future<T> _runInLockContext<T>(
+      String debugContext, Future<T> Function() inner) {
     _checkNotLocked(debugContext);
-    return runZoned(inner, zoneValues: {_lockGuard: true});
+    if (closed) return Future.error(AbortException(debugContext));
+    _activeOperations++;
+    return runZoned(() async {
+      try {
+        return await inner();
+      } finally {
+        _activeOperations--;
+        if (_activeOperations == 0) _operationsDrained?.complete();
+      }
+    }, zoneValues: {_lockGuard: true});
   }
 
   static Future<SqliteConnectionPool> _openNativePool(
