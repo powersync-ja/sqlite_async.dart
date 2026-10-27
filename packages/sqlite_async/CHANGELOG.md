@@ -1,3 +1,7 @@
+## 0.14.7
+
+- Native: Avoid a database lock in `close()`.
+
 ## 0.14.6
 
 - Web: Fix updates on other tabs not reaching a connection created with
