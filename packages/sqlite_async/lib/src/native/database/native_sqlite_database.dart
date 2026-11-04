@@ -52,7 +52,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   @protected
   Future<void> get isInitialized => _pool;
 
-  final Queue<IsolateWorker> _workers;
+  final Queue<IsolateWorker>? _workers;
 
   final StreamController<UpdateNotification> _updates =
       StreamController.broadcast(sync: true);
@@ -61,10 +61,12 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   Stream<UpdateNotification> get updates => _updates.stream;
 
   NativeSqliteDatabaseImpl(this.openFactory)
-      :
-        // When the pool is fully used, we'd have all concurrent readers and a
-        // writer operating on the database. Prepare a queue with that capacity.
-        _workers = ListQueue(openFactory.sqliteOptions.maxReaders + 1);
+      : _workers = openFactory.sqliteOptions.useBackgroundIsolates
+            // When the pool is fully used, we'd have all concurrent readers and
+            // a writer operating on the database. Prepare a queue with that
+            // capacity.
+            ? ListQueue(openFactory.sqliteOptions.maxReaders + 1)
+            : null;
 
   @override
   bool get closed {
@@ -94,7 +96,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
           (_operationsDrained ??= Completer<void>()).future,
       ].wait;
       // Active operations return their workers before shutdown closes them.
-      await _workers.map((e) => e.close()).wait;
+      await _workers?.map((e) => e.close()).wait;
     });
   }
 
@@ -221,8 +223,10 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
     });
   }
 
-  Future<IsolateWorker> _takeIsolateWorker() async {
-    if (_workers.isEmpty) {
+  Future<IsolateWorker?> _takeIsolateWorker() async {
+    if (_workers == null) {
+      return null;
+    } else if (_workers.isEmpty) {
       return await IsolateWorker.spawn();
     } else {
       return _workers.removeFirst();
@@ -230,7 +234,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   }
 
   void _returnIsolateWorker(IsolateWorker worker) {
-    _workers.addLast(worker);
+    _workers!.addLast(worker);
   }
 
   void _checkNotLocked(String? debugContext) {
@@ -266,28 +270,36 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   ) async {
     await openFactory.beforeOpen();
 
-    // We want to open pools asynchronously since running pragma statements as
-    // part of openFactory.open might do IO. openAsync spawn a temporary isolate
-    // for that.
     final maxReaders = openFactory.sqliteOptions.maxReaders;
-    return SqliteConnectionPool.openAsync(
-      name: openFactory.path,
-      openConnections: () {
-        Database openConnection({required bool isWriter}) {
-          return openFactory.openNativeConnection(
-            SqliteOpenOptions(primaryConnection: isWriter, readOnly: !isWriter),
-          );
-        }
 
-        return PoolConnections(
-          openConnection(isWriter: true),
-          [
-            for (var i = 0; i < maxReaders; i++) openConnection(isWriter: false)
-          ],
-          preparedStatementCacheSize:
-              openFactory.sqliteOptions.preparedStatementCacheSize,
-        );
-      },
+    PoolConnections openConnections() =>
+        _openPoolConnections(openFactory, maxReaders);
+
+    if (openFactory.sqliteOptions.useBackgroundIsolates) {
+      // We want to open pools asynchronously since running pragma statements as
+      // part of openFactory.open might do IO. openAsync spawn a temporary
+      // isolate for that.
+      return await SqliteConnectionPool.openAsync(
+          name: openFactory.path, openConnections: openConnections);
+    } else {
+      return SqliteConnectionPool.open(
+          name: openFactory.path, openConnections: openConnections);
+    }
+  }
+
+  static PoolConnections _openPoolConnections(
+      NativeSqliteOpenFactory openFactory, int maxReaders) {
+    Database openConnection({required bool isWriter}) {
+      return openFactory.openNativeConnection(
+        SqliteOpenOptions(primaryConnection: isWriter, readOnly: !isWriter),
+      );
+    }
+
+    return PoolConnections(
+      openConnection(isWriter: true),
+      [for (var i = 0; i < maxReaders; i++) openConnection(isWriter: false)],
+      preparedStatementCacheSize:
+          openFactory.sqliteOptions.preparedStatementCacheSize,
     );
   }
 }
@@ -296,7 +308,7 @@ final class _LeasedContext extends UnscopedContext {
   final AsyncConnection inner;
   final NativeSqliteDatabaseImpl pool;
   final TimelineTask? task;
-  final IsolateWorker worker;
+  final IsolateWorker? worker;
 
   /// Whether to throw an exception if we're about to execute a statement if
   /// the connection is in autocommit mode.
@@ -326,7 +338,7 @@ final class _LeasedContext extends UnscopedContext {
 
   void close() {
     closed = true;
-    pool._returnIsolateWorker(worker);
+    if (worker case final worker?) pool._returnIsolateWorker(worker);
   }
 
   Future<T> _runOnWorker<T>(
@@ -335,8 +347,15 @@ final class _LeasedContext extends UnscopedContext {
       final ptr = connection.unsafePointer.address;
       final checkInTransaction = verifyInTransaction;
 
-      final result =
-          await worker.run(_wrapDbClosure(ptr, checkInTransaction, compute));
+      final T result;
+      if (worker case final worker?) {
+        result =
+            await worker.run(_wrapDbClosure(ptr, checkInTransaction, compute));
+      } else {
+        if (checkInTransaction) _checkInTransaction(connection.database);
+        result = await compute(connection);
+      }
+
       return (result, connection.database.autocommit);
     });
 

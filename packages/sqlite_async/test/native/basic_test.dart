@@ -5,6 +5,7 @@ import 'dart:async';
 import 'dart:io';
 
 import 'package:sqlite3/common.dart' as sqlite;
+import 'package:sqlite3/sqlite3.dart';
 import 'package:sqlite_async/native.dart';
 import 'package:sqlite_async/sqlite_async.dart';
 import 'package:test/test.dart';
@@ -406,6 +407,106 @@ void main() {
       // Windows.
       await dir.delete(recursive: true);
     });
+
+    test('can use pool synchronously', () async {
+      final db = SqliteDatabase.withFactory(
+        // This registers a user-defined function, which crashes when used
+        // on another isolate.
+        _RegisterFunction(
+          path: path,
+          sqliteOptions: const SqliteOptions(useBackgroundIsolates: false),
+        ),
+      );
+
+      final row = await db.get('SELECT test_function() AS r');
+      expect(row, {'r': 'works'});
+
+      await db.close();
+    });
+
+    group('without background isolates', () {
+      late SqliteDatabase db;
+
+      setUp(() async {
+        db = SqliteDatabase.withFactory(
+          // This registers a user-defined function, which crashes when called
+          // from another isolate.
+          _RegisterFunction(
+            path: path,
+            sqliteOptions: const SqliteOptions(useBackgroundIsolates: false),
+          ),
+        );
+        await createTables(db);
+      });
+
+      tearDown(() => db.close());
+
+      test('detects transactions rolled back by earlier statement', () async {
+        final tp = db.writeTransaction((tx) async {
+          await tx.execute(
+              'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+              [2, 'test2']);
+          try {
+            await tx.execute(
+                'INSERT OR ROLLBACK INTO test_data(id, description) VALUES(?, ?)',
+                [2, 'test3']);
+          } catch (e) {
+            // Ignore
+          }
+          expect(await tx.getAutoCommit(), isTrue);
+
+          // Must not run in autocommit mode after the rollback.
+          await tx.execute(
+              'INSERT INTO test_data(id, description) VALUES(?, ?)',
+              [4, 'test4']);
+        });
+
+        await expectLater(
+            tp,
+            throwsA(isA<sqlite.SqliteException>().having((e) => e.message,
+                'message', contains('rolled back by earlier statement'))));
+        expect(
+            await db.get('SELECT count() count FROM test_data'), {'count': 0});
+
+        await db.writeTransaction((tx) async {});
+      });
+
+      test('commits and rolls back transactions', () async {
+        await db.writeTransaction((tx) async {
+          await tx.execute(
+              'INSERT INTO test_data(description) VALUES(?)', ['committed']);
+        });
+        await expectLater(
+          db.writeTransaction((tx) async {
+            await tx.execute(
+                'INSERT INTO test_data(description) VALUES(?)', ['discarded']);
+            throw 'abort';
+          }),
+          throwsA('abort'),
+        );
+
+        expect(await db.getAll('SELECT description FROM test_data'), [
+          {'description': 'committed'}
+        ]);
+      });
+
+      test('can close with active lease', () async {
+        final release = Completer<void>();
+        final reading = db.readLock((tx) async {
+          await tx.get('SELECT 1');
+          await release.future;
+          await tx.get('SELECT 2');
+        });
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+        final closing = db.close();
+        await Future<void>.delayed(const Duration(milliseconds: 50));
+
+        release.complete();
+        await reading;
+        await closing;
+        expect(db.closed, isTrue);
+      });
+    });
   });
 }
 
@@ -434,5 +535,19 @@ final class _BeforeSetupHook extends NativeSqliteOpenFactory {
   @override
   void beforeOpen() {
     didCallBeforeOpen = true;
+  }
+}
+
+final class _RegisterFunction extends NativeSqliteOpenFactory {
+  _RegisterFunction({required super.path, super.sqliteOptions});
+
+  @override
+  void configureConnection(Database database, SqliteOpenOptions options) {
+    database.createFunction(
+      functionName: 'test_function',
+      function: (_) => 'works',
+    );
+
+    super.configureConnection(database, options);
   }
 }

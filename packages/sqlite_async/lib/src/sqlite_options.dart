@@ -1,3 +1,4 @@
+/// @docImport 'dart:isolate';
 /// @docImport 'package:sqlite3/common.dart';
 library;
 
@@ -62,6 +63,31 @@ final class SqliteOptions {
   /// This is currently disabled by default (set to `0`).
   final int preparedStatementCacheSize;
 
+  /// Whether to use background isolates to open database connections and to run
+  /// queries.
+  ///
+  /// This is enabled by default, and the recommended option for almost all
+  /// workloads: Because SQLite queries block on synchronous IO, running them in
+  /// an UI isolate degrades UI performance and can cause dropped frames.
+  /// Running queries on background isolates also allows reads to run in
+  /// parallel (see [maxReaders]), further improving performance for read-heavy
+  /// workloads.
+  ///
+  /// In special setups, avoiding synchronous IO may not be necessary.
+  /// Background services running on a separate Flutter engine (or short-lived
+  /// tasks spawned with [Isolate.run] needing database access) already run on a
+  /// background thread, and synchronous IO may be acceptable there.
+  /// For these setups, disabling background isolates may be faster (as there
+  /// is no [SendPort] overhead).
+  ///
+  /// When this is disabled, statements run synchronously on the calling
+  /// isolate. This package still uses an asynchronous pool to obtain
+  /// connections, preventing isolates from issuing writes in parallel (as that
+  /// would cause `SQLITE_BUSY` errors).
+  ///
+  /// This option has no effect on the web.
+  final bool useBackgroundIsolates;
+
   @Deprecated('Use default SqliteOptions constructor instead')
   const factory SqliteOptions.defaults() = SqliteOptions;
 
@@ -74,6 +100,7 @@ final class SqliteOptions {
     this.profileQueries = _profileQueriesByDefault,
     this.maxReaders = defaultMaxReaders,
     this.preparedStatementCacheSize = 0,
+    this.useBackgroundIsolates = true,
   });
 
   /// Creates a new options instance by applying overrides from parameters.
@@ -85,6 +112,7 @@ final class SqliteOptions {
     bool? profileQueries,
     int? maxReaders,
     int? preparedStatementCacheSize,
+    bool? useBackgroundIsolates,
   }) {
     return SqliteOptions(
       journalMode: journalMode,
@@ -96,6 +124,8 @@ final class SqliteOptions {
       maxReaders: maxReaders ?? this.maxReaders,
       preparedStatementCacheSize:
           preparedStatementCacheSize ?? this.preparedStatementCacheSize,
+      useBackgroundIsolates:
+          useBackgroundIsolates ?? this.useBackgroundIsolates,
     );
   }
 
