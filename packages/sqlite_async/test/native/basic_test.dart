@@ -437,9 +437,9 @@ void main() {
           ),
         );
         await createTables(db);
-      });
 
-      tearDown(() => db.close());
+        addTearDown(db.close);
+      });
 
       test('detects transactions rolled back by earlier statement', () async {
         final tp = db.writeTransaction((tx) async {
