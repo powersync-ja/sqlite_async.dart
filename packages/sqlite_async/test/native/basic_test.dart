@@ -441,6 +441,12 @@ void main() {
         addTearDown(db.close);
       });
 
+      test('can run statements', () async {
+        await db.execute('SELECT test_function()');
+        final row = await db.get('SELECT test_function()');
+        expect(row, {'test_function()': 'works'});
+      });
+
       test('detects transactions rolled back by earlier statement', () async {
         final tp = db.writeTransaction((tx) async {
           await tx.execute(
