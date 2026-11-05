@@ -75,8 +75,9 @@ abstract interface class SqliteReadContext {
   /// On native platforms, [compute] runs in a background isolate if
   /// [SqliteOptions.useBackgroundIsolates] is enabled (the default). Uncaught
   /// errors from background isolates are reported if they occur before the
-  /// future completes. Without that option, no error zone is set up for
-  /// [compute].
+  /// future completes.
+  /// If [SqliteOptions.useBackgroundIsolates] is disabled, the function runs on
+  /// the calling isolate instead. No error zone is set up in that case.
   Future<T> computeWithDatabase<T>(
       Future<T> Function(sqlite.CommonDatabase db) compute);
 }

@@ -73,7 +73,7 @@ final class SqliteOptions {
   /// parallel (see [maxReaders]), further improving performance for read-heavy
   /// workloads.
   ///
-  /// In special setups, avoiding synchronous IO may not be necessary. I a
+  /// In special setups, avoiding synchronous IO may not be necessary. If a
   /// background isolate spawned via e.g. [Isolate.run] opens a database, it
   /// doesn't block the main thread and synchronous IO may be acceptable there.
   /// For these setups, disabling background isolates may be faster (as there

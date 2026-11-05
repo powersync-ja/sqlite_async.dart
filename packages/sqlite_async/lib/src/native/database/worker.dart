@@ -2,6 +2,7 @@ import 'dart:async';
 import 'dart:isolate';
 
 import 'package:async/async.dart';
+import 'package:sqlite3_connection_pool/sqlite3_connection_pool.dart';
 
 /// A long-lived isolate running work items sent as closures.
 ///
@@ -47,13 +48,22 @@ final class IsolateWorker {
     }).asFuture();
   }
 
-  Future<T> run<T>(FutureOr<T> Function() task) async {
+  /// Runs [task] on the worker isolate, passing a connection obtained from
+  /// [connection].
+  ///
+  /// The caller must hold a lease on [connection] and must not use it until
+  /// the returned future completes.
+  Future<T> run<T>(
+    ShareableAsyncConnection connection,
+    FutureOr<T> Function(PoolConnection) task,
+  ) async {
     if (_closeRequested) throw StateError('Isolate worker closed');
 
     final id = _nextWorkItem++;
     final completer = _outstandingWorkItems[id] = Completer();
 
-    _sendCommands.send(WorkItem(id, _receiveResponses.sendPort, task));
+    _sendCommands
+        .send(WorkItem(id, _receiveResponses.sendPort, connection, task));
     return (await completer.future) as T;
   }
 
@@ -91,21 +101,37 @@ final class IsolateWorker {
 final class WorkItem {
   final int id;
   final SendPort completePort;
-  final Object? Function() task;
+  final ShareableAsyncConnection connection;
+  final Object? Function(PoolConnection) task;
 
-  WorkItem(this.id, this.completePort, this.task);
+  WorkItem(this.id, this.completePort, this.connection, this.task);
 
   Future<void> handle() async {
+    final lease = connection.obtainConnection();
+    if (lease == null) {
+      // This can happen in rare cases if the parent isolate exits after
+      // sending the request to this child isolate.
+      completePort.send(WorkResult(
+          id,
+          ErrorResult(
+              StateError('Parent isolate closed'), StackTrace.current)));
+      return;
+    }
+
+    void complete(Result<Object?> result) {
+      // This is harmless if called multiple times.
+      lease.returnLease();
+      completePort.send(WorkResult(id, result));
+    }
+
     final result = await runZonedGuarded(
-      () => Result.capture(Future.sync(task)),
-      (Object e, StackTrace s) {
-        completePort.send(WorkResult(id, ErrorResult(e, s)));
-      },
+      () => Result.capture(Future.sync(() => task(lease.unsafeRawConnection))),
+      (Object e, StackTrace s) => complete(ErrorResult(e, s)),
     );
 
     if (result != null) {
       // For errors, we would have already sent the response.
-      completePort.send(WorkResult(id, result));
+      complete(result);
     }
   }
 }
