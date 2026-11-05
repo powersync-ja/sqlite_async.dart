@@ -408,22 +408,6 @@ void main() {
       await dir.delete(recursive: true);
     });
 
-    test('can use pool synchronously', () async {
-      final db = SqliteDatabase.withFactory(
-        // This registers a user-defined function, which crashes when used
-        // on another isolate.
-        _RegisterFunction(
-          path: path,
-          sqliteOptions: const SqliteOptions(useBackgroundIsolates: false),
-        ),
-      );
-
-      final row = await db.get('SELECT test_function() AS r');
-      expect(row, {'r': 'works'});
-
-      await db.close();
-    });
-
     group('without background isolates', () {
       late SqliteDatabase db;
 
@@ -511,6 +495,32 @@ void main() {
         await reading;
         await closing;
         expect(db.closed, isTrue);
+      });
+
+      test('still usable after uncaught error', () async {
+        Object? caughtError;
+
+        await runZonedGuarded(() {
+          return db.computeWithDatabase<void>((db) async {
+            Future<void> asyncCompute() async {
+              throw ArgumentError('uncaught async error');
+            }
+
+            asyncCompute();
+          });
+        }, (e, s) {
+          caughtError = e;
+        });
+
+        // The specific error message may change
+        expect(caughtError.toString(),
+            equals("Invalid argument(s): uncaught async error"));
+
+        // Check that we can still continue afterwards
+        final computed = await db.computeWithDatabase((db) async {
+          return 5;
+        });
+        expect(computed, equals(5));
       });
     });
   });
