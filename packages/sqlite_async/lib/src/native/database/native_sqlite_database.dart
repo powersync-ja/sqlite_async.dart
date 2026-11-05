@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:developer';
-import 'dart:ffi';
 
 import 'package:meta/meta.dart';
 import 'package:sqlite3/common.dart';
@@ -344,13 +343,12 @@ final class _LeasedContext extends UnscopedContext {
   Future<T> _runOnWorker<T>(
       FutureOr<T> Function(PoolConnection db) compute) async {
     final (result, autocommit) = await inner.unsafeAccess((connection) async {
-      final ptr = connection.unsafePointer.address;
       final checkInTransaction = verifyInTransaction;
 
       final T result;
       if (worker case final worker?) {
-        result =
-            await worker.run(_wrapDbClosure(ptr, checkInTransaction, compute));
+        result = await worker.run(_wrapDbClosure(
+            inner.shareableConnection, checkInTransaction, compute));
       } else {
         if (checkInTransaction) _checkInTransaction(connection.database);
         result = await compute(connection);
@@ -417,17 +415,30 @@ final class _LeasedContext extends UnscopedContext {
 
   // Static helper methods to create closures we can send across isolates.
 
-  static T Function() _wrapDbClosure<T>(
-      int ptr, bool checkInTransaction, T Function(PoolConnection) inner) {
-    return () {
-      // This pointer is safe: _wrapDbClosure is only called from within an
-      // unsafeAccess block (so there's no concurrency). This call is also
-      // awaited in the outer isolate, so the reference to the PoolConnection
-      // stays alive until we've returned here.
-      final conn = PoolConnection.unsafeFromPointer(Pointer.fromAddress(ptr));
-      if (checkInTransaction) _checkInTransaction(conn.database);
+  static Future<T> Function() _wrapDbClosure<T>(
+    ShareableAsyncConnection connection,
+    bool checkInTransaction,
+    FutureOr<T> Function(PoolConnection) inner,
+  ) {
+    return () async {
+      final restoredConnection = connection.obtainConnection();
+      if (restoredConnection == null) {
+        // This can happen in rare cases if the parent isolate exits after
+        // sending the request to this child isolate.
+        throw StateError('Parent isolate closed');
+      }
 
-      return inner(conn);
+      // This is safe: _wrapDbClosure is only called from within an unsafeAccess
+      // block (so there's no concurrency). This call is also awaited in the
+      // outer isolate, so it doesn't use the connection in the meantime.
+      try {
+        final conn = restoredConnection.unsafeRawConnection;
+        if (checkInTransaction) _checkInTransaction(conn.database);
+
+        return await inner(conn);
+      } finally {
+        restoredConnection.returnLease();
+      }
     };
   }
 
