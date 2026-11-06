@@ -1,3 +1,8 @@
+## 0.14.8
+
+- Add `SqliteOptions.useBackgroundIsolates`, which can be disabled to avoid the
+  use of background isolates for native databases.
+
 ## 0.14.7
 
 - Native: Avoid a database lock in `close()`.

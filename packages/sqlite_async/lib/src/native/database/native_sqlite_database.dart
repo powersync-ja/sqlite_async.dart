@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 import 'dart:developer';
-import 'dart:ffi';
 
 import 'package:meta/meta.dart';
 import 'package:sqlite3/common.dart';
@@ -52,7 +51,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   @protected
   Future<void> get isInitialized => _pool;
 
-  final Queue<IsolateWorker> _workers;
+  final _Executors _executors;
 
   final StreamController<UpdateNotification> _updates =
       StreamController.broadcast(sync: true);
@@ -61,10 +60,9 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   Stream<UpdateNotification> get updates => _updates.stream;
 
   NativeSqliteDatabaseImpl(this.openFactory)
-      :
-        // When the pool is fully used, we'd have all concurrent readers and a
-        // writer operating on the database. Prepare a queue with that capacity.
-        _workers = ListQueue(openFactory.sqliteOptions.maxReaders + 1);
+      : _executors = openFactory.sqliteOptions.useBackgroundIsolates
+            ? _IsolateExecutors(openFactory.sqliteOptions.maxReaders)
+            : const _SynchronousExecutors();
 
   @override
   bool get closed {
@@ -94,7 +92,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
           (_operationsDrained ??= Completer<void>()).future,
       ].wait;
       // Active operations return their workers before shutdown closes them.
-      await _workers.map((e) => e.close()).wait;
+      await _executors.close();
     });
   }
 
@@ -139,7 +137,7 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
 
       try {
         final context = _LeasedContext(
-            inner: connection, pool: this, worker: await _takeIsolateWorker());
+            inner: connection, executor: await _executors.take());
         try {
           return await callback(context);
         } finally {
@@ -176,15 +174,13 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
       try {
         final writeExecutor = _LeasedContext(
           inner: exclusiveAccess.writer,
-          pool: this,
-          worker: await _takeIsolateWorker(),
+          executor: await _executors.take(),
         );
         final readExecutors = [
           for (final reader in exclusiveAccess.readers)
             _LeasedContext(
               inner: reader,
-              pool: this,
-              worker: await _takeIsolateWorker(),
+              executor: await _executors.take(),
             )
         ];
         final writer = ScopedWriteContext(writeExecutor);
@@ -221,18 +217,6 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
     });
   }
 
-  Future<IsolateWorker> _takeIsolateWorker() async {
-    if (_workers.isEmpty) {
-      return await IsolateWorker.spawn();
-    } else {
-      return _workers.removeFirst();
-    }
-  }
-
-  void _returnIsolateWorker(IsolateWorker worker) {
-    _workers.addLast(worker);
-  }
-
   void _checkNotLocked(String? debugContext) {
     if (Zone.current[_lockGuard] != null) {
       var message =
@@ -266,37 +250,122 @@ final class NativeSqliteDatabaseImpl extends SqliteDatabaseImpl {
   ) async {
     await openFactory.beforeOpen();
 
-    // We want to open pools asynchronously since running pragma statements as
-    // part of openFactory.open might do IO. openAsync spawn a temporary isolate
-    // for that.
     final maxReaders = openFactory.sqliteOptions.maxReaders;
-    return SqliteConnectionPool.openAsync(
-      name: openFactory.path,
-      openConnections: () {
-        Database openConnection({required bool isWriter}) {
-          return openFactory.openNativeConnection(
-            SqliteOpenOptions(primaryConnection: isWriter, readOnly: !isWriter),
-          );
-        }
 
-        return PoolConnections(
-          openConnection(isWriter: true),
-          [
-            for (var i = 0; i < maxReaders; i++) openConnection(isWriter: false)
-          ],
-          preparedStatementCacheSize:
-              openFactory.sqliteOptions.preparedStatementCacheSize,
-        );
-      },
+    PoolConnections openConnections() =>
+        _openPoolConnections(openFactory, maxReaders);
+
+    if (openFactory.sqliteOptions.useBackgroundIsolates) {
+      // We want to open pools asynchronously since running pragma statements as
+      // part of openFactory.open might do IO. openAsync spawn a temporary
+      // isolate for that.
+      return await SqliteConnectionPool.openAsync(
+          name: openFactory.path, openConnections: openConnections);
+    } else {
+      return SqliteConnectionPool.open(
+          name: openFactory.path, openConnections: openConnections);
+    }
+  }
+
+  static PoolConnections _openPoolConnections(
+      NativeSqliteOpenFactory openFactory, int maxReaders) {
+    Database openConnection({required bool isWriter}) {
+      return openFactory.openNativeConnection(
+        SqliteOpenOptions(primaryConnection: isWriter, readOnly: !isWriter),
+      );
+    }
+
+    return PoolConnections(
+      openConnection(isWriter: true),
+      [for (var i = 0; i < maxReaders; i++) openConnection(isWriter: false)],
+      preparedStatementCacheSize:
+          openFactory.sqliteOptions.preparedStatementCacheSize,
     );
   }
 }
 
+/// Hands out [_Executor]s used to run statements on leased connections.
+sealed class _Executors {
+  const _Executors();
+
+  FutureOr<_Executor> take();
+
+  Future<void> close();
+}
+
+abstract interface class _Executor {
+  /// Runs [compute] on [connection], which must be obtained from an
+  /// [AsyncConnection.unsafeAccess] call on [inner].
+  Future<T> run<T>(AsyncConnection inner, PoolConnection connection,
+      FutureOr<T> Function(PoolConnection) compute);
+
+  /// Makes this executor available to other connections again.
+  void release();
+}
+
+final class _SynchronousExecutors extends _Executors implements _Executor {
+  const _SynchronousExecutors();
+
+  @override
+  _Executor take() => this;
+
+  @override
+  Future<void> close() async {}
+
+  @override
+  Future<T> run<T>(AsyncConnection inner, PoolConnection connection,
+      FutureOr<T> Function(PoolConnection) compute) async {
+    return await compute(connection);
+  }
+
+  @override
+  void release() {}
+}
+
+/// Runs statements on a pool of long-lived background isolates.
+final class _IsolateExecutors extends _Executors {
+  final Queue<IsolateWorker> _workers;
+
+  _IsolateExecutors(int maxReaders)
+      // When the pool is fully used, we'd have all concurrent readers and a
+      // writer operating on the database. Prepare a queue with that capacity.
+      : _workers = ListQueue(maxReaders + 1);
+
+  @override
+  FutureOr<_Executor> take() {
+    if (_workers.isEmpty) {
+      return IsolateWorker.spawn().then((w) => _IsolateExecutor(this, w));
+    } else {
+      return _IsolateExecutor(this, _workers.removeFirst());
+    }
+  }
+
+  @override
+  Future<void> close() async {
+    await _workers.map((e) => e.close()).wait;
+  }
+}
+
+final class _IsolateExecutor implements _Executor {
+  final _IsolateExecutors _owner;
+  final IsolateWorker _worker;
+
+  _IsolateExecutor(this._owner, this._worker);
+
+  @override
+  Future<T> run<T>(AsyncConnection inner, PoolConnection connection,
+      FutureOr<T> Function(PoolConnection) compute) {
+    return _worker.run(inner.shareableConnection, compute);
+  }
+
+  @override
+  void release() => _owner._workers.addLast(_worker);
+}
+
 final class _LeasedContext extends UnscopedContext {
   final AsyncConnection inner;
-  final NativeSqliteDatabaseImpl pool;
   final TimelineTask? task;
-  final IsolateWorker worker;
+  final _Executor executor;
 
   /// Whether to throw an exception if we're about to execute a statement if
   /// the connection is in autocommit mode.
@@ -307,8 +376,7 @@ final class _LeasedContext extends UnscopedContext {
 
   _LeasedContext({
     required this.inner,
-    required this.pool,
-    required this.worker,
+    required this.executor,
     this.task,
     this.verifyInTransaction = false,
   });
@@ -317,8 +385,7 @@ final class _LeasedContext extends UnscopedContext {
   UnscopedContext interceptOutermostTransaction() {
     return _LeasedContext(
       inner: inner,
-      pool: pool,
-      worker: worker,
+      executor: executor,
       task: task,
       verifyInTransaction: true,
     );
@@ -326,17 +393,15 @@ final class _LeasedContext extends UnscopedContext {
 
   void close() {
     closed = true;
-    pool._returnIsolateWorker(worker);
+    executor.release();
   }
 
   Future<T> _runOnWorker<T>(
       FutureOr<T> Function(PoolConnection db) compute) async {
     final (result, autocommit) = await inner.unsafeAccess((connection) async {
-      final ptr = connection.unsafePointer.address;
-      final checkInTransaction = verifyInTransaction;
+      final result = await executor.run(inner, connection,
+          verifyInTransaction ? _checkingInTransaction(compute) : compute);
 
-      final result =
-          await worker.run(_wrapDbClosure(ptr, checkInTransaction, compute));
       return (result, connection.database.autocommit);
     });
 
@@ -398,16 +463,10 @@ final class _LeasedContext extends UnscopedContext {
 
   // Static helper methods to create closures we can send across isolates.
 
-  static T Function() _wrapDbClosure<T>(
-      int ptr, bool checkInTransaction, T Function(PoolConnection) inner) {
-    return () {
-      // This pointer is safe: _wrapDbClosure is only called from within an
-      // unsafeAccess block (so there's no concurrency). This call is also
-      // awaited in the outer isolate, so the reference to the PoolConnection
-      // stays alive until we've returned here.
-      final conn = PoolConnection.unsafeFromPointer(Pointer.fromAddress(ptr));
-      if (checkInTransaction) _checkInTransaction(conn.database);
-
+  static FutureOr<T> Function(PoolConnection) _checkingInTransaction<T>(
+      FutureOr<T> Function(PoolConnection) inner) {
+    return (conn) {
+      _checkInTransaction(conn.database);
       return inner(conn);
     };
   }

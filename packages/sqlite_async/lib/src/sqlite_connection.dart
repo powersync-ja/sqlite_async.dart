@@ -1,5 +1,6 @@
 /// @docImport 'common/sqlite_database.dart';
 /// @docImport 'common/timeouts.dart';
+/// @docImport 'sqlite_options.dart';
 library;
 
 import 'dart:async';
@@ -67,6 +68,16 @@ abstract interface class SqliteReadContext {
   ///   });
   /// }
   /// ```
+  ///
+  /// This is not supported on the web, where synchronous access to the database
+  /// is only available in workers.
+  ///
+  /// On native platforms, [compute] runs in a background isolate if
+  /// [SqliteOptions.useBackgroundIsolates] is enabled (the default). Uncaught
+  /// errors from background isolates are reported if they occur before the
+  /// future completes.
+  /// If [SqliteOptions.useBackgroundIsolates] is disabled, the function runs on
+  /// the calling isolate instead. No error zone is set up in that case.
   Future<T> computeWithDatabase<T>(
       Future<T> Function(sqlite.CommonDatabase db) compute);
 }
